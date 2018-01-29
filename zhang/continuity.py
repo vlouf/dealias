@@ -117,7 +117,7 @@ def take_decision(vel0, vel1):
         return 2
 
 
-@jit(nopython=True)
+@jit
 def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
     maxgate = len(r)
     for nazi in myquadrant[3:]:
@@ -181,7 +181,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit
 def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
     maxgate = len(r)
     for nazi in myquadrant:

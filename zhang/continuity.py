@@ -167,6 +167,8 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                         npos -= len(azi)
 
                     vel2 = vel[npos, ngate]
+                    if np.isnan(vel2):
+                        continue
                     if is_good_velocity(mean_vel_ref, vel2, alpha=0.4):
                         final_vel[nazi, ngate] = (mean_vel_ref + vel2) / 2
                         flag_vel[nazi, ngate] = 1
@@ -227,6 +229,8 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                         npos += len(azi)
 
                     vel2 = vel[npos, ngate]
+                    if np.isnan(vel2):
+                        continue
                     if is_good_velocity(mean_vel_ref, vel2, alpha=0.4):
                         final_vel[nazi, ngate] = (mean_vel_ref + vel2) / 2
                         flag_vel[nazi, ngate] = 1

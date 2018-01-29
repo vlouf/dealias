@@ -107,9 +107,9 @@ def find_ref_vel(azi, nazi, ngate, final_vel, flag_vel):
 
 @jit(nopython=True)
 def take_decision(vel0, vel1):
-    if np.ma.is_masked(vel1) or np.isnan(vel1):
+    if np.isnan(vel1):
         return -3
-    elif np.ma.is_masked(vel0) or np.isnan(vel0):
+    elif np.isnan(vel0):
         return 0
     elif is_good_velocity(vel0, vel1):
         return 1

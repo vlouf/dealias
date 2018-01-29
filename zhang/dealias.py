@@ -27,6 +27,7 @@ def dealias_process(radar):
     azi = radar.azimuth['data'][sl].copy()
     velocity = radar.fields['VEL']['data'].copy()
 
+    # vel is the masked array and nvel is the filled array.
     vel = np.ma.masked_where(gf.gate_excluded, velocity)[sl]
     nvel = vel.filled(np.NaN)
 
@@ -37,5 +38,6 @@ def dealias_process(radar):
     azi_start_pos, azi_end_pos = find_reference.find_reference_radials(azi, vel)
     quad = find_reference.get_quadrant(azi, azi_start_pos, azi_end_pos)
 
+    # Initialise unfolding and unfold the reference radials.
     final_vel, flag_vel = initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel)
-    plot_radar(final_vel, flag_vel)
+    # plot_radar(final_vel, flag_vel)

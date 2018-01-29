@@ -72,7 +72,7 @@ def _check_initialisation(final_vel, flag_vel, vnyq):
     return flag_vel
 
 
-def _unfold_reference_radials(vel, final_vel, flag_vel, azi_ref_pos, vnyq=13.3):
+def _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_ref_pos, vnyq=13.3):
     """
     Unfold the reference radials.
 
@@ -150,8 +150,8 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     flag_vel[vel.mask] = -3
 
     #  Initial 3 radials.
-    final_vel, flag_vel = _unfold_reference_radials(vel, final_vel, flag_vel, azi_start_pos)
-    final_vel, flag_vel = _unfold_reference_radials(vel, final_vel, flag_vel, azi_end_pos)
+    final_vel, flag_vel = _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_start_pos)
+    final_vel, flag_vel = _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_end_pos)
 
     # Compute the normalised integrated velocity along each radials.
     n = np.sum(np.abs(vel), axis=1) / np.max(np.abs(vel), axis=1)

@@ -24,36 +24,48 @@ def is_good_velocity(vel1, vel2, vnyq=13.3, alpha=0.8):
 
 
 @jit(nopython=True)
-def get_azi_end_pos(azi, azi_start_pos, nb=180):
-    end_azi = azi[azi_start_pos] + nb
-    if end_azi >= len(azi):
-        end_azi -= len(azi)
-    if end_azi < 0:
-        end_azi += len(azi)
-    pos = np.argmin(np.abs(azi - end_azi))
-    return pos
-
-
-@jit(nopython=True)
 def get_iter_pos(azi, st, nb=180):
+    """
+    jit-friendly function.
+    """
     if st < 0:
         st += len(azi)
     if st >= len(azi):
         st -= len(azi)
-    ed = get_azi_end_pos(azi, st, nb)
-    posazi = np.arange(0, len(azi))
-    if nb > 0:
-        if ed < st:
-            mypos = np.append(posazi[st:], posazi[:ed])
-        else:
-            mypos = posazi[st:ed]
-    else:
-        if ed > st:
-            mypos = np.append(posazi[st::-1], posazi[-1:ed:-1])
-        else:
-            mypos = posazi[st:ed:-1]
 
-    return mypos
+    ed = st + nb
+    if ed >= len(azi):
+        ed -= len(azi)
+    if ed < 0:
+        ed += len(azi)
+
+    posazi = np.arange(0, len(azi))
+    mypos = np.empty_like(posazi)
+
+    if nb > 0:
+        if st < ed:
+            end = ed - st
+            mypos[:end] = posazi[st:ed]
+        else:
+            mid = (len(azi) - st)
+            end = (len(azi) - st + ed)
+            mypos[:mid] = posazi[st:]
+            mypos[mid:end] = posazi[:ed]
+    else:  # Goin backward.
+        if st < ed:
+            mid = st + 1
+            end = st + len(azi) - ed
+            mypos[:mid] = posazi[st::-1]
+            mypos[mid:end] = posazi[-1:ed:-1]
+        else:
+            end = np.abs(st - ed)
+            mypos[:end] = posazi[st:ed:-1]
+
+    out = np.zeros((end, ), dtype=mypos.dtype)
+    for n in range(end):
+        out[n] = mypos[n]
+
+    return out
 
 
 @jit(nopython=True)

@@ -155,7 +155,7 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
 
     # Compute the normalised integrated velocity along each radials.
     n = np.sum(np.abs(vel), axis=1) / np.max(np.abs(vel), axis=1)
-    d = np.sum(~np.isnan(nvel), axis=1)
+    d = np.sum(~vel.mask, axis=1)
     yall = n / d
     # Magic happens.
     for a in np.where(yall < 0.4)[0]:

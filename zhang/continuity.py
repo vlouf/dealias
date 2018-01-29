@@ -93,17 +93,16 @@ def find_ref_vel(azi, nazi, ngate, final_vel, flag_vel):
         Velocity of reference for comparison.
     """
     # Checking for good vel
-
     velref_ngate = final_vel[get_iter_pos(azi, nazi - 5, 10), ngate]
     flagref_ngate = flag_vel[get_iter_pos(azi, nazi - 5, 10), ngate]
-    if np.sum((flagref_ngate == 1) | (flagref_ngate == 2)) < 1:
+    if np.sum((flagref_ngate == 1)) < 1:
         if ngate > 5:
             velref_ngate = final_vel[nazi, (ngate - 5):(ngate + 5)]
             flagref_ngate = flag_vel[nazi, (ngate - 5):(ngate + 5)]
             if np.sum((flagref_ngate == 1) | (flagref_ngate == 2)) < 1:
                 return None
-
-    mean_vel_ref = np.mean(velref_ngate[(flagref_ngate == 1)])
+    else:
+        mean_vel_ref = np.mean(velref_ngate[(flagref_ngate == 1)])
 
     return mean_vel_ref
 

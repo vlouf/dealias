@@ -15,7 +15,10 @@ def unfold(v1, v2, vnyq=13.3, half_nyq=False):
     else:
         voff = v1 - (n * vnyq - np.abs(v1 - v2))
 
-    return voff
+    pos = np.argmin(np.abs(voff - v1))
+    vtrue = voff[pos]
+
+    return vtrue
 
 
 @jit(nopython=True)
@@ -154,9 +157,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vunf = unfold(mean_vel_ref, vel1)
-                pos = np.argmin(np.abs(vunf - mean_vel_ref))
-                vtrue = vunf[pos]
+                vtrue = unfold(mean_vel_ref, vel1)
                 if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -171,9 +172,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                         flag_vel[nazi, ngate] = 1
                     else:
                         # Half folding.
-                        vunf = unfold(mean_vel_ref, vel1, half_nyq=True)
-                        pos = np.argmin(np.abs(vunf - mean_vel_ref))
-                        vtrue = vunf[pos]
+                        vtrue = unfold(mean_vel_ref, vel1, half_nyq=True)
                         if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
                             final_vel[nazi, ngate] = vtrue
                             flag_vel[nazi, ngate] = 2
@@ -218,9 +217,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vunf = unfold(mean_vel_ref, vel1)
-                pos = np.argmin(np.abs(vunf - mean_vel_ref))
-                vtrue = vunf[pos]
+                vtrue = unfold(mean_vel_ref, vel1)
                 if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -235,9 +232,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                         flag_vel[nazi, ngate] = 1
                     else:
                         # Half folding.
-                        vunf = unfold(mean_vel_ref, vel1, half_nyq=True)
-                        pos = np.argmin(np.abs(vunf - mean_vel_ref))
-                        vtrue = vunf[pos]
+                        vtrue = unfold(mean_vel_ref, vel1, half_nyq=True)
                         if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
                             final_vel[nazi, ngate] = vtrue
                             flag_vel[nazi, ngate] = 2

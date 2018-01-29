@@ -1,7 +1,7 @@
 # Other Libraries
 import numpy as np
 
-from numba import jit
+from numba import jit, int64, float64
 
 
 @jit(nopython=True)
@@ -105,7 +105,7 @@ def find_ref_vel(azi, nazi, ngate, final_vel, flag_vel):
     return mean_vel_ref
 
 
-@jit(nopython=True)
+@jit(int64(float64, float64), nopython=True)
 def take_decision(vel0, vel1):
     if np.isnan(vel1):
         return -3

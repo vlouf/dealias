@@ -108,12 +108,29 @@ def find_ref_vel(azi, nazi, ngate, final_vel, flag_vel):
 
 
 @jit(int64(float64, float64), nopython=True)
-def take_decision(vel0, vel1):
-    if np.isnan(vel1):
+def take_decision(velocity_reference, velocity_to_check):
+    """
+    Make a decision after comparing two velocities.
+
+    Parameters:
+    ===========
+    velocity_to_check: float
+        what we want to check
+    velocity_reference: float
+        reference
+
+    Returns:
+    ========
+    -3: missing data (velocity we want to check does not exist)
+    0: missing data (velocity used as reference does not exist)
+    1: velocity is perfectly fine.
+    2: velocity is folded.
+    """
+    if np.isnan(velocity_to_check):
         return -3
-    elif np.isnan(vel0):
+    elif np.isnan(velocity_reference):
         return 0
-    elif is_good_velocity(vel0, vel1):
+    elif is_good_velocity(velocity_reference, velocity_to_check):
         return 1
     else:
         return 2
@@ -241,3 +258,74 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                             flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
+
+
+@jit(nopython=True)
+def box_check(azi, nvel, final_vel, flag_vel):
+    """
+    Module 4: errors are identified by comparing each velocity with the
+    average velocity of all the valid gates in the previous 10 radials
+    and the 20 closest gates in each radial (He et al., 2012a).
+
+    Parameters:
+    ===========
+    azi: ndarray
+        Azimuth
+    nvel: ndarray <azimuth, range>
+        Original velocity slice (filled with NaN)
+    final_vel: ndarray <azimuth, range>
+        Unfolded velocity array.
+    flag_vel: ndarray <azimuth, range>
+        Array containing
+    """
+    box_check = np.zeros_like(flag_vel)
+    two_vel = np.zeros_like(final_vel)
+
+    for nazi in range(nvel.shape[0]):
+        for ngate in range(20, nvel.shape[1]):
+            npos = get_iter_pos(azi, nazi, -10)
+
+            if flag_vel[nazi, ngate] == -3:
+                box_check[nazi, ngate] = -3
+                continue
+            elif flag_vel[nazi, ngate] == 0:
+                myvel = nvel[nazi, ngate]
+            else:
+                myvel = final_vel[nazi, ngate]
+
+            orig_vel = nvel[npos, ngate - 20:ngate]
+            comp_vel = final_vel[npos, ngate - 20:ngate]
+            ref_flag = flag_vel[npos, ngate - 20:ngate]
+
+            # JIT-friendly slicing ;-)
+            for i in range(comp_vel.shape[0]):
+                for j in range(comp_vel.shape[1]):
+                    n = ref_flag[i, j]
+                    if n == 0:
+                        comp_vel[i, j] = orig_vel[i, j]
+                    elif n == -3:
+                        comp_vel[i, j] = np.NaN
+
+            if np.sum(~np.isnan(comp_vel)) == 0:
+                box_check[nazi, ngate] = 9999
+                continue
+
+            ref_vel = np.nanmean(comp_vel)
+            decision = take_decision(ref_vel, myvel)
+
+            if decision == -3:
+                # No data
+                box_check[nazi, ngate] = -3
+            elif decision == 1:
+                # Data is good
+                box_check[nazi, ngate] = 1
+                two_vel[nazi, ngate] = myvel
+            elif decision == 2:
+                # Data is folded or bad
+                box_check[nazi, ngate] = 2
+                two_vel[nazi, ngate] = ref_vel
+            else:
+                # Don't know.
+                box_check[nazi, ngate] = 9999
+
+    return box_check, two_vel

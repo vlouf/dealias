@@ -166,8 +166,10 @@ def find_reference_radials(azi, vel):
         rslt = [(a, total_weight[a==pos_valid][0]) for a in goodpos if a in pos_valid]
         opposite_pos, opposite_weight = zip(*rslt)
         pos2 = opposite_pos[np.argmin(opposite_weight)]
-    except IndexError:
-        pos2 = np.where(azi == get_opposite_azimuth(azi[pos1], 0)[0])
+    except Exception:
+        pos2 = pos1 + len(azi) // 2
+        if pos2 > len(azi):
+            pos2 -= len(azi)
 
     print(f"References are azimuths {azi[pos1]} and {azi[pos2]}, i.e. azimuthal positions {pos1} and {pos2}.")
 

@@ -176,7 +176,7 @@ def find_reference_radials(azi, vel):
     return pos1, pos2
 
 
-def get_quadrant(azi, posang1, posang2):
+def get_quadrant(azi, posang1, posang2, full=False):
     """
     Compute the 4 part of the quadrant based on the 2 reference radials
     Quadrant 1 : reference radial 1 -> clockwise
@@ -211,10 +211,16 @@ def get_quadrant(azi, posang1, posang2):
             mid2 += maxazipos
 
         quad = [None] * 4
-        quad[0] = get_sl(ang1, mid1, 1)
-        quad[1] = get_sl(ang1, mid2, -1)
-        quad[2] = get_sl(ang2, mid2, 1)
-        quad[3] = get_sl(ang2, mid1, -1)
+        if not full:
+            quad[0] = get_sl(ang1, mid1, 1)
+            quad[1] = get_sl(ang1, mid2, -1)
+            quad[2] = get_sl(ang2, mid2, 1)
+            quad[3] = get_sl(ang2, mid1, -1)
+        else:
+            quad[0] = get_sl(ang1, ang2, 1)
+            quad[1] = get_sl(ang1, ang2, -1)
+            quad[2] = get_sl(ang2, ang1, 1)
+            quad[3] = get_sl(ang2, ang1, -1)
 
     else:
         dist1 = ang2 - ang1
@@ -228,9 +234,15 @@ def get_quadrant(azi, posang1, posang2):
             mid2 += maxazipos
 
         quad = [None] * 4
-        quad[0] = get_sl(ang1, mid1, 1)
-        quad[1] = get_sl(ang1, mid2, -1)
-        quad[2] = get_sl(ang2, mid2, 1)
-        quad[3] = get_sl(ang2, mid1, -1)
+        if not full:
+            quad[0] = get_sl(ang1, mid1, 1)
+            quad[1] = get_sl(ang1, mid2, -1)
+            quad[2] = get_sl(ang2, mid2, 1)
+            quad[3] = get_sl(ang2, mid1, -1)
+        else:
+            quad[0] = get_sl(ang1, ang2, 1)
+            quad[1] = get_sl(ang1, ang2, -1)
+            quad[2] = get_sl(ang2, ang1, 1)
+            quad[3] = get_sl(ang2, ang1, -1)
 
     return quad

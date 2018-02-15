@@ -552,7 +552,7 @@ def box_check(azi, final_vel, flag_vel):
     """
     window_range = 20
     window_azimuth = 10
-    maxazi, maxrange = vel.shape
+    maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in np.arange(maxrange-1, -1, -1):
             if flag_vel[nazi, ngate] <= 0:

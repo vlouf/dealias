@@ -112,7 +112,7 @@ def get_valid_rays(vel):
     return extpos
 
 
-def find_reference_radials(azi, vel):
+def find_reference_radials(azi, vel, debug=False):
     """
     A reference radial is one that exhibits little or no aliasing. The most
     likely position for this to occur is where the wind direction is almost
@@ -139,8 +139,8 @@ def find_reference_radials(azi, vel):
     pos_valid = get_valid_rays(vel)
     pos_static = get_static_rays(vel)
 
-    ### Finding intersects of criteria 1 to 3.
-    weight_valid = np.arange(0, len(pos_valid) , 1)
+    # Finding intersects of criteria 1 to 3.
+    weight_valid = np.arange(0, len(pos_valid), 1)
     weight_static = np.arange(0, len(pos_static), 1)
 
     total_weight = np.zeros(len(pos_valid)) + np.NaN
@@ -152,26 +152,29 @@ def find_reference_radials(azi, vel):
 
         total_weight[cnt] = one_static_weight + one_valid_weight
 
-
     pos1 = pos_valid[np.argmin(total_weight)]
 
     # Finding the 2nd radial of reference
-    try:
-        ref2_range_min, ref2_range_max = get_opposite_azimuth(azi[pos1])
-        if ref2_range_min < ref2_range_max:
-            goodpos = np.where((azi >= ref2_range_min) & (azi <= ref2_range_max))[0]
-        else:
-            goodpos = np.where((azi >= ref2_range_min) | (azi <= ref2_range_max))[0]
+    pos2 = pos1 + len(azi) // 2
+    if pos2 > len(azi):
+        pos2 -= len(azi)
+        
+#     try:
+#         ref2_range_min, ref2_range_max = get_opposite_azimuth(azi[pos1])
+#         if ref2_range_min < ref2_range_max:
+#             goodpos = np.where((azi >= ref2_range_min) & (azi <= ref2_range_max))[0]
+#         else:
+#             goodpos = np.where((azi >= ref2_range_min) | (azi <= ref2_range_max))[0]
 
-        rslt = [(a, total_weight[a==pos_valid][0]) for a in goodpos if a in pos_valid]
-        opposite_pos, opposite_weight = zip(*rslt)
-        pos2 = opposite_pos[np.argmin(opposite_weight)]
-    except Exception:
-        pos2 = pos1 + len(azi) // 2
-        if pos2 > len(azi):
-            pos2 -= len(azi)
-
-    print(f"References are azimuths {azi[pos1]} and {azi[pos2]}, i.e. azimuthal positions {pos1} and {pos2}.")
+#         rslt = [(a, total_weight[a == pos_valid][0]) for a in goodpos if a in pos_valid]
+#         opposite_pos, opposite_weight = zip(*rslt)
+#         pos2 = opposite_pos[np.argmin(opposite_weight)]
+#     except Exception:
+#         pos2 = pos1 + len(azi) // 2
+#         if pos2 > len(azi):
+#             pos2 -= len(azi)
+    if debug:
+        print(f"References are azimuths {azi[pos1]} and {azi[pos2]}, i.e. azimuthal positions {pos1} and {pos2}.")
 
     return pos1, pos2
 
@@ -197,7 +200,7 @@ def get_quadrant(azi, posang1, posang2, full=False):
             if a > b:
                 return list(range(a, b - 1, -1))
             else:
-                return [*range(a, -1, -1), *range(maxazipos -1, b - 1, -1)]
+                return [*range(a, -1, -1), *range(maxazipos - 1, b - 1, -1)]
 
     if ang1 > ang2:
         dist1 = ang1 - ang2

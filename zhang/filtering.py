@@ -18,7 +18,7 @@ import pyart
 import numpy as np
 
 
-def velocity_texture(radar, vel_name='VEL'):
+def velocity_texture(radar, vel_name):
     """
     Compute velocity texture using new Bobby Jackson function in Py-ART.
 
@@ -46,19 +46,23 @@ def velocity_texture(radar, vel_name='VEL'):
     return vel_dict
 
 
-def do_gatefilter(radar, vel_name="VEL", zdr_name="ZDR", dbz_name='DBZ', rho_name='RHOHV'):
+def do_gatefilter(radar, vel_name, dbz_name, zdr_name=None, rho_name=None):
     """
     Generate a GateFilter that remove all bad data.
     """
 
-    tvel = velocity_texture(radar)
+    tvel = velocity_texture(radar, vel_name)
     radar.add_field("TVEL", tvel)
 
     gf = pyart.filters.GateFilter(radar)
-    gf.exclude_outside("ZDR", -3.0, 7.0)
-    gf.exclude_outside("DBZ", -40.0, 80.0)
+    if zdr_name is not None:
+        gf.exclude_outside(zdr_name, -3.0, 7.0)
+
+    gf.exclude_outside(dbz_name, -40.0, 80.0)
     gf.exclude_above("TVEL", 4)
-    gf.include_above("RHOHV", 0.8)
+
+    if rho_name is not None:
+        gf.include_above(rho_name, 0.8)
 
     gf_desp = pyart.correct.despeckle_field(radar, "DBZ", gatefilter=gf)
 

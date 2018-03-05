@@ -2,6 +2,7 @@
 import numpy as np
 
 from numba import jit, int64, float64
+from scipy.stats import linregress
 
 
 @jit(nopython=True)
@@ -22,7 +23,7 @@ def unfold(v1, v2, vnyq=13.3, half_nyq=False):
 
 
 @jit(nopython=True)
-def is_good_velocity(vel1, vel2, vnyq=13.3, alpha=0.8):
+def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
     return np.abs(vel2 - vel1) < alpha * vnyq
 
 
@@ -122,8 +123,8 @@ def find_ref_vel(azi, nazi, ngate, final_vel, flag_vel):
     return mean_vel_ref
 
 
-@jit(int64(float64, float64), nopython=True)
-def take_decision(velocity_reference, velocity_to_check):
+@jit(int64(float64, float64, float64), nopython=True)
+def take_decision(velocity_reference, velocity_to_check, vnyq):
     """
     Make a decision after comparing two velocities.
 
@@ -145,14 +146,14 @@ def take_decision(velocity_reference, velocity_to_check):
         return -3
     elif np.isnan(velocity_reference):
         return 0
-    elif is_good_velocity(velocity_reference, velocity_to_check):
+    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq):
         return 1
     else:
         return 2
 
 
-@jit
-def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
+@jit(nopython=True)
+def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     maxgate = len(r)
     for nazi in myquadrant[3:]:
         for ngate in range(0, maxgate):
@@ -178,7 +179,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 # No reference found.
                 continue
 
-            decision = take_decision(mean_vel_ref, vel1)
+            decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -189,15 +190,15 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1)
-                if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-@jit
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
+@jit(nopython=True)
+def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     maxgate = len(r)
     for nazi in myquadrant:
         for ngate in range(0, maxgate):
@@ -223,7 +224,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 # No reference found.
                 continue
 
-            decision = take_decision(mean_vel_ref, vel1)
+            decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -234,16 +235,15 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant):
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1)
-                if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-
 @jit
-def correct_clockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant):
+def correct_clockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     maxgate = len(r)
     for nazi in myquadrant[3:]:
         for ngate in range(0, maxgate):
@@ -269,7 +269,7 @@ def correct_clockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant):
                 # No reference found.
                 continue
 
-            decision = take_decision(mean_vel_ref, vel1)
+            decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -280,7 +280,7 @@ def correct_clockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant):
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1)
-                if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
@@ -288,7 +288,7 @@ def correct_clockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant):
 
 
 @jit
-def correct_counterclockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant):
+def correct_counterclockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     maxgate = len(r)
     for nazi in myquadrant:
         for ngate in range(0, maxgate):
@@ -314,7 +314,7 @@ def correct_counterclockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant)
                 # No reference found.
                 continue
 
-            decision = take_decision(mean_vel_ref, vel1)
+            decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -325,15 +325,15 @@ def correct_counterclockwise_loose(r, azi, vel, final_vel, flag_vel, myquadrant)
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1)
-                if is_good_velocity(mean_vel_ref, vtrue, alpha=0.4):
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-@jit
-def correct_range_onward(vel, final_vel, flag_vel):
+@jit(nopython=True)
+def correct_range_onward(vel, final_vel, flag_vel, vnyq):
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(1, maxrange):
@@ -348,7 +348,7 @@ def correct_range_onward(vel, final_vel, flag_vel):
             if flagvelref <= 0:
                 continue
 
-            decision = take_decision(velref, vel1)
+            decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
                 final_vel[nazi, ngate] = vel1
@@ -356,7 +356,7 @@ def correct_range_onward(vel, final_vel, flag_vel):
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1)
-                if is_good_velocity(velref, vtrue, alpha=0.4):
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
@@ -364,7 +364,7 @@ def correct_range_onward(vel, final_vel, flag_vel):
 
 
 @jit
-def correct_range_onward_loose(azi, vel, final_vel, flag_vel):
+def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     window_len = 10
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
@@ -391,7 +391,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel):
             flagvelref = flag_vel[st_azi, npos - window_len:npos + 1]
             velref = np.nanmedian(velref_vec[flagvelref > 0])
 
-            decision = take_decision(velref, vel1)
+            decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
                 final_vel[nazi, ngate] = vel1
@@ -399,15 +399,15 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel):
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1)
-                if is_good_velocity(velref, vtrue, alpha=0.4):
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-@jit
-def correct_range_backward(vel, final_vel, flag_vel):
+@jit(nopython=True)
+def correct_range_backward(vel, final_vel, flag_vel, vnyq):
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         start_vec = np.where(flag_vel[nazi, :] == 1)[0]
@@ -427,7 +427,7 @@ def correct_range_backward(vel, final_vel, flag_vel):
             if flagvelref <= 0:
                 continue
 
-            decision = take_decision(velref, vel1)
+            decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
                 final_vel[nazi, ngate] = vel1
@@ -435,59 +435,54 @@ def correct_range_backward(vel, final_vel, flag_vel):
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1)
-                if is_good_velocity(velref, vtrue, alpha=0.4):
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-@jit
-def correct_closest_reference(vel, final_vel, flag_vel):
+@jit(nopython=True)
+def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
+    _window_azi = 5
+    _window_gate = 20
     maxazi, maxrange = final_vel.shape
+
     for nazi in range(maxazi):
         for ngate in range(0, maxrange):
             if flag_vel[nazi, ngate] != 0:
+                # Already processed.
                 continue
 
             vel1 = vel[nazi, ngate]
 
-            rangecount = 0
-            azicount = 0
-            l_switch = 0
-            while True:
-                if l_switch == 0:
-                    rangecount += 1
-                    if rangecount % 2 == 0:
-                        npos = int(ngate - rangecount / 2)
-                    else:
-                        npos = int(ngate + rangecount // 2)
-                    if npos <= -maxrange or npos >= maxrange:
-                        break
+            # This whole `while` is JIT-friendly... I'd need only 2 lines in python.
+            window_count = 0
+            while window_count < 20:
+                window_count += 1
+                window_azi = window_count * _window_azi
+                window_gate = window_count * _window_gate
+                iter_azi = get_iter_pos(azimuth, ngate - window_azi // 2, window_azi)
+                iter_range = get_iter_range(ngate - window_gate // 2, window_gate, maxrange)
 
-                    velref = final_vel[nazi, npos]
-                    flagvelref = flag_vel[nazi, npos]
-                    l_switch = 1
-                else:
-                    azicount += 1
-                    if azicount % 2 == 0:
-                        npos = int(nazi - azicount / 2)
-                    else:
-                        npos = int(nazi + azicount // 2)
-                    if npos <= -maxazi or npos >= maxazi:
-                        break
+                vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
+                flag_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=int64)
 
-                    velref = final_vel[npos, ngate]
-                    flagvelref = flag_vel[npos, ngate]
-                    l_switch = 0
+                pos = 0
+                for na in iter_azi:
+                    for nr in iter_range:
+                        if na == nazi and nr == ngate:
+                            pos += 1
+                            continue
 
-                if flagvelref > 0:
+                        vel_ref_vec[pos] = final_vel[nazi, ngate]
+                        flag_ref_vec[pos] = flag_vel[nazi, ngate]
+
+                if np.sum(flag_ref_vec >= 1) > 2:
                     break
 
-            if flagvelref <= 0:
-                continue
-
-            decision = take_decision(velref, vel1)
+            velref = np.nanmean(vel_ref_vec[flag_ref_vec >= 1])
+            decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
                 final_vel[nazi, ngate] = vel1
@@ -495,46 +490,55 @@ def correct_closest_reference(vel, final_vel, flag_vel):
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1)
-                if is_good_velocity(velref, vtrue, alpha=0.4):
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
 
-def radial_continuity_roi(vel, final_vel, flag_vel):
+@jit(nopython=True)
+def radial_continuity_roi(azi, vel, final_vel, flag_vel, vnyq):
     maxazi, maxrange = final_vel.shape
-    x = np.arange(maxrange)
-    y = np.arange(maxazi)
-    X, Y = np.meshgrid(x, y)
 
-    window = 30
+    window_azimuth = 10
+    window_range = 30
 
     unproc_azi, unproc_rng = np.where(flag_vel == 0)
     for nazi, ngate in zip(unproc_azi, unproc_rng):
-        roi = np.sqrt((X - ngate) ** 2 + (Y - nazi) ** 2)
-
         vel1 = vel[nazi, ngate]
 
-        cnt = 0
-        decision = 0
-        while (decision <= 0) and (cnt < 5):
-            cnt += 1
-            pos = roi < window * cnt
-            velref = final_vel[pos]
-            flagvelref = flag_vel[pos]
-            mean_vel_ref = np.nanmedian(velref[flagvelref > 0])
-            decision = take_decision(mean_vel_ref, vel1)
+        knt = 0
+        while knt < 5:
+            knt += 1
+            npos_azi = get_iter_pos(azi, nazi - window_azimuth * knt // 2, window_azimuth * knt)
+            npos_range = get_iter_range(ngate, window_range * knt, maxrange)
 
-        if decision <= 0:
-            continue
+            flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+            vel_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+
+            # I know a slice would be better, but this is for jit to work.
+            cnt = -1
+            for na in npos_azi:
+                for nr in npos_range:
+                    cnt += 1
+                    if (na, nr) == (nazi, ngate):
+                        continue
+                    vel_ref_vec[cnt] = final_vel[na, nr]
+                    flag_ref_vec[cnt] = flag_vel[na, nr]
+
+            mean_vel_ref = np.nanmedian(flag_ref_vec[vel_ref_vec > 0])
+            decision = take_decision(mean_vel_ref, vel1, vnyq)
+
+            if decision > 0:
+                break
 
         if decision == 1:
             final_vel[nazi, ngate] = vel1
             flag_vel[nazi, ngate] = 1
         elif decision == 2:
             vtrue = unfold(mean_vel_ref, vel1)
-            if is_good_velocity(mean_vel_ref, vtrue, alpha=0.8):
+            if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.8):
                 final_vel[nazi, ngate] = vtrue
                 flag_vel[nazi, ngate] = 2
             else:
@@ -545,7 +549,7 @@ def radial_continuity_roi(vel, final_vel, flag_vel):
 
 
 @jit(nopython=True)
-def box_check(azi, final_vel, flag_vel):
+def correct_box(azi, vel, final_vel, flag_vel, vnyq):
     """
     jit-friendly... so there are loops!
     Module 4
@@ -554,7 +558,61 @@ def box_check(azi, final_vel, flag_vel):
     window_azimuth = 10
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
-        for ngate in np.arange(maxrange-1, -1, -1):
+        for ngate in np.arange(maxrange - 1, -1, -1):
+            if flag_vel[nazi, ngate] != 0:
+                continue
+
+            myvel = vel[nazi, ngate]
+
+            npos_azi = get_iter_pos(azi, nazi - window_azimuth // 2, window_azimuth)
+            npos_range = get_iter_range(ngate, window_range, maxrange)
+
+            flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+            vel_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+
+            # I know a slice would be better, but this is for jit to work.
+            cnt = -1
+            for na in npos_azi:
+                for nr in npos_range:
+                    cnt += 1
+                    if (na, nr) == (nazi, ngate):
+                        continue
+                    vel_ref_vec[cnt] = final_vel[na, nr]
+                    flag_ref_vec[cnt] = flag_vel[na, nr]
+
+            if np.sum(flag_ref_vec >= 1) == 0:
+                continue
+
+            mean_vel_ref = np.nanmean(vel_ref_vec[flag_ref_vec >= 1])
+
+            decision = take_decision(mean_vel_ref, myvel, vnyq)
+
+            if decision <= 0:
+                continue
+
+            if decision == 1:
+                final_vel[nazi, ngate] = myvel
+                flag_vel[nazi, ngate] = 1
+            elif decision == 2:
+                vtrue = unfold(mean_vel_ref, myvel)
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+                    flag_vel[nazi, ngate] = 2
+
+    return final_vel, flag_vel
+
+
+@jit(nopython=True)
+def box_check(azi, final_vel, flag_vel, vnyq):
+    """
+    jit-friendly... so there are loops!
+    Module 4
+    """
+    window_range = 40
+    window_azimuth = 10
+    maxazi, maxrange = final_vel.shape
+    for nazi in range(maxazi):
+        for ngate in np.arange(maxrange - 1, -1, -1):
             if flag_vel[nazi, ngate] <= 0:
                 continue
 
@@ -578,10 +636,155 @@ def box_check(azi, final_vel, flag_vel):
             if np.sum(flag_ref_vec >= 1) == 0:
                 continue
 
-            myvelref = np.nanmean(vel_ref_vec[flag_ref_vec >= 1])
+            true_vel = vel_ref_vec[flag_ref_vec >= 1]
+            mvel = np.nanmean(true_vel)
+            svel = np.nanstd(true_vel)
+            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
 
-            if not is_good_velocity(myvelref, myvel):
+            if not is_good_velocity(myvelref, myvel, vnyq):
                 final_vel[nazi, ngate] = myvelref
                 flag_vel[nazi, ngate] = 3
 
     return final_vel, flag_vel
+
+
+@jit
+def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
+    """
+    Module 5 from He et al.
+    """
+    tmp_vel = np.zeros_like(flag_vel)
+    maxazi, maxrange = final_vel.shape
+#     window_range = 20
+#     window_azimuth = 10
+    for nazi in range(maxazi):
+        myvel = final_vel[nazi, :]
+        myvel[flag_vel[nazi, :] <= 0] = np.NaN
+
+        if len(myvel[~np.isnan(myvel)]) < 2:
+            continue
+
+        slope, intercept, _, _, _ = linregress(r[~np.isnan(myvel)], myvel[~np.isnan(myvel)])
+
+        fmin = intercept + slope * r - 0.4 * vnyq
+        fmax = intercept + slope * r + 0.4 * vnyq
+        vaffine = intercept + slope * r
+
+        for ngate in range(maxrange):
+            if flag_vel[nazi, ngate] <= 0:
+                continue
+
+            myvel = final_vel[nazi, ngate]
+            myr = r[ngate]
+
+            if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
+                continue
+
+            mean_vel_ref = vaffine[ngate]
+            decision = take_decision(mean_vel_ref, myvel, vnyq)
+
+            if decision <= 0:
+                continue
+
+            if decision == 1:
+                final_vel[nazi, ngate] = myvel
+                flag_vel[nazi, ngate] = 1
+            elif decision == 2:
+                myvel = vel[nazi, ngate]
+                vtrue = unfold(mean_vel_ref, myvel)
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+                    flag_vel[nazi, ngate] = 2
+
+    return final_vel, flag_vel
+
+
+@jit
+def least_square_radial_last_module(r, azi, final_vel, vnyq):
+    #     r, azimuth, dealias_vel, nyquist_velocity
+    """
+    Module 7 from He et al.
+    """
+    maxazi, maxrange = final_vel.shape
+
+    for nazi in range(maxazi):
+        vel_radial = final_vel[nazi, :]
+
+        if len(vel_radial[~np.isnan(vel_radial)]) < 10:
+            continue
+
+        slope, intercept, _, _, _ = linregress(r[~np.isnan(vel_radial)], vel_radial[~np.isnan(vel_radial)])
+
+        fmin = intercept + slope * r - 0.4 * vnyq
+        fmax = intercept + slope * r + 0.4 * vnyq
+        vaffine = intercept + slope * r
+
+        for ngate in range(maxrange):
+            myvel = final_vel[nazi, ngate]
+            if np.isnan(myvel):
+                continue
+
+            if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
+                continue
+
+            mean_vel_ref = vaffine[ngate]
+            decision = take_decision(mean_vel_ref, myvel, vnyq)
+
+            if decision <= 0:
+                continue
+
+            if decision == 1:
+                final_vel[nazi, ngate] = myvel
+            elif decision == 2:
+                vtrue = unfold(mean_vel_ref, myvel)
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+
+    return final_vel
+
+
+@jit(nopython=True)
+def unfolding_3D(ground_range_reference, azimuth_reference, ground_range_slice, azimuth_slice,
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq):
+
+    maxazi, maxrange = velocity_slice.shape
+    for nazi in range(maxazi):
+        for ngate in range(maxrange):
+            if flag_slice[nazi, ngate] <= 0:
+                continue
+
+            current_vel = velocity_slice[nazi, ngate]
+
+            rpos_reference = np.argmin(np.abs(ground_range_reference - ground_range_slice[ngate]))
+            apos_reference = np.argmin(np.abs(azimuth_reference - azimuth_slice[nazi]))
+
+            apos_iter = get_iter_pos(azimuth_reference, apos_reference - 5, 10)
+            rpos_iter = get_iter_range(rpos_reference, 10, maxrange)
+
+            velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
+            flag_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
+
+            cnt = -1
+            for na in apos_iter:
+                for nr in rpos_iter:
+                    cnt += 1
+                    velocity_refcomp_array[cnt] = velocity_reference[na, nr]
+                    flag_refcomp_array[cnt] = flag_reference[na, nr]
+
+            if np.sum(flag_refcomp_array >= 1) < 1:
+                # No comparison possible
+                continue
+
+            velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
+            vmean = np.nanmean(velocity_refcomp_array)
+            vstd = np.nanstd(velocity_refcomp_array)
+            pos = (velocity_refcomp_array >= vmean - vstd) & (velocity_refcomp_array <= vmean + vstd)
+            compare_vel = np.nanmedian(velocity_refcomp_array[pos])
+
+            if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=0.4):
+                vtrue = unfold(compare_vel, current_vel)
+                if is_good_velocity(compare_vel, vtrue, vnyq, alpha=0.7):
+                    velocity_slice[nazi, ngate] = vtrue
+                    flag_slice[nazi, ngate] = 3
+
+    return velocity_slice, flag_slice

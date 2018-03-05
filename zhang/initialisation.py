@@ -6,128 +6,18 @@ Module 2: Initialize the unfolding.
 @institutions: Monash University and the Australian Bureau of Meteorology
 @date: 29/01/2018
 
-!!!! CAREFUL: vnyq is worth half the nyquist velocity. !!!!
-
 Call this function: initialize_unfolding
 """
 # Other Libraries
 import numpy as np
 
-from numba import jit
+from numba import jit, int64, float64
 
 # Custom
-from .utils import *
 from .continuity import take_decision, unfold, is_good_velocity
 
 
-def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
-    return np.abs(vel2 - vel1) < alpha * vnyq
-
-
 @jit(nopython=True)
-def _check_initialisation(final_vel, flag_vel, vnyq):
-    """
-    Check if the initial reference radials are properly unfolded and change the
-    flag array value accordingly.
-
-    Parameters:
-    ===========
-    final_vel: array <azimuth, range>
-        Unfolded velocities.
-    flag_vel: array <azimuth, range>
-        Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
-    vnyq: float
-        Half-nyquist velocity.
-
-    Returns:
-    ========
-    flag_vel: array <azimuth, range>
-        Updated flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
-    """
-    # Repeating the function so that @jit works.
-    def is_good_velocity(vel1, vel2, vnyq, alpha=0.4):
-        return np.abs(vel2 - vel1) < alpha * vnyq
-
-    for nazi in range(0, final_vel.shape[0]):
-        for ngate in range(1, final_vel.shape[1]):
-            if flag_vel[nazi, ngate] < 0:
-                continue
-
-            vel1 = final_vel[nazi, ngate]
-
-            npos = ngate - 1
-            vel0 = final_vel[nazi, npos]
-            flag0 = flag_vel[nazi, npos]
-            while (flag0 <= 0) & (npos > 0):
-                npos -= 1
-                vel0 = final_vel[nazi, npos]
-                flag0 = flag_vel[nazi, npos]
-
-            if is_good_velocity(vel0, vel1, vnyq):
-                flag_vel[nazi, ngate] = 1
-            else:
-                flag_vel[nazi, ngate] = 0
-
-    return flag_vel
-
-
-def _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_ref_pos, vnyq=13.3):
-    """
-    Unfold the reference radials.
-
-    Parameters:
-    ===========
-    vel: array <azimuth, range>
-        Raw velocity.
-    final_vel: array <azimuth, range>
-        Unfolded velocities.
-    flag_vel: array <azimuth, range>
-        Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
-    azi_ref_pos: int
-        Azimuth reference position.
-    vnyq: float
-        Half-nyquist velocity.
-
-    Returns:
-    ========
-    final_vel: array <azimuth, range>
-        Updated unfolded velocities.
-    flag_vel: array <azimuth, range>
-        Updated flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
-    """
-    # Initial reference radials.
-    ref_vel = vel[azi_ref_pos, :].filled(np.NaN)
-    flag_vel[azi_ref_pos, ~np.isnan(ref_vel)] = 1
-    final_vel[azi_ref_pos, :] = ref_vel
-    flag_ref = flag_vel[azi_ref_pos, :]
-
-    # Unfold the first 3 radials (very strict process here: if not valid then don't exists!).
-    # Defining the processing flag 0: unproc, 1: proc, 2: part_proc, -3: missing/wrong.
-    for nazi in get_iter_pos(azi, azi_ref_pos + 1, 3):
-        for ngate in range(0, vel.shape[1]):
-            vel0 = ref_vel[ngate]
-            vel1 = vel[nazi, ngate]
-            flag0 = flag_ref[ngate]
-
-            # Missing reference data
-            if flag0 == -3:
-                final_vel[nazi, ngate] = vel1
-                continue
-
-            # Missing data to be processed
-            if np.ma.is_masked(vel1):
-                flag_vel[nazi, ngate] = -3
-                continue
-
-            if is_good_velocity(vel0, vel1, vnyq=vnyq):
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
-            else:
-                flag_vel[nazi, ngate] = -3
-
-    return final_vel, flag_vel
-
-
 def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     """
     Initialize the unfolding procedure and unfold the reference radials..
@@ -143,56 +33,56 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
         Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
     """
     # Initialize stuff.
-    final_vel = np.zeros(vel.shape)
-    flag_vel = np.zeros(vel.shape, dtype=int)
-    flag_vel[vel.mask] = -3
+    maxazi, maxrange = vel.shape
+    final_vel = np.zeros((maxazi, maxrange), dtype=float64)
+    flag_vel = np.zeros((maxazi, maxrange), dtype=int64)
+    vmin = np.zeros((maxazi, ))
+    vmax = np.zeros((maxazi, ))
+    nsum = np.zeros((maxazi, ))
+    dnum = np.zeros((maxazi, ))
 
-    #  Initial 3 radials.
-#     final_vel, flag_vel = _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_start_pos)
-#     final_vel, flag_vel = _unfold_reference_radials(azi, vel, final_vel, flag_vel, azi_end_pos)
+    for nazi in range(maxazi):
+        vmax[nazi] = np.nanmax(np.abs(vel[nazi, :]))
+        nsum[nazi] = np.nansum(np.abs(vel[nazi, :]))
+
+        for ngate in range(maxrange):
+            if np.isnan(vel[nazi, ngate]):
+                flag_vel[nazi, ngate] = -3
+            else:
+                dnum[nazi] += 1
 
     # Compute the normalised integrated velocity along each radials.
-    n = np.sum(np.abs(vel), axis=1) / np.max(np.abs(vel), axis=1)
-    d = np.sum(~vel.mask, axis=1)
-    yall = n / d
-    # Magic happens.
-    for a in np.where(yall < 0.4)[0]:
-        if any(flag_vel[a, :] == 1):
-            continue
-        myvel = vel[a, :].filled(np.NaN)
-        vmax = np.nanmax(myvel)
-        vmin = np.nanmin(myvel)
+    normed_sum = nsum / vmax
+    yall = normed_sum / dnum
 
-        for pos in range(3, len(myvel) - 3):
-            velref0 = np.nanmedian(myvel[pos - 3:pos])
-            velref1 = np.nanmedian(myvel[pos + 1:pos + 4])
-            decision = take_decision(velref0, velref1)
+    # Magic happens.
+    for pos_good in np.where(yall < 0.40)[0]:
+        myvel = vel[pos_good, :]
+
+        for ngate in range(3, len(myvel) - 3):
+            velref0 = np.nanmedian(myvel[ngate - 3:ngate])
+            velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
+            decision = take_decision(velref0, velref1, vnyq)
             if decision != 1:
                 continue
 
-            velref = np.nanmean([velref0, velref1])
-            decision = take_decision(velref, myvel[pos])
+            if np.isnan(velref0):
+                velref = velref1
+            elif np.isnan(velref1):
+                velref = velref0
+            else:
+                velref = (velref0 + velref1) / 2
+
+            decision = take_decision(velref, myvel[ngate], vnyq)
             if decision == 0:
-                 continue
+                continue
             elif decision == 1:
-                final_vel[a, pos] = myvel[pos]
-                flag_vel[a, pos] = 1
+                final_vel[pos_good, ngate] = myvel[ngate]
+                flag_vel[pos_good, ngate] = 1
             elif decision == 2:
-                vtrue = unfold(myvel[pos - 1], myvel[pos])
-                if is_good_velocity(myvel[pos - 1], vtrue, vnyq, alpha=0.4):
-                    final_vel[a, pos] = vtrue
-                    flag_vel[a, pos] = 2
-
-
-
-
-    vmax = np.nanmax(vel, axis=1)
-    vmin = np.nanmin(vel, axis=1)
-
-    # Looking for all radials that never come close of the nyquist.
-    pos0 = (vmax < 0.6 * vnyq) & (vmin > 0.6 * -vnyq)
-
-    final_vel[pos0, :] = vel[pos0, :].filled(np.NaN)
-    flag_vel[pos0, :] = 1
+                vtrue = unfold(myvel[ngate - 1], myvel[ngate])
+                if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
+                    final_vel[pos_good, ngate] = vtrue
+                    flag_vel[pos_good, ngate] = 2
 
     return final_vel, flag_vel

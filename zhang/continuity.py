@@ -363,7 +363,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq):
     return final_vel, flag_vel
 
 
-@jit
+@jit(nopython=True)
 def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     window_len = 10
     maxazi, maxrange = final_vel.shape
@@ -387,16 +387,23 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                 continue
 
             st_azi = get_iter_pos(azi, nazi - 1, 3)
-            velref_vec = final_vel[st_azi, npos - window_len:npos + 1]
-            flagvelref = flag_vel[st_azi, npos - window_len:npos + 1]
-            velref = np.nanmedian(velref_vec[flagvelref > 0])
 
+            # A slice would only take 1 line of code but JIT would not work.
+            velref_vec = np.zeros(len(st_azi) * window_len)
+            flagvelref = np.zeros(len(st_azi) * window_len)
+            cnt = 0
+            for na in st_azi:
+                for nr in range(npos - window_len, npos + 1):
+                    velref_vec[cnt] = final_vel[na, nr]
+                    flagvelref[cnt] = flag_vel[na, nr]
+                    cnt += 1
+
+            velref = np.nanmedian(velref_vec[flagvelref > 0])
             decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
                 final_vel[nazi, ngate] = vel1
                 flag_vel[nazi, ngate] = 1
-                continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):

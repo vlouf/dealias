@@ -64,108 +64,6 @@ def count_proc(myflag, debug=False):
     return perc
 
 
-# def _dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, debug=False):
-#     """
-#     Dealiasing processing for 2D slice of the Doppler radar velocity field.
-
-#     Parameters:
-#     ===========
-#     r: ndarray
-#         Radar scan range.
-#     azimuth: ndarray
-#         Radar scan azimuth.
-#     velocity: ndarray <azimuth, r>
-#         Aliased Doppler velocity field.
-#     elev_angle: float
-#         Elevation angle of the velocity field.
-#     nyquist_velocity: float
-#         Nyquist velocity.
-
-#     Returns:
-#     ========
-#     dealias_vel: ndarray <azimuth, range>
-#         Dealiased velocity slice.
-#     flag_vel: ndarray int <azimuth, range>
-#         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -, 2: Processed - dealiased.)
-#     """
-#     # Don't want a masked array. Replacing masked value with NaN.
-#     try:
-#         velocity_nomask = velocity.filled(np.NaN)
-#     except Exception:
-#         velocity_nomask = velocity.copy()
-
-#     # Dealiasing based upon previously corrected velocities starting from two reference
-#     # radials, approximately 180° apart, where the wind is nearly orthogonal to the radar beam..
-#     azi_start_pos, azi_end_pos = find_reference.find_reference_radials(azimuth, velocity, debug)
-#     # Looking for midpoints between the two reference radials. (4 quadrants to iter to).
-#     quadrant = find_reference.get_quadrant(azimuth, azi_start_pos, azi_end_pos)
-#     # Initialize unfolding, verifying reference radials.
-#     dealias_vel, flag_vel = initialisation.initialize_unfolding(r, azimuth, azi_start_pos,
-#                                                                 azi_end_pos, velocity, nyquist_velocity)
-
-#     # Strict azimuthal and gate-to-gate deliasing. Because this is the most strict test (direct continuity),
-#     # it is run multiple time (maximum 10 passes), as long as it continues to dealias.
-#     cnt = 0
-#     perc = count_proc(flag_vel, debug)
-#     while cnt < 10:
-#         cnt += 1
-#         # Radial dealiasing inside the quadrants.
-#         dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
-#                                                              quadrant[0], nyquist_velocity)
-#         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
-#                                                                     flag_vel, quadrant[1], nyquist_velocity)
-#         dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
-#                                                              quadrant[2], nyquist_velocity)
-#         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
-#                                                                     flag_vel, quadrant[3], nyquist_velocity)
-#         # Gate to gate continuity dealiasing of all radials.
-#         dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-#         dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-#         # Checking if continuity dealiasing has done a significant work.
-#         nperc = count_proc(flag_vel, debug)
-#         if perc + 2 > nperc:
-#             break
-#         perc = nperc
-
-#     # Radial dealiasing inside the quadrants, starting from midpoints. With less strict reference findings.
-#     dealias_vel, flag_vel = continuity.correct_counterclockwise_loose(r, azimuth, velocity_nomask, dealias_vel,
-#                                                                       flag_vel, quadrant[0][::-1], nyquist_velocity)
-#     dealias_vel, flag_vel = continuity.correct_clockwise_loose(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
-#                                                                quadrant[1][::-1], nyquist_velocity)
-#     dealias_vel, flag_vel = continuity.correct_counterclockwise_loose(r, azimuth, velocity_nomask, dealias_vel,
-#                                                                       flag_vel, quadrant[2][::-1], nyquist_velocity)
-#     dealias_vel, flag_vel = continuity.correct_clockwise_loose(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
-#                                                                quadrant[3][::-1], nyquist_velocity)
-#     if count_proc(flag_vel, debug) == 100:
-#         # Dealiasing is complete sending back to caller for correction box.
-#         return dealias_vel, flag_vel
-    
-#     # Gate to gate continuity dealiasing of all radials.
-#     dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     if count_proc(flag_vel, debug) == 100:
-#         return dealias_vel, flag_vel
-    
-#     # Loose radial area dealiasing.
-#     dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     if count_proc(flag_vel, debug) == 100:
-#         return dealias_vel, flag_vel
-
-#     # Box error check with respect to surrounding velocities
-#     dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     if count_proc(flag_vel, debug) == 100:
-#         return dealias_vel, flag_vel
-
-#     # Looking for the closest reference..
-#     dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
-#     # Dealias_vel, flag_vel = continuity.radial_continuity_roi(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
-#     if count_proc(flag_vel, debug) == 100:
-#         return dealias_vel, flag_vel
-
-#     return dealias_vel, flag_vel
-
-
 def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, debug=False):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
@@ -218,8 +116,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
                                                                     flag_vel, quadrant[3], nyquist_velocity)
 
-        dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-        dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_onward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_backward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
         # Radial dealiasing inside the quadrants, starting from midpoints. With less strict reference findings.
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
@@ -231,35 +129,34 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
                                                              quadrant[3][::-1], nyquist_velocity)
 
-        dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-        dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-    
+        dealias_vel, flag_vel = continuity.correct_range_onward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_backward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+
     # One full sweep.
     dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
                                                          flag_vel, np.arange(dealias_vel.shape[0]), nyquist_velocity)
     # Loose radial area dealiasing.
-    dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
-    
+    dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+
     # Box error check with respect to surrounding velocities
-    dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
+    dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
     # Looking for the closest reference..
-    dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
+    dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
     # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
     # Dealias_vel, flag_vel = continuity.radial_continuity_roi(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
     if elev_angle <= 6:
         # Least squares error check in the radial direction
-        dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity, dealias_vel, 
-                                                                         flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
     # No flag.
     dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
 #         dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
-        
+
     print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")
-    
+
     try:
         dealias_vel = dealias_vel.filled(np.NaN)
     except Exception:
@@ -326,8 +223,8 @@ def dealiasing_main_process(input_file, gatefilter=None, debug=False, ncpus=16, 
         radar = pyart.io.read(input_file)
     except Exception:
         raise
-        
-    correct_azimuth(radar)    
+
+    correct_azimuth(radar)
 
     try:
         radar.fields[vel_name]
@@ -344,7 +241,7 @@ def dealiasing_main_process(input_file, gatefilter=None, debug=False, ncpus=16, 
         gatefilter = filtering.do_gatefilter(radar, vel_name, dbz_name, zdr_name, rho_name)
 
     st_time = time.time()
-        
+
     args_list = [(radar, gatefilter, nyquist_velocity, vel_name, debug, sln) for sln in range(radar.nsweeps)]
     # In case we are not allowed to spawn deamonic processes
     try:
@@ -386,7 +283,7 @@ def dealiasing_main_process(input_file, gatefilter=None, debug=False, ncpus=16, 
         flag_reference = flag_slice.copy()
 
         ultimate_dealiased_velocity[myslice] = velocity_reference.copy()
-        
+
     ultimate_dealiased_velocity = np.ma.masked_where(radar.fields[vel_name]['data'].mask, ultimate_dealiased_velocity)
 
     return ultimate_dealiased_velocity

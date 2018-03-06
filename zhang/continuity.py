@@ -455,6 +455,9 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
 
             vel1 = vel[nazi, ngate]
             distance = np.sqrt((posazi_good - nazi) ** 2 + (posgate_good - ngate) ** 2)
+            if len(distance) == 0:
+                continue
+
             closest = np.argmin(distance)
             nazi_close = posazi_good[closest]
             ngate_close = posgate_good[closest]
@@ -747,6 +750,13 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
                  velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, loose=False, theta_3db=1):
 
+    if not loose:
+        window_azimuth = 10
+        window_range = 20
+    else:
+        window_azimuth = 20
+        window_range = 40
+
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
 
@@ -768,8 +778,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             rpos_reference = np.argmin(np.abs(ground_range_reference - ground_range_slice[ngate]))
             apos_reference = np.argmin(np.abs(azimuth_reference - azimuth_slice[nazi]))
 
-            apos_iter = get_iter_pos(azimuth_reference, apos_reference - 5, 10)
-            rpos_iter = get_iter_range(rpos_reference, 10, maxrange)
+            apos_iter = get_iter_pos(azimuth_reference, apos_reference - window_azimuth // 2, window_azimuth)
+            rpos_iter = get_iter_range(rpos_reference, window_range, maxrange)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
             flag_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN

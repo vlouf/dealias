@@ -55,17 +55,15 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
 
-    ratio = np.sum(np.isnan(vel)) / np.sum(~np.isnan(vel))
-    if ratio > 1:
-        # Big case with a lot of data.
-        threshold = 0.3
-    elif ratio < 0.5:
-        threshold = 0.2
-    else:
-        threshold = 0.4
+    threshold = 0.1
+    # Looking if the threshold is not too strict.
+    iter_radials = np.where(yall < threshold)[0]
+    while (len(iter_radials) < 5) and (threshold < 0.8):
+        threshold += 0.1
+        iter_radials = np.where(yall < threshold)[0]
 
     # Magic happens.
-    for pos_good in np.where(yall < threshold)[0]:
+    for pos_good in iter_radials:
         myvel = vel[pos_good, :]
 
         for ngate in range(3, len(myvel) - 3):

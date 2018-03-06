@@ -30,7 +30,10 @@ def get_static_rays(vel):
     minpos: array
         Sorted array of the best azimuths.
     """
-    nvel = vel.filled(np.NaN)
+    try:
+        nvel = vel.filled(np.NaN)
+    except AttributeError:
+        nvel = vel
 
     # Criterion 1: Top third of valid gates
     sum_good = np.sum(~np.isnan(nvel), axis=1)
@@ -99,7 +102,10 @@ def get_valid_rays(vel):
     extpos: array
         Sorted array of the best azimuths.
     """
-    nvel = vel.filled(np.NaN)
+    try:
+        nvel = vel.filled(np.NaN)
+    except AttributeError:
+        nvel = vel
     # Criterion 1: Top third of valid gates
     sum_good = np.sum(~np.isnan(nvel), axis=1)
     valid_pos = (sum_good / np.max(sum_good) > 2 / 3)
@@ -158,7 +164,7 @@ def find_reference_radials(azi, vel, debug=False):
     pos2 = pos1 + len(azi) // 2
     if pos2 > len(azi):
         pos2 -= len(azi)
-        
+
 #     try:
 #         ref2_range_min, ref2_range_max = get_opposite_azimuth(azi[pos1])
 #         if ref2_range_min < ref2_range_max:

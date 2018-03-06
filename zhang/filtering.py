@@ -14,7 +14,6 @@ Codes for creating and manipulating gate filters.
 """
 
 # Other Libraries
-import pyart
 import numpy as np
 
 
@@ -34,6 +33,7 @@ def velocity_texture(radar, vel_name):
     vdop_vel: dict
         Velocity texture.
     """
+    import pyart
 
     try:
         v_nyq_vel = radar.instrument_parameters['nyquist_velocity']['data'][0]
@@ -52,18 +52,23 @@ def do_gatefilter(radar, vel_name, dbz_name, zdr_name=None, rho_name=None):
     """
 
     tvel = velocity_texture(radar, vel_name)
-    radar.add_field("TVEL", tvel)
+    radar.add_field("TVEL_tmp", tvel)
 
     gf = pyart.filters.GateFilter(radar)
-    if zdr_name is not None:
+    try:
         gf.exclude_outside(zdr_name, -3.0, 7.0)
+    except (KeyError, TypeError):
+        pass
 
     gf.exclude_outside(dbz_name, -40.0, 80.0)
-    gf.exclude_above("TVEL", 4)
+    gf.exclude_above("TVEL_tmp", 4)
 
-    if rho_name is not None:
+    try:
         gf.include_above(rho_name, 0.8)
+    except (KeyError, TypeError):
+        pass
 
     gf_desp = pyart.correct.despeckle_field(radar, "DBZ", gatefilter=gf)
+    radar.fields.pop("TVEL_tmp")
 
     return gf_desp

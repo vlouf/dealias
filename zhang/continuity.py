@@ -460,20 +460,15 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
             ngate_close = posgate_good[closest]
 
             iter_azi = get_iter_pos(azimuth, nazi_close - window_azi // 2, window_azi)
-            st_range = ngate_close - window_gate // 2
-            if st_range < 0:
-                st_range = 0
-            ed_range = ngate_close + window_gate // 2
-            if ed_range > maxrange:
-                ed_range = maxrange
+            iter_range = get_iter_range(ngate_close, window_gate, maxrange)
 
-            vel_ref_vec = np.zeros((len(iter_azi) * (ed_range - st_range), ), dtype=float64) + np.NaN
-            flag_ref_vec = np.zeros((len(iter_azi) * (ed_range - st_range), ), dtype=int64)
+            vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
+            flag_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=int64)
 
             # Numba don't support 2D slice, that's why I loop over things.
             pos = -1
             for na in iter_azi:
-                for nr in range(st_range, ed_range):
+                for nr in iter_range:
                     pos += 1
                     if (na, nr) == (nazi, ngate):
                         continue

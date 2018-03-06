@@ -55,9 +55,12 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
 
-    if np.sum(np.isnan(vel)) / np.sum(~np.isnan(vel)) > 1:
+    ratio = np.sum(np.isnan(vel)) / np.sum(~np.isnan(vel))
+    if ratio > 1:
         # Big case with a lot of data.
         threshold = 0.3
+    elif ratio < 0.5:
+        threshold = 0.2
     else:
         threshold = 0.4
 

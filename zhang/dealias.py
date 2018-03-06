@@ -116,8 +116,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
                                                                     flag_vel, quadrant[3], nyquist_velocity)
 
-        dealias_vel, flag_vel = continuity.correct_range_onward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
-        dealias_vel, flag_vel = continuity.correct_range_backward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
 
         # Radial dealiasing inside the quadrants, starting from midpoints. With less strict reference findings.
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
@@ -129,8 +129,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
                                                              quadrant[3][::-1], nyquist_velocity)
 
-        dealias_vel, flag_vel = continuity.correct_range_onward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
-        dealias_vel, flag_vel = continuity.correct_range_backward(velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
 
     # One full sweep.
     dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
@@ -138,11 +138,12 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
     # Loose radial area dealiasing.
     dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
+    # Looking for the closest reference..
+    dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+
     # Box error check with respect to surrounding velocities
     dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
-    # Looking for the closest reference..
-    dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
     # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
     # Dealias_vel, flag_vel = continuity.radial_continuity_roi(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
     if elev_angle <= 6:
@@ -153,9 +154,9 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
     dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
-#         dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
 
-    print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")
+    if debug:
+        print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")
 
     try:
         dealias_vel = dealias_vel.filled(np.NaN)

@@ -460,23 +460,28 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
             ngate_close = posgate_good[closest]
 
             iter_azi = get_iter_pos(azimuth, nazi_close - window_azi // 2, window_azi)
-            iter_range = get_iter_range(ngate_close - window_gate // 2, window_gate, maxrange)
+            st_range = ngate_close - window_gate // 2
+            if st_range < 0:
+                st_range = 0
+            ed_range = ngate_close + window_gate // 2
+            if ed_range > maxrange:
+                ed_range = maxrange
 
-            vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
-            flag_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=int64)
+            vel_ref_vec = np.zeros((len(iter_azi) * (ed_range - st_range), ), dtype=float64) + np.NaN
+            flag_ref_vec = np.zeros((len(iter_azi) * (ed_range - st_range), ), dtype=int64)
 
             # Numba don't support 2D slice, that's why I loop over things.
-            pos = 0
+            pos = -1
             for na in iter_azi:
-                for nr in iter_range:
+                for nr in range(st_range, ed_range):
+                    pos += 1
                     if (na, nr) == (nazi, ngate):
-                        pos += 1
                         continue
 
                     vel_ref_vec[pos] = final_vel[na, nr]
                     flag_ref_vec[pos] = flag_vel[na, nr]
 
-            velref = np.nanmean(vel_ref_vec[flag_ref_vec >= 1])
+            velref = np.nanmedian(vel_ref_vec[flag_ref_vec > 0])
             decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
@@ -488,6 +493,10 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
+                else:
+                    # print(f"BEWARE. Probably noise ({nazi}, {ngate})")
+                    final_vel[nazi, ngate] = velref
+                    flag_vel[nazi, ngate] = 3
 
     return final_vel, flag_vel
 
@@ -696,7 +705,6 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
 
 @jit
 def least_square_radial_last_module(r, azi, final_vel, vnyq):
-    #     r, azimuth, dealias_vel, nyquist_velocity
     """
     Module 7 from He et al.
     """
@@ -704,7 +712,6 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
 
     for nazi in range(maxazi):
         myvel = final_vel[nazi, :]
-        myvel[flag_vel[nazi, :] <= 0] = np.NaN
 
         if len(myvel[~np.isnan(myvel)]) < 10:
             continue
@@ -734,7 +741,6 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
             if decision == 1:
                 final_vel[nazi, ngate] = myvel
             elif decision == 2:
-                myvel = vel[nazi, ngate]
                 vtrue = unfold(mean_vel_ref, myvel)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
@@ -744,7 +750,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
 
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
-                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, theta_3db=1):
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, loose=False, theta_3db=1):
 
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
@@ -758,8 +764,9 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             if flag_slice[nazi, ngate] <= 0:
                 continue
 
-            if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
-                break
+            if not loose:
+                if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
+                    break
 
             current_vel = velocity_slice[nazi, ngate]
 

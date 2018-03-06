@@ -55,8 +55,14 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
 
+    if np.sum(np.isnan(vel)) / np.sum(~np.isnan(vel)) > 1:
+        # Big case with a lot of data.
+        threshold = 0.3
+    else:
+        threshold = 0.4
+
     # Magic happens.
-    for pos_good in np.where(yall < 0.40)[0]:
+    for pos_good in np.where(yall < threshold)[0]:
         myvel = vel[pos_good, :]
 
         for ngate in range(3, len(myvel) - 3):

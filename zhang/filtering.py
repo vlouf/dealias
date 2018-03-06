@@ -12,6 +12,7 @@ Codes for creating and manipulating gate filters.
     velocity_texture
     do_gatefilter
 """
+import pyart
 
 # Other Libraries
 import numpy as np
@@ -33,8 +34,6 @@ def velocity_texture(radar, vel_name):
     vdop_vel: dict
         Velocity texture.
     """
-    import pyart
-
     try:
         v_nyq_vel = radar.instrument_parameters['nyquist_velocity']['data'][0]
     except Exception:

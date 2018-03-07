@@ -55,10 +55,10 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
 
-    threshold = 0.1
+    threshold = 0.2
     # Looking if the threshold is not too strict.
     iter_radials = np.where(yall < threshold)[0]
-    while (len(iter_radials) < 5) and (threshold < 0.8):
+    while (len(iter_radials) < 10) and (threshold < 0.8):
         threshold += 0.1
         iter_radials = np.where(yall < threshold)[0]
 

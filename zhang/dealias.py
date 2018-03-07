@@ -90,9 +90,10 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
                                                                 azi_end_pos, velocity_nomask, nyquist_velocity)
 
     # This is very strict continuity, we want to make the most of it.
-    pass_nb = 0
-    while pass_nb < 2:
-        pass_nb += 1
+    nperc_previous = 0
+    nperc = count_proc(flag_vel)
+    while nperc - nperc_previous > 0.1:
+        nperc_previous = nperc
         dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel, flag_vel,
                                                              quadrant[0], nyquist_velocity)
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
@@ -104,6 +105,10 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
 
         dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
         dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+
+        nperc = count_proc(flag_vel)
+        if nperc == 100:
+            break
 
         # Radial dealiasing inside the quadrants, starting from midpoints. With less strict reference findings.
         dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
@@ -118,14 +123,22 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
         dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
 
+        nperc = count_proc(flag_vel)
+        if nperc == 100:
+            break
+
     # One full sweep.
-    dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
-                                                         flag_vel, np.arange(dealias_vel.shape[0]), nyquist_velocity)
+    # dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
+    #                                                      flag_vel, np.arange(dealias_vel.shape[0]), nyquist_velocity)
     # Loose radial area dealiasing.
-    dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+    nperc = count_proc(flag_vel)
+    if nperc < 100:
+        dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
     # Looking for the closest reference..
-    dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+    nperc = count_proc(flag_vel)
+    if nperc < 100:
+        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
 
     # Box error check with respect to surrounding velocities
     dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)

@@ -1,22 +1,30 @@
 """
-Main module.
+Driver script for the dealiasing module. You want to call process_3D.
+
+Based on the work of:
+ - J. Zhang and S. Wang, "An automated 2D multipass Doppler radar velocity
+   dealiasing scheme," J. Atmos. Ocean. Technol., vol. 23, no. 9, pp. 1239–1248,
+   2006.
+ - G. He, G. Li, X. Zou, and P. S. Ray, "A velocity dealiasing scheme for
+   synthetic C-band data from China’s new generation weather radar system
+   (CINRAD)," J. Atmos. Ocean. Technol., vol. 29, no. 9, pp. 1263–1274, 2012.
+ - G. Li, G. He, X. Zou, and P. S. Ray, "A velocity dealiasing scheme for
+   C-band weather radar systems," Adv. Atmos. Sci., vol. 31, no. 1, pp. 17–26,
+   2014.
 
 @title: dealias
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 19/02/2018
+@date: 08/03/2018
 
-    _multi_proc_buffer
     count_proc
     dealiasing_process_2D
-    dealiasing_main_process
+    process_3D
 """
 # Python Standard Library
 import time
-# from multiprocessing import Pool
 
 # Other python libraries.
-# import pyart
 import numpy as np
 
 # Local
@@ -173,6 +181,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
 def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RHOHV",
                gatefilter=None, nyquist_velocity=None, two_passes=False, debug=False):
     """
+    Process driver.
     Full dealiasing process 2D + 3D.
 
     Parameters:
@@ -264,127 +273,3 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
     ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded, ultimate_dealiased_velocity)
 
     return ultimate_dealiased_velocity
-
-
-# def correct_azimuth(radar):
-#     """
-#     Sometimes, rapic files have multiple zeros. This corrects from wrong azimuths.
-#     """
-#     for sl in radar.iter_slice():
-#         azi = radar.azimuth['data'][sl]
-#         if azi[0] != 0:
-#             continue
-#         n0 = np.sum(azi == 0)
-#         if n0 > 1:
-#             try:
-#                 for cnt in range(0, n0 + 2):
-#                     if azi[cnt] != 0:
-#                         break
-#                 for cnt2 in range(0, cnt):
-#                     val = azi[cnt] - (cnt - cnt2)
-#                     if val < 0:
-#                         val += 360
-#                     azi[cnt2] = val
-#             except Exception:
-#                 continue
-#     return None
-
-
-# def dealiasing_main_process(input_file, gatefilter=None, debug=False, ncpus=16, vel_name="VEL",
-#                             dbz_name="DBZ", zdr_name="ZDR", rho_name="RHOHV"):
-#     """
-#     Full dealiasing process 2D + 3D.
-#
-#     Parameters:
-#     ===========
-#     input_file: str
-#         Input radar file to dealias. File must be compatible with Py-ART.
-#     gatefilter: Object GateFilter
-#         GateFilter for filtering noise. If not provided it will automaticaly
-#         compute it with help of the dual-polar variables.
-#     debug: boolean
-#         Print debug messages.
-#     ncpus: int
-#         Number of process to use.
-#     vel_name: str
-#         Name of the velocity field.
-#     dbz_name: str
-#         Name of the reflectivity field.
-#     zdr_name: str
-#         Name of the differential reflectivity field.
-#     rho_name: str
-#         Name of the cross correlation ratio field.
-#
-#     Returns:
-#     ========
-#     ultimate_dealiased_velocity: ndarray
-#         Dealised velocity field.
-#     """
-#     try:
-#         radar = pyart.io.read(input_file)
-#     except Exception:
-#         raise
-#
-#     correct_azimuth(radar)
-#
-#     try:
-#         radar.fields[vel_name]
-#     except KeyError:
-#         raise KeyError(f"Wrong name for the velocity field. {vel_name} not found.")
-#
-#     try:
-#         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
-#     except Exception:
-#         nyquist_velocity = np.max(np.abs(radar.fields[vel_name]['data']))
-#
-#     ultimate_dealiased_velocity = np.zeros_like(radar.fields[vel_name]['data'])
-#     if gatefilter is None:
-#         gatefilter = filtering.do_gatefilter(radar, vel_name, dbz_name, zdr_name, rho_name)
-#
-#     st_time = time.time()
-#
-#     args_list = [(radar, gatefilter, nyquist_velocity, vel_name, debug, sln) for sln in range(radar.nsweeps)]
-#     # In case we are not allowed to spawn deamonic processes
-#     try:
-#         with Pool(ncpus) as pool:
-#             rslt = pool.starmap(_multi_proc_buffer, args_list)
-#     except AssertionError:
-#         rslt = [None] * len(args_list)
-#         for cnt, myargs in enumerate(args_list):
-#             rslt[cnt] = _multi_proc_buffer(*myargs)
-#
-#     if True:
-#         print(f"2D fields processed in {time.time() - st_time:0.2f} seconds.")
-#         print("Starting 3D processing.")
-#
-#     # Dealiasing 3D
-#     myslice = radar.get_slice(0)
-#     r = radar.range['data']
-#     azimuth_reference = radar.azimuth['data'][myslice]
-#     elevation_reference = radar.elevation['data'][myslice].mean()
-#     velocity_reference, flag_reference, _ = rslt[0]
-#
-#     ultimate_dealiased_velocity[myslice] = velocity_reference.copy()
-#
-#     for (velocity_slice, flag_slice, slice_number) in rslt:
-#         myslice = radar.get_slice(slice_number)
-#         azimuth_slice = radar.azimuth['data'][myslice]
-#         elevation_slice = radar.elevation['data'][myslice].mean()
-#
-#         # 3D dealiasing
-#         velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference, azimuth_reference,
-#                                                              elevation_slice, azimuth_slice, velocity_reference,
-#                                                              flag_reference, velocity_slice, flag_slice, nyquist_velocity)
-#
-# #         velocity_slice = continuity.least_square_radial_last_module(r, azimuth_slice, velocity_slice, nyquist_velocity)
-#         velocity_slice, flag_slice = continuity.box_check(azimuth_slice, velocity_slice, flag_slice, nyquist_velocity)
-#
-#         azimuth_reference = azimuth_slice.copy()
-#         velocity_reference = velocity_slice.copy()
-#         flag_reference = flag_slice.copy()
-#
-#         ultimate_dealiased_velocity[myslice] = velocity_reference.copy()
-#
-#     ultimate_dealiased_velocity = np.ma.masked_where(radar.fields[vel_name]['data'].mask, ultimate_dealiased_velocity)
-#
-#     return ultimate_dealiased_velocity

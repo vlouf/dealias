@@ -1,4 +1,6 @@
-# dealias
+# RAVEL
+
+RAVEL, RAdar VELocity dealiasing technique using 3D continuity.
 
 An automated 3D multi-pass velocity dealiasing scheme to correct Doppler radar velocity fields.
 

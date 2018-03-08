@@ -754,7 +754,8 @@ def box_check(azi, final_vel, flag_vel, vnyq):
             true_vel = vel_ref_vec[flag_ref_vec >= 1]
             mvel = np.nanmean(true_vel)
             svel = np.nanstd(true_vel)
-            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
+            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) &
+                                             (true_vel <= mvel + svel)])
 
             if not is_good_velocity(myvelref, myvel, vnyq):
                 final_vel[nazi, ngate] = myvelref
@@ -885,8 +886,46 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
 
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
-                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, loose=False, theta_3db=1):
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq,
+                 loose=False, theta_3db=1):
+    """
+    Dealias using 3D continuity. This function will look at the velocities from
+    one sweep (the reference) to the other (the slice).
 
+    Parameters:
+    ===========
+    r: ndarray
+        Radar range
+    elevation_reference: float
+        Elevation angle of the reference sweep.
+    azimuth_reference: ndarray
+        Azimuth of the reference sweep.
+    elevation_slice: float
+        Elevation angle of the sweep to dealias.
+    azimuth_slice: ndarray
+        Azimuth of the sweep to dealias.
+    velocity_reference: ndarray <azimuth, r>
+        Velocity of the reference sweep.
+    flag_reference:
+        Flag array of the reference
+    velocity_slice: ndarray <azimuth, r>
+        Velocity of the sweep to dealias.
+    flag_slice:
+        Flag array of the sweep to dealias.
+    vnyq: float
+        Nyquist velocity.
+    loose: bool
+        Being loose in the dealiasing.
+    theta_3db: float
+        Beamwidth.
+
+    Returns:
+    ========
+    velocity_slice: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_slice: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    """
     if not loose:
         window_azimuth = 10
         window_range = 20
@@ -915,7 +954,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             rpos_reference = np.argmin(np.abs(ground_range_reference - ground_range_slice[ngate]))
             apos_reference = np.argmin(np.abs(azimuth_reference - azimuth_slice[nazi]))
 
-            apos_iter = get_iter_pos(azimuth_reference, apos_reference - window_azimuth // 2, window_azimuth)
+            apos_iter = get_iter_pos(azimuth_reference, apos_reference - window_azimuth // 2,
+                                     window_azimuth)
             rpos_iter = get_iter_range(rpos_reference, window_range, maxrange)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
@@ -935,7 +975,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
             vmean = np.nanmean(velocity_refcomp_array)
             vstd = np.nanstd(velocity_refcomp_array)
-            pos = (velocity_refcomp_array >= vmean - vstd) & (velocity_refcomp_array <= vmean + vstd)
+            pos = (velocity_refcomp_array >= vmean - vstd) & \
+                  (velocity_refcomp_array <= vmean + vstd)
             compare_vel = np.nanmedian(velocity_refcomp_array[pos])
 
             if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=0.4):

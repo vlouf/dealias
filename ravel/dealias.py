@@ -146,24 +146,31 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
     # Loose radial area dealiasing.
     nperc = count_proc(flag_vel)
     if nperc < 100:
-        dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity_nomask,
+                                                                      dealias_vel, flag_vel,
+                                                                      nyquist_velocity)
 
     # Looking for the closest reference..
     nperc = count_proc(flag_vel)
     if nperc < 100:
-        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity_nomask,
+                                                                     dealias_vel, flag_vel,
+                                                                     nyquist_velocity)
 
     # Box error check with respect to surrounding velocities
-    dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+    dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity_nomask, dealias_vel,
+                                                   flag_vel, nyquist_velocity)
 
     # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
-    # Dealias_vel, flag_vel = continuity.radial_continuity_roi(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
     if elev_angle <= 6:
         # Least squares error check in the radial direction
-        dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity_nomask, dealias_vel, flag_vel, nyquist_velocity)
+        dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity_nomask,
+                                                                     dealias_vel, flag_vel,
+                                                                     nyquist_velocity)
 
     # No flag.
-    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity)
+    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel,
+                                                             nyquist_velocity)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
 
@@ -250,18 +257,25 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
         flag_slice[np.isnan(velocity_slice)] = -3
 
         # 3D dealiasing
-        velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference, azimuth_reference,
-                                                             elevation_slice, azimuth_slice, velocity_reference,
-                                                             flag_reference, velocity_slice, flag_slice,
-                                                             nyquist_velocity, loose=True)
+        velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference,
+                                                             azimuth_reference, elevation_slice,
+                                                             azimuth_slice, velocity_reference,
+                                                             flag_reference, velocity_slice,
+                                                             flag_slice, nyquist_velocity,
+                                                             loose=True)
 
-        final_vel, flag_vel = dealiasing_process_2D(r, azimuth_slice, velocity_slice, elevation_slice,
-                                                    nyquist_velocity, debug=False)
+        final_vel, flag_vel = dealiasing_process_2D(r, azimuth_slice, velocity_slice,
+                                                    elevation_slice, nyquist_velocity,
+                                                    debug=False)
 
         if two_passes:
-            velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference, azimuth_reference,
-                                                                 elevation_slice, azimuth_slice, velocity_reference,
-                                                                 flag_reference, final_vel, flag_vel,
+            velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference,
+                                                                 azimuth_reference,
+                                                                 elevation_slice,
+                                                                 azimuth_slice,
+                                                                 velocity_reference,
+                                                                 flag_reference,
+                                                                 final_vel, flag_vel,
                                                                  nyquist_velocity, loose=False)
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()
@@ -270,6 +284,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
         ultimate_dealiased_velocity[myslice] = final_vel.copy()
     #     plot_radar(final_vel, flag_vel, slice_number)
 
-    ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded, ultimate_dealiased_velocity)
+    ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded,
+                                                     ultimate_dealiased_velocity)
 
     return ultimate_dealiased_velocity

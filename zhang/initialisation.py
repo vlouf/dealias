@@ -65,6 +65,8 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     # Magic happens.
     for pos_good in iter_radials:
         myvel = vel[pos_good, :]
+        if np.sum(np.abs(myvel) >= 0.8 * vnyq) > 3:
+            continue
 
         for ngate in range(3, len(myvel) - 3):
             velref0 = np.nanmedian(myvel[ngate - 3:ngate])

@@ -82,7 +82,12 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
 
     # Dealiasing based upon previously corrected velocities starting from two reference
     # radials, approximately 180° apart, where the wind is nearly orthogonal to the radar beam..
-    azi_start_pos, azi_end_pos = find_reference.find_reference_radials(azimuth, velocity, debug)
+    try:
+        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(azimuth, velocity, debug)
+    except ValueError:
+        print(f"Empty slice at elevation {elev_angle}.")
+        flag_vel = np.zeros_like(velocity_nomask, dtype=int)
+        return velocity_nomask, flag_vel
     # Looking for midpoints between the two reference radials. (4 quadrants to iter to).
     quadrant = find_reference.get_quadrant(azimuth, azi_start_pos, azi_end_pos)
     # Initialize unfolding, verifying reference radials.

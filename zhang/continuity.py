@@ -610,8 +610,8 @@ def box_check(azi, final_vel, flag_vel, vnyq):
     jit-friendly... so there are loops!
     Module 4
     """
-    window_range = 40
-    window_azimuth = 10
+    window_range = 80
+    window_azimuth = 20
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):

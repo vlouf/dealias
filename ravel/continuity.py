@@ -214,6 +214,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
     used as reference. Clockwise means that we loop over increasing azimuth
     (which is in fact counterclockwise, but let's try not to be confusing).
+    This function will look at unprocessed velocity only.
 
     Parameters:
     ===========
@@ -289,6 +290,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
     azimuths (which is in fact clockwise... I know, it's confusing).
+    This function will look at unprocessed velocity only.
 
     Parameters:
     ===========
@@ -361,7 +363,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
 def correct_range_onward(vel, final_vel, flag_vel, vnyq):
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
-    is used as reference.
+    is used as reference. This function will look at unprocessed velocity only.
 
     Parameters:
     ===========
@@ -414,7 +416,8 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq):
 def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
-    radials are used as reference.
+    radials are used as reference. This function will look at unprocessed
+    velocity only.
 
     Parameters:
     ===========
@@ -482,6 +485,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq):
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
     backward, i.e. from the outside to the center) is used as reference.
+    This function will look at unprocessed velocity only.
 
     Parameters:
     ===========
@@ -541,6 +545,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
     Dealias using the closest cluster of value already processed. Once the
     closest correct value is found, a take a window of 10 radials and 40 gates
     around that point and use the median as of those points as a reference.
+    This function will look at unprocessed velocity only.
 
     Parameters:
     ===========
@@ -620,8 +625,29 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
 @jit(nopython=True)
 def correct_box(azi, vel, final_vel, flag_vel, vnyq):
     """
-    jit-friendly... so there are loops!
-    Module 4
+    Dealias using a 20 gates by 10 radials box around around the point to
+    dealias and use the median as of those points as a reference.
+    This function will look at unprocessed velocity only.
+
+    Parameters:
+    ===========
+    azi: ndarray
+        Radar scan azimuth.
+    vel: ndarray <azimuth, r>
+        Aliased Doppler velocity field.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     window_range = 20
     window_azimuth = 10
@@ -674,8 +700,28 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq):
 @jit(nopython=True)
 def box_check(azi, final_vel, flag_vel, vnyq):
     """
-    jit-friendly... so there are loops!
-    Module 4
+    Check if all individual points are consistent with their surroundings. The
+    reference is the median of the distribution of all points (the one we're
+    checking excluded) inside a box of 80 gates and 20 radials.
+    This function will look at ALL points.
+
+    Parameters:
+    ===========
+    azi: ndarray
+        Radar scan azimuth.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array NEW value: 3->had to be corrected.
     """
     window_range = 80
     window_azimuth = 20
@@ -720,7 +766,31 @@ def box_check(azi, final_vel, flag_vel, vnyq):
 @jit
 def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
     """
-    Module 5 from He et al.
+    Dealias a linear regression of gates inside each radials.
+    This function will look at PROCESSED velocity only. This function cannot be
+    fully JITed due to the use of the scipy function linregress.
+
+    Parameters:
+    ===========
+    r: ndarray
+        Radar range
+    azi: ndarray
+        Radar scan azimuth.
+    vel: ndarray <azimuth, r>
+        Aliased Doppler velocity field.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     tmp_vel = np.zeros_like(flag_vel)
     maxazi, maxrange = final_vel.shape
@@ -771,7 +841,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
 @jit
 def least_square_radial_last_module(r, azi, final_vel, vnyq):
     """
-    Module 7 from He et al.
+    Similar as radial_least_square_check.
     """
     maxazi, maxrange = final_vel.shape
 

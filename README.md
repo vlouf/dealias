@@ -1,11 +1,12 @@
 # UNRAVEL
 
-UNRAVEL (UNfold RAdar VELocit) is a dealiasing technique for unfolding Doppler radar velocity. It is based on the continuous consistency of the velocity field in the 3 directions (range, azimuth, elevation).
+UNRAVEL (UNfold RAdar VELocity) is a dealiasing technique for unfolding Doppler radar velocity. It is based on the continuous consistency of the velocity field in the 3 directions (range, azimuth, elevation).
 
 ## Dependencies
 
 Mandatory dependencies:
 - [Numpy][1]
+- [Scipy][1]
 - [Numba][2]
 
 Even thought it does not directly requires [Py-ART][3] to run, UNRAVEL uses [Py-ART][3]

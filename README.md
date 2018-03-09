@@ -13,7 +13,7 @@ Even thought it does not directly requires [Py-ART][3] to run, UNRAVEL uses [Py-
 data class as input.
 
 [1]: http://www.scipy.org/
-[2]: http://www.scipy.org/
+[2]: http://numba.pydata.org
 [3]: https://github.com/ARM-DOE/pyart
 
 <!-- # References: -->

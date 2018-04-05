@@ -83,7 +83,7 @@ if __name__ == '__main__':
     matplotlib.use("Agg")
 
     # Custom
-    from ravel import dealias
+    from unravel import dealias
 
     import pyart
     import numpy as np

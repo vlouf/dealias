@@ -61,9 +61,9 @@ def do_gatefilter(radar, vel_name, dbz_name, zdr_name=None, rho_name=None):
 
     gf.exclude_outside(dbz_name, -40.0, 80.0)
     gf.exclude_above("TVEL_tmp", 4)
-
+    
     try:
-        gf.include_above(rho_name, 0.8)
+        gf.exclude_below(rho_name, 0.9)
     except (KeyError, TypeError):
         pass
 

@@ -54,8 +54,11 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     # Compute the normalised integrated velocity along each radials.
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
-
-    threshold = 0.2
+    
+    if np.sum(~np.isnan(vel)) / np.sum(np.isnan(vel)) > 0.3:
+        threshold = 0.2        
+    else:
+        threshold = 0.5
     # Looking if the threshold is not too strict.
     iter_radials = np.where(yall < threshold)[0]
     while (len(iter_radials) < 10) and (threshold < 0.8):

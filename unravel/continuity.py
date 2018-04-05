@@ -256,16 +256,18 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
 
             # Folded velocity
             vel1 = vel[nazi, ngate]
-
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) < 2:
-                continue
-
-            mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-
-            if mean_vel_ref is None:
-                # No reference found.
-                continue
-
+                        
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
+                mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
+            else:            
+                if ngate == 0:
+                    continue
+                    
+                npos = ngate - 1
+                mean_vel_ref = final_vel[nazi, npos]
+                if flag_vel[nazi, npos] <= 0:
+                    continue
+                
             decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
@@ -332,14 +334,16 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
             # Folded velocity
             vel1 = vel[nazi, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) < 2:
-                continue
-
-            mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-
-            if mean_vel_ref is None:
-                # No reference found.
-                continue
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
+                mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
+            else:            
+                if ngate == 0:
+                    continue
+                    
+                npos = ngate - 1
+                mean_vel_ref = final_vel[nazi, npos]
+                if flag_vel[nazi, npos] <= 0:
+                    continue
 
             decision = take_decision(mean_vel_ref, vel1, vnyq)
 

@@ -215,6 +215,8 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     used as reference. Clockwise means that we loop over increasing azimuth
     (which is in fact counterclockwise, but let's try not to be confusing).
     This function will look at unprocessed velocity only.
+    In this version of the code, if no radials are found in continuity, then we
+    we use the gate to gate continuity.
 
     Parameters:
     ===========
@@ -256,18 +258,18 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
 
             # Folded velocity
             vel1 = vel[nazi, ngate]
-                        
+
             if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
                 mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-            else:            
+            else:
                 if ngate == 0:
                     continue
-                    
+
                 npos = ngate - 1
                 mean_vel_ref = final_vel[nazi, npos]
                 if flag_vel[nazi, npos] <= 0:
                     continue
-                
+
             decision = take_decision(mean_vel_ref, vel1, vnyq)
 
             if decision == -3:
@@ -293,6 +295,8 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
     used as reference. Counterclockwise means that we loop over decreasing
     azimuths (which is in fact clockwise... I know, it's confusing).
     This function will look at unprocessed velocity only.
+    In this version of the code, if no radials are found in continuity, then we
+    we use the gate to gate continuity.
 
     Parameters:
     ===========
@@ -336,10 +340,10 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
 
             if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
                 mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-            else:            
+            else:
                 if ngate == 0:
                     continue
-                    
+
                 npos = ngate - 1
                 mean_vel_ref = final_vel[nazi, npos]
                 if flag_vel[nazi, npos] <= 0:

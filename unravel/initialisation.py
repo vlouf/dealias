@@ -54,16 +54,16 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
     # Compute the normalised integrated velocity along each radials.
     normed_sum = nsum / vmax
     yall = normed_sum / dnum
-    
+
     if np.sum(~np.isnan(vel)) / np.sum(np.isnan(vel)) > 0.3:
-        threshold = 0.2        
+        threshold = 0.2
     else:
         threshold = 0.5
     # Looking if the threshold is not too strict.
     iter_radials = np.where(yall < threshold)[0]
     while (len(iter_radials) < 10) and (threshold < 0.8):
         threshold += 0.1
-        iter_radials = np.where(yall < threshold)[0]               
+        iter_radials = np.where(yall < threshold)[0]
 
     # Magic happens.
     is_bad = 0
@@ -73,7 +73,7 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
             is_bad += 1
             continue
 
-        for ngate in range(3, len(myvel) - 3):                            
+        for ngate in range(3, len(myvel) - 3):
             velref0 = np.nanmedian(myvel[ngate - 3:ngate])
             velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
             decision = take_decision(velref0, velref1, vnyq)
@@ -98,12 +98,12 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
                 if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                     final_vel[pos_good, ngate] = vtrue
                     flag_vel[pos_good, ngate] = 2
-                    
+
     if is_bad >= len(iter_radials) - 1:
         for pos_good in iter_radials:
-            myvel = vel[pos_good, :]                    
+            myvel = vel[pos_good, :]
 
-            for ngate in range(3, len(myvel) - 3):    
+            for ngate in range(3, len(myvel) - 3):
                 if np.abs(myvel[ngate]) >= 0.5 * vnyq:
                     continue
 
@@ -131,5 +131,5 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
                     if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                         final_vel[pos_good, ngate] = vtrue
                         flag_vel[pos_good, ngate] = 2
-        
+
     return final_vel, flag_vel

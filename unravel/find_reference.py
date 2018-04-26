@@ -162,7 +162,7 @@ def find_reference_radials(azi, vel, debug=False):
 
     # Finding the 2nd radial of reference
     pos2 = pos1 + len(azi) // 2
-    if pos2 > len(azi):
+    if pos2 >= len(azi):
         pos2 -= len(azi)
 
 #     try:

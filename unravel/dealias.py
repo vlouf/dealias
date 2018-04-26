@@ -209,7 +209,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
     """
     # Filter
     if gatefilter is None:
-        gatefilter = filtering.do_gatefilter(radar, "VEL", "DBZ", zdr_name="ZDR", rho_name="RHOHV")
+        gatefilter = filtering.do_gatefilter(radar, velname, dbzname, zdrname, rhohvname)
 
     if nyquist_velocity is None:
         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
@@ -219,7 +219,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
     myslice = radar.get_slice(slice_number)
 
     r = radar.range['data'].copy()
-    velocity = radar.fields["VEL"]['data'].copy()
+    velocity = radar.fields[velname]['data'].copy()
     azimuth_reference = radar.azimuth['data'][myslice]
     elevation_reference = radar.elevation['data'][myslice].mean()
 
@@ -232,7 +232,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
     velocity_reference = final_vel.copy()
     flag_reference = flag_vel.copy()
 
-    ultimate_dealiased_velocity = np.zeros(radar.fields["VEL"]['data'].shape)
+    ultimate_dealiased_velocity = np.zeros(radar.fields[velname]['data'].shape)
     ultimate_dealiased_velocity[myslice] = final_vel.copy()
 
     for slice_number in range(1, radar.nsweeps):

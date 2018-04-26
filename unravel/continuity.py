@@ -280,7 +280,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(mean_vel_ref, vel1)
+                vtrue = unfold(mean_vel_ref, vel1, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -359,7 +359,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(mean_vel_ref, vel1)
+                vtrue = unfold(mean_vel_ref, vel1, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -412,7 +412,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(velref, vel1)
+                vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -480,7 +480,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(velref, vel1)
+                vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -539,7 +539,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(velref, vel1)
+                vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -618,7 +618,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
                 flag_vel[nazi, ngate] = 1
                 continue
             elif decision == 2:
-                vtrue = unfold(velref, vel1)
+                vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -697,7 +697,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq):
                 final_vel[nazi, ngate] = myvel
                 flag_vel[nazi, ngate] = 1
             elif decision == 2:
-                vtrue = unfold(mean_vel_ref, myvel)
+                vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -839,7 +839,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
                 flag_vel[nazi, ngate] = 1
             elif decision == 2:
                 myvel = vel[nazi, ngate]
-                vtrue = unfold(mean_vel_ref, myvel)
+                vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
                     flag_vel[nazi, ngate] = 2
@@ -885,7 +885,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
             if decision == 1:
                 final_vel[nazi, ngate] = myvel
             elif decision == 2:
-                vtrue = unfold(mean_vel_ref, myvel)
+                vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
                     final_vel[nazi, ngate] = vtrue
 
@@ -988,7 +988,7 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             compare_vel = np.nanmedian(velocity_refcomp_array[pos])
 
             if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=0.4):
-                vtrue = unfold(compare_vel, current_vel)
+                vtrue = unfold(compare_vel, current_vel, vnyq)
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=0.4):
                     velocity_slice[nazi, ngate] = vtrue
                     flag_slice[nazi, ngate] = 3

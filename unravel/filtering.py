@@ -67,7 +67,7 @@ def do_gatefilter(radar, vel_name, dbz_name, zdr_name=None, rho_name=None):
     except (KeyError, TypeError):
         pass
 
-    gf_desp = pyart.correct.despeckle_field(radar, "DBZ", gatefilter=gf)
+    gf_desp = pyart.correct.despeckle_field(radar, dbz_name, gatefilter=gf)
     radar.fields.pop("TVEL_tmp")
 
     return gf_desp

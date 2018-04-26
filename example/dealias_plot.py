@@ -10,9 +10,6 @@ from multiprocessing import Pool
 # Others
 import netCDF4
 
-# Custom
-from ..ravel import dealias
-
 
 def make_plot(radar):
     dtime = netCDF4.num2date(radar.time['data'][0], radar.time['units'])
@@ -44,6 +41,7 @@ def make_plot(radar):
 
 
 def process_driver(infile):
+    st = time.time()
     try:
         radar = pyart.io.read(infile)
         print(f"{infile} read.")
@@ -58,6 +56,9 @@ def process_driver(infile):
         print(f"Problem while processing file {infile}.")
         traceback.print_exc()
         pass
+    
+    ttime = time.time() - st
+    print(f"{infile} processed in {ttime:0.2}s.")
 
     return None
 
@@ -80,6 +81,9 @@ if __name__ == '__main__':
 
     import matplotlib
     matplotlib.use("Agg")
+
+    # Custom
+    from unravel import dealias
 
     import pyart
     import numpy as np

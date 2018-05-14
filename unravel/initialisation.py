@@ -94,7 +94,7 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
                 final_vel[pos_good, ngate] = myvel[ngate]
                 flag_vel[pos_good, ngate] = 1
             elif decision == 2:
-                vtrue = unfold(myvel[ngate - 1], myvel[ngate])
+                vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
                 if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                     final_vel[pos_good, ngate] = vtrue
                     flag_vel[pos_good, ngate] = 2
@@ -127,7 +127,7 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, vnyq=13.3):
                     final_vel[pos_good, ngate] = myvel[ngate]
                     flag_vel[pos_good, ngate] = 1
                 elif decision == 2:
-                    vtrue = unfold(myvel[ngate - 1], myvel[ngate])
+                    vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
                     if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                         final_vel[pos_good, ngate] = vtrue
                         flag_vel[pos_good, ngate] = 2

@@ -162,10 +162,9 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
         dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity_nomask,
                                                                      dealias_vel, flag_vel,
                                                                      nyquist_velocity)
-
-    # No flag.
-    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel,
-                                                             nyquist_velocity)
+        # No flag.
+        dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel,
+                                                                 nyquist_velocity)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity)
 
@@ -263,7 +262,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
                                                              velocity_reference,
                                                              flag_reference,
                                                              final_vel, flag_vel,
-                                                             nyquist_velocity, loose=False)
+                                                             nyquist_velocity)
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()

@@ -21,7 +21,7 @@ from scipy.stats import linregress
 
 
 @jit(nopython=True)
-def unfold(v1, v2, vnyq=13.3, half_nyq=False):
+def unfold(v1, v2, vnyq, half_nyq=False):
     """
     Compare two velocities, look at all possible unfolding value (up to a period
     of 7 times the nyquist) and find the unfolded velocity that is the closest
@@ -259,7 +259,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
             # Folded velocity
             vel1 = vel[nazi, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 1:
                 mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
             else:
                 if ngate == 0:
@@ -338,7 +338,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
             # Folded velocity
             vel1 = vel[nazi, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 2:
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 1:
                 mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
             else:
                 if ngate == 0:
@@ -455,17 +455,13 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                 continue
 
             vel1 = vel[nazi, ngate]
-            npos = ngate - 1
-            is_good = 0
-            cnt = 0
-            while npos > window_len & cnt < 100:
-                cnt += 1
-                if flag_vel[nazi, npos] > 0:
-                    is_good = 1
-                    break
-                npos -= 1
-
-            if is_good == 0:
+            goodpos = np.where(flag_vel[nazi, :] > 0)[0]
+            if len(goodpos) <= 1:
+                continue
+                
+            goodpos[goodpos == ngate] = 9999
+            npos = np.argmin(np.abs(goodpos - ngate))
+            if npos == ngate:
                 continue
 
             st_azi = get_iter_pos(azi, nazi - 1, 3)
@@ -894,8 +890,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
 
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
-                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq,
-                 loose=False, theta_3db=1):
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, theta_3db=1):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
@@ -933,13 +928,9 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
         Dealiased velocity slice.
     flag_slice: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """
-    if not loose:
-        window_azimuth = 10
-        window_range = 20
-    else:
-        window_azimuth = 20
-        window_range = 40
+    """    
+    window_azimuth = 5
+    window_range = 10    
 
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
@@ -952,10 +943,9 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
         for ngate in range(maxrange):
             if flag_slice[nazi, ngate] <= 0:
                 continue
-
-            if not loose:
-                if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
-                    break
+            
+            if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
+                break
 
             current_vel = velocity_slice[nazi, ngate]
 
@@ -983,6 +973,9 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
             vmean = np.nanmean(velocity_refcomp_array)
             vstd = np.nanstd(velocity_refcomp_array)
+            if vstd > 0.3 * vnyq:
+                continue
+                
             pos = (velocity_refcomp_array >= vmean - vstd) & \
                   (velocity_refcomp_array <= vmean + vstd)
             compare_vel = np.nanmedian(velocity_refcomp_array[pos])

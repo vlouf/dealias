@@ -439,3 +439,92 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", zdrname="ZDR", rhohvname="RH
                                                      ultimate_dealiased_velocity)
 
     return ultimate_dealiased_velocity
+
+
+
+# @jit(nopython=True)
+# def correct_diagonal_right(vel, final_vel, flag_vel, vnyq):
+#     maxazi, maxrange = final_vel.shape
+#     for ncol in range(maxazi):
+#         for i in range(maxrange - 1):
+#             if ncol == 0 and i == 0:
+#                 continue            
+#             rpos = i
+#             apos = i + ncol
+
+#             while apos >= maxazi:
+#                 apos -= maxazi
+                
+#             if flag_vel[apos, rpos] < 1:
+#                 # Velocity used for reference has NOT been processed.
+#                 continue
+
+#             rpos_cmp = rpos + 1
+#             apos_cmp = apos + 1
+            
+#             while apos_cmp >= maxazi:
+#                 apos_cmp -= maxazi
+            
+#             if flag_vel[apos_cmp, rpos_cmp] != 0:
+#                 # Velocity to unfold has already been processed.
+#                 continue          
+            
+#             vel_cmp = vel[apos_cmp, rpos_cmp]
+#             vel_ref = final_vel[apos, rpos]
+            
+#             decision = take_decision(vel_ref, vel_cmp, vnyq)
+#             if decision == 1:
+#                 final_vel[apos_cmp, rpos_cmp] = vel_cmp
+#                 flag_vel[apos_cmp, rpos_cmp] = 1
+#                 continue
+#             elif decision == 2:
+#                 vtrue = unfold(vel_ref, vel_cmp, vnyq)
+#                 if is_good_velocity(vel_ref, vtrue, vnyq, alpha=0.4):
+#                     final_vel[apos_cmp, rpos_cmp] = vtrue
+#                     flag_vel[apos_cmp, rpos_cmp] = 2
+                    
+#     return final_vel, flag_vel
+
+
+# @jit(nopython=True)
+# def correct_diagonal_left(vel, final_vel, flag_vel, vnyq):
+#     maxazi, maxrange = final_vel.shape
+#     for ncol in range(maxazi - 1, -1, -1):
+#         for i in range(maxrange - 1):
+#             if ncol == 0 and i == 0:
+#                 continue            
+#             rpos = i
+#             apos = i - ncol
+
+#             while apos < 0:
+#                 apos += maxazi
+
+#             rpos_cmp = rpos + 1
+#             apos_cmp = apos - 1
+            
+#             if apos_cmp < 0:
+#                 apos_cmp += maxazi
+            
+#             if flag_vel[apos_cmp, rpos_cmp] != 0:
+#                 # Velocity to unfold has already been processed.
+#                 continue          
+                
+#             if flag_vel[apos, rpos] < 1:
+#                 # Velocity used for reference has NOT been processed.
+#                 continue
+                
+#             vel_cmp = vel[apos_cmp, rpos_cmp]
+#             vel_ref = final_vel[apos, rpos]
+            
+#             decision = take_decision(vel_ref, vel_cmp, vnyq)
+#             if decision == 1:
+#                 final_vel[apos_cmp, rpos_cmp] = vel_cmp
+#                 flag_vel[apos_cmp, rpos_cmp] = 1
+#                 continue
+#             elif decision == 2:
+#                 vtrue = unfold(vel_ref, vel_cmp, vnyq)
+#                 if is_good_velocity(vel_ref, vtrue, vnyq, alpha=0.4):
+#                     final_vel[apos_cmp, rpos_cmp] = vtrue
+#                     flag_vel[apos_cmp, rpos_cmp] = 2
+                    
+#     return final_vel, flag_vel

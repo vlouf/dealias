@@ -209,7 +209,7 @@ def take_decision(velocity_reference, velocity_to_check, vnyq):
 
 
 @jit(nopython=True)
-def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
+def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3):
     """
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
     used as reference. Clockwise means that we loop over increasing azimuth
@@ -242,35 +242,38 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    maxgate = len(r)
+    maxgate = len(r)    
     # the number 3 is because we use the previous 3 radials as reference.
-    for nazi in myquadrant[3:]:
+    for nazi in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
             # Check if already unfolded
-            if flag_vel[nazi, ngate] == 1:
+            if flag_vel[nazi, ngate] != 0:
                 continue
 
             # We want the previous 3 radials.
-            npos = nazi - 3
+            npos = nazi - window_len
             # Unfolded velocity
-            velref = final_vel[get_iter_pos(azi, npos, 3), ngate]
-            flagvelref = flag_vel[get_iter_pos(azi, npos, 3), ngate]
+            velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
+            flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
 
             # Folded velocity
             vel1 = vel[nazi, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 1:
-                mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-            else:
-                if ngate == 0:
-                    continue
-
-                npos = ngate - 1
-                mean_vel_ref = final_vel[nazi, npos]
-                if flag_vel[nazi, npos] <= 0:
-                    continue
-
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
+                continue
+            
+            mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
+                
             decision = take_decision(mean_vel_ref, vel1, vnyq)
+            
+            # If loose, skip this test.
+            if ngate != 0 and window_len <= 3:
+                npos = ngate - 1
+                mean_vel_ref2 = final_vel[nazi, npos]
+                
+                decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
+                if decision != decision2:
+                    continue
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -289,7 +292,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
 
 
 @jit(nopython=True)
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq):
+def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -323,33 +326,37 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq)
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
+    
     for nazi in myquadrant:
         for ngate in range(0, maxgate):
             # Check if already unfolded
-            if flag_vel[nazi, ngate] == 1:
+            if flag_vel[nazi, ngate] != 0:
                 continue
 
             # We want the next 3 radials.
             npos = nazi + 1
             # Unfolded velocity.
-            velref = final_vel[get_iter_pos(azi, npos, 3), ngate]
-            flagvelref = flag_vel[get_iter_pos(azi, npos, 3), ngate]
+            velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
+            flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
 
             # Folded velocity
             vel1 = vel[nazi, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) >= 1:
-                mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-            else:
-                if ngate == 0:
-                    continue
-
-                npos = ngate - 1
-                mean_vel_ref = final_vel[nazi, npos]
-                if flag_vel[nazi, npos] <= 0:
-                    continue
+            if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
+                continue
+            
+            mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
 
             decision = take_decision(mean_vel_ref, vel1, vnyq)
+            
+            # If loose, skip this test.
+            if ngate != 0 and window_len <= 3:
+                npos = ngate - 1
+                mean_vel_ref2 = final_vel[nazi, npos]
+                
+                decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
+                if decision != decision2:
+                    continue
 
             if decision == -3:
                 flag_vel[nazi, ngate] = -3
@@ -420,7 +427,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq):
     return final_vel, flag_vel
 
 
-@jit
+@jit(nopython=True)
 def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
@@ -447,7 +454,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    window_len = 10
+    window_len = 40
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(1, maxrange):
@@ -455,18 +462,72 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                 continue
 
             vel1 = vel[nazi, ngate]
-            goodpos = np.where(flag_vel[nazi, :] > 0)[0]
-            if len(goodpos) <= 1:
+                                    
+            if ngate - window_len < 0:
+                npos = 0
+            else:
+                npos = npos - window_len            
+            
+            velref_vec = final_vel[nazi, npos:ngate]
+            flagvelref = flag_vel[nazi, npos:ngate]
+            velref = np.nanmedian(velref_vec[flagvelref > 0])
+
+            decision = take_decision(velref, vel1, vnyq)
+
+            if decision == 1:
+                final_vel[nazi, ngate] = vel1
+                flag_vel[nazi, ngate] = 1
                 continue
-                
-            goodpos[goodpos == ngate] = 9999
-            npos = np.argmin(np.abs(goodpos - ngate))
-            if npos == ngate:
+            elif decision == 2:
+                vtrue = unfold(velref, vel1, vnyq)
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+                    flag_vel[nazi, ngate] = 2
+
+    return final_vel, flag_vel
+
+
+@jit(nopython=True)
+def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
+    """
+    Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
+    radials are used as reference. This function will look at unprocessed
+    velocity only.
+
+    Parameters:
+    ===========
+    azi: ndarray
+        Radar scan azimuth.
+    vel: ndarray <azimuth, r>
+        Aliased Doppler velocity field.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    """
+    window_len = 40
+    maxazi, maxrange = final_vel.shape
+    for nazi in range(maxazi):
+        for ngate in range(maxrange - 2, -1):
+            if flag_vel[nazi, ngate] != 0:
                 continue
 
-            st_azi = get_iter_pos(azi, nazi - 1, 3)
-            velref_vec = final_vel[st_azi, npos - window_len:npos + 1]
-            flagvelref = flag_vel[st_azi, npos - window_len:npos + 1]
+            vel1 = vel[nazi, ngate]            
+                
+            if ngate + window_len > maxrange:
+                npos = maxrange
+
+            velref_vec = final_vel[nazi, ngate:npos]
+            flagvelref = flag_vel[nazi, ngate:npos]
             velref = np.nanmedian(velref_vec[flagvelref > 0])
 
             decision = take_decision(velref, vel1, vnyq)
@@ -574,14 +635,16 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
     window_azi = 10
     window_gate = 40
     maxazi, maxrange = final_vel.shape
-    posazi_good, posgate_good = np.where(flag_vel > 0)
+    
     for nazi in range(maxazi):
+        posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
             if flag_vel[nazi, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
-            distance = np.sqrt((posazi_good - nazi) ** 2 + (posgate_good - ngate) ** 2)
+            vel1 = vel[nazi, ngate]            
+            
+            distance = (posazi_good - nazi) ** 2 + (posgate_good - ngate) ** 2
             if len(distance) == 0:
                 continue
 
@@ -593,20 +656,14 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
             iter_range = get_iter_range(ngate_close, window_gate, maxrange)
 
             vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
-            flag_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=int64)
 
             # Numba don't support 2D slice, that's why I loop over things.
             pos = -1
             for na in iter_azi:
-                for nr in iter_range:
-                    pos += 1
-                    if (na, nr) == (nazi, ngate):
-                        continue
+                pos += 1
+                vel_ref_vec[pos] = np.nanmean(final_vel[na, iter_range[0] : iter_range[-1]][flag_vel[na, iter_range[0] : iter_range[-1]] > 0])     
+            velref = np.nanmedian(vel_ref_vec)
 
-                    vel_ref_vec[pos] = final_vel[na, nr]
-                    flag_ref_vec[pos] = flag_vel[na, nr]
-
-            velref = np.nanmedian(vel_ref_vec[flag_ref_vec > 0])
             decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
@@ -627,7 +684,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
 
 
 @jit(nopython=True)
-def correct_box(azi, vel, final_vel, flag_vel, vnyq):
+def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10):
     """
     Dealias using a 20 gates by 10 radials box around around the point to
     dealias and use the median as of those points as a reference.
@@ -653,8 +710,6 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    window_range = 20
-    window_azimuth = 10
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -894,7 +949,6 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
-
     Parameters:
     ===========
     r: ndarray
@@ -921,7 +975,6 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
         Being loose in the dealiasing.
     theta_3db: float
         Beamwidth.
-
     Returns:
     ========
     velocity_slice: ndarray <azimuth, range>
@@ -972,9 +1025,7 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
 
             velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
             vmean = np.nanmean(velocity_refcomp_array)
-            vstd = np.nanstd(velocity_refcomp_array)
-            if vstd > 0.3 * vnyq:
-                continue
+            vstd = np.nanstd(velocity_refcomp_array)            
                 
             pos = (velocity_refcomp_array >= vmean - vstd) & \
                   (velocity_refcomp_array <= vmean + vstd)

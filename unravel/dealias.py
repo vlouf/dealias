@@ -91,7 +91,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
 
     tot_gate = velocity_nomask.shape[0] * velocity_nomask.shape[1]
     nmask_gate = np.sum(np.isnan(velocity_nomask))
-    print(f"There are {tot_gate - nmask_gate} gates to dealias at elevation {elev_angle}.")
+    if debug:
+        print(f"There are {tot_gate - nmask_gate} gates to dealias at elevation {elev_angle}.")
 
     # Dealiasing based upon previously corrected velocities starting from two reference
     # radials, approximately 180° apart, where the wind is nearly orthogonal to the radar beam..
@@ -138,20 +139,21 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
                                                                 flag_vel, quadrant[3], nyquist_velocity)
     dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
                                                                 flag_vel, quadrant[3][::-1], nyquist_velocity)
-        
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-        dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+    
+    for e in range(2):
+        if count_proc(flag_vel, False) < 100:
+            dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
+            dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
 
-    # One full sweep.
-    if count_proc(flag_vel, debug) < 100:
-        dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
-                                                             flag_vel, np.arange(0, dealias_vel.shape[0]), 
-                                                             nyquist_velocity, 6)
-        dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
-                                                                    flag_vel, np.arange(dealias_vel.shape[0] - 1, 0, -1),
-                                                                    nyquist_velocity, 6)        
-        
+        # One full sweep.
+        if count_proc(flag_vel, debug) < 100:
+            dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity_nomask, dealias_vel,
+                                                                 flag_vel, np.arange(0, dealias_vel.shape[0]), 
+                                                                 nyquist_velocity, 6)
+            dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity_nomask, dealias_vel,
+                                                                        flag_vel, np.arange(dealias_vel.shape[0] - 1, 0, -1),
+                                                                        nyquist_velocity, 6)        
+
     # Loose radial area dealiasing.
     if count_proc(flag_vel, debug) < 100:
         dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
@@ -191,7 +193,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity, de
 
 
 def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None, 
-               two_passes=False, debug=False, do_3D=True):
+               debug=False, do_3D=True):
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -222,7 +224,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
         gatefilter = filtering.do_gatefilter(radar, velname, dbzname)
 
     if nyquist_velocity is None:
-        nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
+        nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]                
 
     # Start with first reference.
     slice_number = 0

@@ -454,7 +454,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    window_len = 40
+    window_len = 10
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(1, maxrange):
@@ -470,19 +470,22 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
             
             velref_vec = final_vel[nazi, npos:ngate]
             flagvelref = flag_vel[nazi, npos:ngate]
-            velref = np.nanmedian(velref_vec[flagvelref > 0])
+            if np.sum(flagvelref > 0) < 2:
+                continue
+            velref = np.nanmean(velref_vec[flagvelref > 0])
 
             decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                if is_good_velocity(velref, vel1, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vel1
+                    flag_vel[nazi, ngate] = 1
                 continue
-            elif decision == 2:
-                vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+#             elif decision == 2:
+#                 vtrue = unfold(velref, vel1, vnyq)
+#                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+#                     final_vel[nazi, ngate] = vtrue
+#                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
@@ -514,7 +517,7 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    window_len = 40
+    window_len = 10
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(maxrange - 2, -1):
@@ -528,19 +531,22 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
 
             velref_vec = final_vel[nazi, ngate:npos]
             flagvelref = flag_vel[nazi, ngate:npos]
-            velref = np.nanmedian(velref_vec[flagvelref > 0])
+            if np.sum(flagvelref > 0) < 2:
+                continue
+            velref = np.nanmean(velref_vec[flagvelref > 0])
 
             decision = take_decision(velref, vel1, vnyq)
 
             if decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                if is_good_velocity(velref, vel1, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vel1
+                    flag_vel[nazi, ngate] = 1
                 continue
-            elif decision == 2:
-                vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+#             elif decision == 2:
+#                 vtrue = unfold(velref, vel1, vnyq)
+#                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+#                     final_vel[nazi, ngate] = vtrue
+#                     flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 

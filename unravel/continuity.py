@@ -242,7 +242,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    maxgate = len(r)    
+    maxgate = len(r)
     # the number 3 is because we use the previous 3 radials as reference.
     for nazi in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
@@ -261,16 +261,16 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
 
             if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
                 continue
-            
+
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
-                
+
             decision = take_decision(mean_vel_ref, vel1, vnyq)
-            
+
             # If loose, skip this test.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
                 mean_vel_ref2 = final_vel[nazi, npos]
-                
+
                 decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
                 if decision != decision2:
                     continue
@@ -326,7 +326,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
-    
+
     for nazi in myquadrant:
         for ngate in range(0, maxgate):
             # Check if already unfolded
@@ -344,16 +344,16 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
 
             if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
                 continue
-            
+
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
 
             decision = take_decision(mean_vel_ref, vel1, vnyq)
-            
+
             # If loose, skip this test.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
                 mean_vel_ref2 = final_vel[nazi, npos]
-                
+
                 decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
                 if decision != decision2:
                     continue
@@ -462,12 +462,12 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                 continue
 
             vel1 = vel[nazi, ngate]
-                                    
+
             if ngate - window_len < 0:
                 npos = 0
             else:
-                npos = npos - window_len            
-            
+                npos = npos - window_len
+
             velref_vec = final_vel[nazi, npos:ngate]
             flagvelref = flag_vel[nazi, npos:ngate]
             if np.sum(flagvelref > 0) < 2:
@@ -524,8 +524,8 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
             if flag_vel[nazi, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]            
-                
+            vel1 = vel[nazi, ngate]
+
             if ngate + window_len > maxrange:
                 npos = maxrange
 
@@ -641,15 +641,15 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
     window_azi = 10
     window_gate = 40
     maxazi, maxrange = final_vel.shape
-    
+
     for nazi in range(maxazi):
         posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
             if flag_vel[nazi, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]            
-            
+            vel1 = vel[nazi, ngate]
+
             distance = (posazi_good - nazi) ** 2 + (posgate_good - ngate) ** 2
             if len(distance) == 0:
                 continue
@@ -667,7 +667,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
             pos = -1
             for na in iter_azi:
                 pos += 1
-                vel_ref_vec[pos] = np.nanmean(final_vel[na, iter_range[0] : iter_range[-1]][flag_vel[na, iter_range[0] : iter_range[-1]] > 0])     
+                vel_ref_vec[pos] = np.nanmean(final_vel[na, iter_range[0]: iter_range[-1]][flag_vel[na, iter_range[0]: iter_range[-1]] > 0])
             velref = np.nanmedian(vel_ref_vec)
 
             decision = take_decision(velref, vel1, vnyq)
@@ -819,8 +819,7 @@ def box_check(azi, final_vel, flag_vel, vnyq):
             true_vel = vel_ref_vec[flag_ref_vec >= 1]
             mvel = np.nanmean(true_vel)
             svel = np.nanstd(true_vel)
-            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) &
-                                             (true_vel <= mvel + svel)])
+            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
 
             if not is_good_velocity(myvelref, myvel, vnyq):
                 final_vel[nazi, ngate] = myvelref
@@ -987,9 +986,9 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
         Dealiased velocity slice.
     flag_slice: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """    
+    """
     window_azimuth = 5
-    window_range = 10    
+    window_range = 10
 
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
@@ -1002,7 +1001,7 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
         for ngate in range(maxrange):
             if flag_slice[nazi, ngate] <= 0:
                 continue
-            
+
             if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
                 break
 
@@ -1031,8 +1030,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
 
             velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
             vmean = np.nanmean(velocity_refcomp_array)
-            vstd = np.nanstd(velocity_refcomp_array)            
-                
+            vstd = np.nanstd(velocity_refcomp_array)
+
             pos = (velocity_refcomp_array >= vmean - vstd) & \
                   (velocity_refcomp_array <= vmean + vstd)
             compare_vel = np.nanmedian(velocity_refcomp_array[pos])

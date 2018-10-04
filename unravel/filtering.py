@@ -16,58 +16,80 @@ import pyart
 
 # Other Libraries
 import numpy as np
-
-
-def velocity_texture(radar, vel_name):
-    """
-    Compute velocity texture using new Bobby Jackson function in Py-ART.
-
-    Parameters:
-    ===========
-    radar:
-        Py-ART radar structure.
-    vel_name: str
-        Name of the (original) Doppler velocity field.
-
-    Returns:
-    ========
-    vdop_vel: dict
-        Velocity texture.
-    """
-    try:
-        v_nyq_vel = radar.instrument_parameters['nyquist_velocity']['data'][0]
-    except Exception:
-        vdop_art = radar.fields[vel_name]['data']
-        v_nyq_vel = np.max(np.abs(vdop_art))
-
-    vel_dict = pyart.retrieve.calculate_velocity_texture(radar, vel_name, nyq=v_nyq_vel)
-
-    return vel_dict
+from numba import jit
 
 
 def do_gatefilter(radar, vel_name, dbz_name):
     """
     Generate a GateFilter that remove all bad data.
     """
-
-    tvel = velocity_texture(radar, vel_name)
-    radar.add_field("TVEL_tmp", tvel)
-
     gf = pyart.filters.GateFilter(radar)
-#     try:
-#         gf.exclude_outside(zdr_name, -3.0, 7.0)
-#     except (KeyError, TypeError):
-#         pass
-
-    gf.exclude_outside(dbz_name, -40.0, 80.0)
-    gf.exclude_above("TVEL_tmp", 4)
-
-#     try:
-#         gf.exclude_below(rho_name, 0.9)
-#     except (KeyError, TypeError):
-#         pass
-
+    gf.exclude_outside(dbz_name,  5, 65)
     gf_desp = pyart.correct.despeckle_field(radar, dbz_name, gatefilter=gf)
-    radar.fields.pop("TVEL_tmp")
 
     return gf_desp
+
+
+@jit(nopython=True)
+def unfold(v, vref, vnq, vshift):
+    delv = v - vref
+
+    if(np.abs(delv) < vnq):
+        unfld = v
+    else:
+        unfld = v - int((delv + np.sign(delv) * vnq) / vshift) * vshift
+    return unfld
+
+
+@jit(nopython=True)
+def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):     
+    nazi, ngate = velocity.shape
+    for j in range(0, 360):
+        for n in range(0, ngate):
+            if vflag[j, n] == -3:
+                continue
+
+            vmoy = 0
+            vmoy_plus = 0
+            vmoy_minus = 0
+
+            n1 = n
+            n2 = n1 + nfilter
+            n2 = np.min(np.array([ngate, n2]))
+
+            idx_selected = vflag[j, n1: n2]
+            if np.all((idx_selected == -3)):
+                continue
+
+            v_selected = velocity[j, n1: n2][idx_selected != -3]
+            vmoy = np.mean(v_selected)
+
+            if np.any((v_selected > 0)):
+                vmoy_plus = np.mean(v_selected[v_selected > 0])
+            else:
+                vmoy_plus = np.NaN
+            if np.any((v_selected < 0)):
+                vmoy_minus = np.mean(v_selected[v_selected < 0])
+            else:
+                vmoy_minus = np.NaN
+
+            k = 0
+            nselect = np.sum(idx_selected != -3)
+            for k in range(nselect):
+                vk = v_selected[k]
+                dv1 = np.abs(vk - vmoy)
+                if dv1 >= delta_vmax:
+                    if vmoy >= 0:                        
+                        vk_unfld = unfold(vk, vmoy_plus, vnyquist, vshift)
+                        dvk = np.abs(vk - vmoy_plus)                        
+                    else:                        
+                        vk_unfld = unfold(vk, vmoy_minus, vnyquist, vshift)
+                        dvk = np.abs(vk - vmoy_minus)                        
+
+                    dvkm = np.abs(vk_unfld - vmoy)
+                    if dvkm < delta_vmax or dvk < delta_vmax:
+                        velocity[j, n + k] = vk_unfld
+                    else:
+                        vflag[j, n + k] = -3          
+                        
+    return velocity, vflag

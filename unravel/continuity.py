@@ -57,6 +57,16 @@ def unfold(v1, v2, vnyq, half_nyq=False):
 
     return vtrue
 
+# @jit(nopython=True)
+# def unfold(vref, v, vnq, half_nyq=False):
+#     delv = v - vref
+#     vshift = vnq * 2
+#     if delv <= vnq:
+#         vout = v
+#     else:
+#         vout = v - int((delv + np.sign(delv) * vnq) / vshift) * vshift
+#     return vout
+
 
 @jit(nopython=True)
 def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
@@ -202,7 +212,7 @@ def take_decision(velocity_reference, velocity_to_check, vnyq):
         return -3
     elif np.isnan(velocity_reference):
         return 0
-    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq):
+    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq) or (np.sign(velocity_reference) == np.sign(velocity_to_check)):
         return 1
     else:
         return 2
@@ -244,7 +254,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     """
     maxgate = len(r)
     # the number 3 is because we use the previous 3 radials as reference.
-    for nazi in myquadrant[window_len:]:
+    for nazi in myquadrant[window_len:]:        
         for ngate in range(0, maxgate):
             # Check if already unfolded
             if flag_vel[nazi, ngate] != 0:
@@ -375,7 +385,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
 
 
 @jit(nopython=True)
-def correct_range_onward(vel, final_vel, flag_vel, vnyq):
+def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5):
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
     is used as reference. This function will look at unprocessed velocity only.
@@ -410,7 +420,17 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq):
             flagvelref = flag_vel[nazi, npos]
 
             if flagvelref <= 0:
-                continue
+                cnt = 0
+                while npos > 0:
+                    npos -= 1
+                    cnt += 1
+                    if cnt == window_len:
+                        break
+                    if flag_vel[nazi, npos] > 0:
+                        velref = final_vel[nazi, npos]
+                        break
+                if cnt == 5 or npos == -1:
+                    continue
 
             decision = take_decision(velref, vel1, vnyq)
 
@@ -481,11 +501,11 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
                     final_vel[nazi, ngate] = vel1
                     flag_vel[nazi, ngate] = 1
                 continue
-#             elif decision == 2:
-#                 vtrue = unfold(velref, vel1, vnyq)
-#                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-#                     final_vel[nazi, ngate] = vtrue
-#                     flag_vel[nazi, ngate] = 2
+            elif decision == 2:
+                vtrue = unfold(velref, vel1, vnyq)
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+                    flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 
@@ -542,11 +562,11 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
                     final_vel[nazi, ngate] = vel1
                     flag_vel[nazi, ngate] = 1
                 continue
-#             elif decision == 2:
-#                 vtrue = unfold(velref, vel1, vnyq)
-#                 if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-#                     final_vel[nazi, ngate] = vtrue
-#                     flag_vel[nazi, ngate] = 2
+            elif decision == 2:
+                vtrue = unfold(velref, vel1, vnyq)
+                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+                    final_vel[nazi, ngate] = vtrue
+                    flag_vel[nazi, ngate] = 2
 
     return final_vel, flag_vel
 

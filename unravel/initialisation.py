@@ -5,8 +5,6 @@ Module 2: Initialize the unfolding.
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @date: 29/01/2018
-
-Call this function: initialize_unfolding
 """
 # Other Libraries
 import numpy as np
@@ -15,11 +13,32 @@ from numba import jit, int64, float64
 from numba import uint32
 
 # Custom
-from .continuity import take_decision, unfold, is_good_velocity, correct_clockwise, correct_counterclockwise
+from .continuity import take_decision, unfold, is_good_velocity
 
 
 @jit(nopython=True)
 def find_last_good_vel(j, n, azipos, vflag, nfilter):
+    """
+    Looking for the last good (i.e. processed) velocity in a slice.
+    
+    Parameters:
+    ===========
+    j: int
+        Position in dimension 1
+    n: int
+        Position in dimension 2
+    azipos: array
+        Array of available position in dimension 1
+    vflag: ndarray <azimuth, range>
+        Flag array (-3: missing, 0: unprocessed, 1: processed, 2: processed and unfolded)
+    nfilter: int
+        Size of filter.
+        
+    Returns:
+    ========
+        idx_ref: int
+            Last valid value in slice.
+    """
     i = 0
     while i < nfilter:
         i += 1
@@ -32,31 +51,68 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
 
 
 @jit(nopython=True)
-def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=5):     
+def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=5):
+    """
+    First pass: continuity check along the azimuth, starting at azi_start_pos.
+    
+    Parameters:
+    ===========
+    azi_start_pos: int
+        Starting position in array alongside dimension 0.
+    velocity: ndarray <azimuth, range>
+        Velocity to dealias
+    final_vel: ndarray <azimuth, range>
+        Result array
+    vflag: ndarray <azimuth, range>
+        Flag array (-3: missing, 0: unprocessed, 1: processed, 2: processed and unfolded)
+    vnyquist: float
+        Nyquist velocity.
+    vshift: float
+        Shift expected when folding, i.e. 2*vnyquist (in general)
+    delta_vmax: float
+        Maximum velocity difference tolerated between two contiguous gates.
+    nfilter: int
+        Size of filtering window
+    
+    Returns:
+    ========
+    final_vel: array <azimuth, range>
+        Unfolded velocities.
+    flag_vel: array <azimuth, range>
+        Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
+    """
     nazi, ngate = velocity.shape
     azipos = np.zeros((2 * nazi), dtype=uint32)
     azipos[:nazi] = np.arange(nazi)
     azipos[nazi:] = np.arange(nazi)
+    
     for j in range(azi_start_pos, azi_start_pos + nazi // 2) :
-        for n in range(ngate):   
-            idx_ref = j            
-            if vflag[azipos[j], n] <= 0:
-                idx_ref = find_last_good_vel(j, n, azipos, vflag, nfilter)
-                if idx_ref == -999:
-                    continue
-                if vflag[azipos[int(idx_ref)], n] <= 0:
-                    continue                
-                    
-            vref = final_vel[azipos[int(idx_ref)], n]
-
+        for n in range(ngate):               
+            # Build slice for comparison
             j_idx = np.arange(j + 1, j + nfilter + 1)
             j_idx[j_idx >= nazi] -= nazi
 
             idx_selected = vflag[j_idx, n]
             if np.all((idx_selected == -3)):
+                # All values missing in slice.
                 continue
-
+            # Selection of velocity to dealias (j_idx is an array)
             v_selected = velocity[j_idx, n]
+            
+            # Searching reference
+            idx_ref = j
+            # Looking for last processed value for reference, within a nfilter distance.
+            if vflag[azipos[j], n] <= 0:
+                idx_ref = find_last_good_vel(j, n, azipos, vflag, nfilter)
+                if idx_ref == -999:
+                    continue
+#                 if vflag[azipos[int(idx_ref)], n] <= 0:
+#                     continue
+            
+            # Reference velocity
+            vref = final_vel[azipos[int(idx_ref)], n]
+            
+            # Dealiasing slice
             for k in range(len(v_selected)):                
                 if idx_selected[k] == -3:
                     continue
@@ -64,6 +120,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
                 vk = v_selected[k]
                 dv1 = np.abs(vk - vref)
                 if dv1 < delta_vmax:
+                    # No need to dealias
                     final_vel[j_idx[k], n] = vk
                     vflag[j_idx[k], n] = 1
                 else: 

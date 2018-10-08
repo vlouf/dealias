@@ -17,7 +17,7 @@ the works of:
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date:04/10/2018
+@date: 04/10/2018
 
     count_proc
     dealiasing_process_2D

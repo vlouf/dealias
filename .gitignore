@@ -3,3 +3,4 @@
 .DS_Store
 *.so
 *.so.*
+.vscode/settings.json

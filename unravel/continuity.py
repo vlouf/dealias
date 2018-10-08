@@ -595,9 +595,8 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq):
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """
-    maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    """    
+    for nazi in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nazi, :] == 1)[0]
         if len(start_vec) == 0:
             continue
@@ -877,10 +876,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    tmp_vel = np.zeros_like(flag_vel)
     maxazi, maxrange = final_vel.shape
-#     window_range = 20
-#     window_azimuth = 10
     for nazi in range(maxazi):
         myvel = final_vel[nazi, :]
         myvel[flag_vel[nazi, :] <= 0] = np.NaN
@@ -898,8 +894,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
             if flag_vel[nazi, ngate] <= 0:
                 continue
 
-            myvel = final_vel[nazi, ngate]
-            myr = r[ngate]
+            myvel = final_vel[nazi, ngate]            
 
             if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
                 continue
@@ -946,8 +941,6 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
             myvel = final_vel[nazi, ngate]
             if np.isnan(myvel):
                 continue
-
-            myr = r[ngate]
 
             if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
                 continue

@@ -12,8 +12,6 @@ Codes for creating and manipulating gate filters.
     velocity_texture
     do_gatefilter
 """
-import pyart
-
 # Other Libraries
 import numpy as np
 from numba import jit
@@ -23,6 +21,8 @@ def do_gatefilter(radar, vel_name, dbz_name):
     """
     Generate a GateFilter that remove all bad data.
     """
+    import pyart
+    
     gf = pyart.filters.GateFilter(radar)
     gf.exclude_outside(dbz_name,  5, 65)
     gf_desp = pyart.correct.despeckle_field(radar, dbz_name, gatefilter=gf)

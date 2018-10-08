@@ -150,29 +150,13 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
         Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
     """
     # Initialize stuff.
-    maxazi, maxrange = vel.shape
+    maxazi = vel.shape[0]
     final_vel = np.zeros(vel.shape, dtype=float64)    
-    vmin = np.zeros((maxazi, ))
-    vmax = np.zeros((maxazi, ))
-    nsum = np.zeros((maxazi, ))
-    dnum = np.zeros((maxazi, ))
-
-    for nazi in range(maxazi):
-        vmax[nazi] = np.nanmax(np.abs(vel[nazi, :]))
-        nsum[nazi] = np.nansum(np.abs(vel[nazi, :]))
-
-        for ngate in range(maxrange):
-            if flag_vel[nazi, ngate] != -3:
-                dnum[nazi] += 1
-
-    # Compute the normalised integrated velocity along each radials.
-    normed_sum = nsum / vmax
-    yall = normed_sum / dnum
     
-    
-    iter_radials = [azi_start_pos, azi_end_pos]
-    for npos in np.argsort(yall)[0:4]:
-        iter_radials
+    iter_radials = np.array([azi_start_pos - 1, azi_start_pos, 
+                             azi_start_pos + 1, azi_end_pos - 1, 
+                             azi_end_pos, azi_end_pos + 1])    
+    iter_radials[iter_radials >= maxazi] -= maxazi
 
     # Magic happens.
     is_bad = 0

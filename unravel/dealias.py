@@ -115,7 +115,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
     start_beam, end_beam = find_reference.find_reference_radials(azimuth, velocity)
     azi_start_pos = np.argmin(np.abs(azimuth - start_beam))
     azi_end_pos = np.argmin(np.abs(azimuth - end_beam))
-    quadrant = find_reference.get_quadrant(azimuth, azi_start_pos, azi_end_pos)
+    # quadrant = find_reference.get_quadrant(azimuth, azi_start_pos, azi_end_pos)
     
     dealias_vel, flag_vel = initialisation.initialize_unfolding(r, azimuth, azi_start_pos, azi_end_pos, velocity, flag_vel, vnyq=nyquist_velocity)
     

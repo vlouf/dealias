@@ -93,55 +93,55 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         velocity = velocity.filled(np.NaN)
     except Exception:
         pass
-    
-    # Parameters from Michel Chong 
+
+    # Parameters from Michel Chong
     vshift = 2 * nyquist_velocity  # By how much the velocity shift when folding
     gamma = 0.5
     delta_vmax = gamma * nyquist_velocity  # The authorised change in velocity from one gate to the other.
 
     # Pre-processing, filtering noise.
     flag_vel = np.zeros(velocity.shape, dtype=int)
-    flag_vel[np.isnan(velocity)] = -3    
+    flag_vel[np.isnan(velocity)] = -3
     velocity, flag_vel = filtering.filter_data(velocity, flag_vel, nyquist_velocity, vshift, delta_vmax)
     velocity[flag_vel == -3] = np.NaN
-    
+
     st_time = time.time()  # tic
-    
+
     tot_gate = velocity.shape[0] * velocity.shape[1]
     nmask_gate = np.sum(np.isnan(velocity))
     if debug:
         print(f"There are {tot_gate - nmask_gate} gates to dealias at elevation {elev_angle}.")
-        
+
     start_beam, end_beam = find_reference.find_reference_radials(azimuth, velocity)
     azi_start_pos = np.argmin(np.abs(azimuth - start_beam))
     azi_end_pos = np.argmin(np.abs(azimuth - end_beam))
     # quadrant = find_reference.get_quadrant(azimuth, azi_start_pos, azi_end_pos)
-    
+
     dealias_vel, flag_vel = initialisation.initialize_unfolding(r, azimuth, azi_start_pos, azi_end_pos, velocity, flag_vel, vnyq=nyquist_velocity)
-    
+
     vel = velocity.copy()
     vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
     delta_vmax = 0.75*nyquist_velocity
-    
+
     # Clockwise
     dealias_vel, flag_vel = initialisation.first_pass(azi_start_pos, vel, dealias_vel, flag_vel, nyquist_velocity, vshift, delta_vmax)
-    
+
     # Counterclockwise, i.e. array flipped
     stazi = len(azimuth) - azi_start_pos - 1
-    dealias_vel, flag_vel = initialisation.first_pass(stazi, np.flipud(vel), np.flipud(dealias_vel), np.flipud(flag_vel), nyquist_velocity, vshift, delta_vmax)    
+    dealias_vel, flag_vel = initialisation.first_pass(stazi, np.flipud(vel), np.flipud(dealias_vel), np.flipud(flag_vel), nyquist_velocity, vshift, delta_vmax)
     dealias_vel = np.flipud(dealias_vel)
     flag_vel = np.flipud(flag_vel)
-        
+
     # Range
     dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)
     dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity)
-    
+
     if count_proc(flag_vel, False) < 100:
         azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
         azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)
-        dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity, dealias_vel, flag_vel, 
+        dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity, dealias_vel, flag_vel,
                                                              azimuth_iteration, nyquist_velocity, 6)
-        dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity, dealias_vel, flag_vel, 
+        dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity, dealias_vel, flag_vel,
                                                                     azimuth_iteration, nyquist_velocity, 6)
 
     if count_proc(flag_vel, False) < 100:
@@ -160,7 +160,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)
         # No flag.
         dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity)
-        
+
     # Looking for the closest reference..
     if count_proc(flag_vel, False) < 100:
         dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel, flag_vel, nyquist_velocity)

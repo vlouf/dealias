@@ -22,7 +22,7 @@ def do_gatefilter(radar, vel_name, dbz_name):
     Generate a GateFilter that remove all bad data.
     """
     import pyart
-    
+
     gf = pyart.filters.GateFilter(radar)
     gf.exclude_outside(dbz_name,  5, 65)
     gf_desp = pyart.correct.despeckle_field(radar, dbz_name, gatefilter=gf)
@@ -42,7 +42,7 @@ def unfold(v, vref, vnq, vshift):
 
 
 @jit(nopython=True)
-def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):     
+def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
     nazi, ngate = velocity.shape
     for j in range(0, nazi):
         for n in range(0, ngate):
@@ -79,17 +79,17 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
                 vk = v_selected[k]
                 dv1 = np.abs(vk - vmoy)
                 if dv1 >= delta_vmax:
-                    if vmoy >= 0:                        
+                    if vmoy >= 0:
                         vk_unfld = unfold(vk, vmoy_plus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_plus)                        
-                    else:                        
+                        dvk = np.abs(vk - vmoy_plus)
+                    else:
                         vk_unfld = unfold(vk, vmoy_minus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_minus)                        
+                        dvk = np.abs(vk - vmoy_minus)
 
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:
                         velocity[j, n + k] = vk_unfld
                     else:
-                        vflag[j, n + k] = -3          
-                        
+                        vflag[j, n + k] = -3
+
     return velocity, vflag

@@ -254,7 +254,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     """
     maxgate = len(r)
     # the number 3 is because we use the previous 3 radials as reference.
-    for nazi in myquadrant[window_len:]:        
+    for nazi in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
             # Check if already unfolded
             if flag_vel[nazi, ngate] != 0:
@@ -595,7 +595,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq):
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """    
+    """
     for nazi in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nazi, :] == 1)[0]
         if len(start_vec) == 0:
@@ -894,7 +894,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
             if flag_vel[nazi, ngate] <= 0:
                 continue
 
-            myvel = final_vel[nazi, ngate]            
+            myvel = final_vel[nazi, ngate]
 
             if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
                 continue

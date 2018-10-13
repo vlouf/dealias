@@ -20,7 +20,7 @@ from .continuity import take_decision, unfold, is_good_velocity
 def find_last_good_vel(j, n, azipos, vflag, nfilter):
     """
     Looking for the last good (i.e. processed) velocity in a slice.
-    
+
     Parameters:
     ===========
     j: int
@@ -33,7 +33,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
         Flag array (-3: missing, 0: unprocessed, 1: processed, 2: processed and unfolded)
     nfilter: int
         Size of filter.
-        
+
     Returns:
     ========
         idx_ref: int
@@ -46,7 +46,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
         idx = azipos[idx_ref]
         vflag_ref = vflag[idx, n]
         if vflag_ref > 0:
-            return idx_ref        
+            return idx_ref
     return -999
 
 
@@ -54,7 +54,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
 def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=5):
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
-    
+
     Parameters:
     ===========
     azi_start_pos: int
@@ -73,7 +73,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
         Maximum velocity difference tolerated between two contiguous gates.
     nfilter: int
         Size of filtering window
-    
+
     Returns:
     ========
     final_vel: array <azimuth, range>
@@ -85,9 +85,9 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
     azipos = np.zeros((2 * nazi), dtype=uint32)
     azipos[:nazi] = np.arange(nazi)
     azipos[nazi:] = np.arange(nazi)
-    
+
     for j in range(azi_start_pos, azi_start_pos + nazi // 2) :
-        for n in range(ngate):               
+        for n in range(ngate):
             # Build slice for comparison
             j_idx = np.arange(j + 1, j + nfilter + 1)
             j_idx[j_idx >= nazi] -= nazi
@@ -98,7 +98,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
                 continue
             # Selection of velocity to dealias (j_idx is an array)
             v_selected = velocity[j_idx, n]
-            
+
             # Searching reference
             idx_ref = j
             # Looking for last processed value for reference, within a nfilter distance.
@@ -108,12 +108,12 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
                     continue
 #                 if vflag[azipos[int(idx_ref)], n] <= 0:
 #                     continue
-            
+
             # Reference velocity
             vref = final_vel[azipos[int(idx_ref)], n]
-            
+
             # Dealiasing slice
-            for k in range(len(v_selected)):                
+            for k in range(len(v_selected)):
                 if idx_selected[k] == -3:
                     continue
 
@@ -123,14 +123,14 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
                     # No need to dealias
                     final_vel[j_idx[k], n] = vk
                     vflag[j_idx[k], n] = 1
-                else: 
+                else:
                     vk_unfld = unfold(vref, vk, vnyquist)
-                    dvk = np.abs(vk_unfld - vref)                                             
+                    dvk = np.abs(vk_unfld - vref)
 
                     if dvk < delta_vmax:
                         final_vel[j_idx[k], n] = vk_unfld
                         vflag[j_idx[k], n] = 2
-                        
+
     return final_vel, vflag
 
 
@@ -151,11 +151,11 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
     """
     # Initialize stuff.
     maxazi = vel.shape[0]
-    final_vel = np.zeros(vel.shape, dtype=float64)    
-    
-    iter_radials = np.array([azi_start_pos - 1, azi_start_pos, 
-                             azi_start_pos + 1, azi_end_pos - 1, 
-                             azi_end_pos, azi_end_pos + 1])    
+    final_vel = np.zeros(vel.shape, dtype=float64)
+
+    iter_radials = np.array([azi_start_pos - 1, azi_start_pos,
+                             azi_start_pos + 1, azi_end_pos - 1,
+                             azi_end_pos, azi_end_pos + 1])
     iter_radials[iter_radials >= maxazi] -= maxazi
 
     # Magic happens.
@@ -223,6 +223,6 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
                     vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
                     if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                         final_vel[pos_good, ngate] = vtrue
-                        flag_vel[pos_good, ngate] = 2    
-    
+                        flag_vel[pos_good, ngate] = 2
+
     return final_vel, flag_vel

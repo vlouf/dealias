@@ -153,53 +153,22 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
     maxazi = vel.shape[0]
     final_vel = np.zeros(vel.shape, dtype=float64)
 
-    iter_radials = np.array([azi_start_pos - 1, azi_start_pos,
-                             azi_start_pos + 1, azi_end_pos - 1,
-                             azi_end_pos, azi_end_pos + 1])
-    iter_radials[iter_radials >= maxazi] -= maxazi
+    iter_radials_init = np.array([azi_start_pos - 1, azi_start_pos, azi_start_pos + 1])
+    iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
 
-    # Magic happens.
-    is_bad = 0
-    for pos_good in iter_radials:
-        myvel = vel[pos_good, :]
-        if np.sum(np.abs(myvel) >= 0.6 * vnyq) > 3:
-            is_bad += 1
-            continue
+    for iter_radials in [iter_radials_init, iter_radials_last]:
+        iter_radials[iter_radials >= maxazi] -= maxazi
+        iter_radials[iter_radials < 0] += maxazi
 
-        for ngate in range(3, len(myvel) - 3):
-            velref0 = np.nanmedian(myvel[ngate - 3:ngate])
-            velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
-            decision = take_decision(velref0, velref1, vnyq)
-            if decision != 1:
-                continue
-
-            if np.isnan(velref0):
-                velref = velref1
-            elif np.isnan(velref1):
-                velref = velref0
-            else:
-                velref = (velref0 + velref1) / 2
-
-            decision = take_decision(velref, myvel[ngate], vnyq)
-            if decision == 0:
-                continue
-            elif decision == 1:
-                final_vel[pos_good, ngate] = myvel[ngate]
-                flag_vel[pos_good, ngate] = 1
-            elif decision == 2:
-                vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
-                if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
-                    final_vel[pos_good, ngate] = vtrue
-                    flag_vel[pos_good, ngate] = 2
-
-    if is_bad > len(iter_radials) - 1:
+        # Magic happens.
+        is_bad = 0
         for pos_good in iter_radials:
             myvel = vel[pos_good, :]
+            if np.sum(np.abs(myvel) >= 0.6 * vnyq) > 3:
+                is_bad += 1
+                continue
 
             for ngate in range(3, len(myvel) - 3):
-                if np.abs(myvel[ngate]) >= 0.5 * vnyq:
-                    continue
-
                 velref0 = np.nanmedian(myvel[ngate - 3:ngate])
                 velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
                 decision = take_decision(velref0, velref1, vnyq)
@@ -225,4 +194,37 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
                         final_vel[pos_good, ngate] = vtrue
                         flag_vel[pos_good, ngate] = 2
 
+        if is_bad > len(iter_radials) - 1:
+            for pos_good in iter_radials:
+                myvel = vel[pos_good, :]
+
+                for ngate in range(3, len(myvel) - 3):
+                    if np.abs(myvel[ngate]) >= 0.5 * vnyq:
+                        continue
+
+                    velref0 = np.nanmedian(myvel[ngate - 3:ngate])
+                    velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
+                    decision = take_decision(velref0, velref1, vnyq)
+                    if decision != 1:
+                        continue
+
+                    if np.isnan(velref0):
+                        velref = velref1
+                    elif np.isnan(velref1):
+                        velref = velref0
+                    else:
+                        velref = (velref0 + velref1) / 2
+
+                    decision = take_decision(velref, myvel[ngate], vnyq)
+                    if decision == 0:
+                        continue
+                    elif decision == 1:
+                        final_vel[pos_good, ngate] = myvel[ngate]
+                        flag_vel[pos_good, ngate] = 1
+                    elif decision == 2:
+                        vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
+                        if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
+                            final_vel[pos_good, ngate] = vtrue
+                            flag_vel[pos_good, ngate] = 2    
+    
     return final_vel, flag_vel

@@ -95,9 +95,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         pass
 
     # Parameters from Michel Chong
-    vshift = 2 * nyquist_velocity  # By how much the velocity shift when folding
-    gamma = 0.5
-    delta_vmax = gamma * nyquist_velocity  # The authorised change in velocity from one gate to the other.
+    vshift = 2 * nyquist_velocity  # By how much the velocity shift when folding    
+    delta_vmax = 0.5 * nyquist_velocity  # The authorised change in velocity from one gate to the other.
 
     # Pre-processing, filtering noise.
     flag_vel = np.zeros(velocity.shape, dtype=int)
@@ -122,15 +121,8 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
     vel = velocity.copy()
     vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
     delta_vmax = 0.75*nyquist_velocity
-
-    # Clockwise
+    
     dealias_vel, flag_vel = initialisation.first_pass(azi_start_pos, vel, dealias_vel, flag_vel, nyquist_velocity, vshift, delta_vmax)
-
-    # Counterclockwise, i.e. array flipped
-    stazi = len(azimuth) - azi_start_pos - 1
-    dealias_vel, flag_vel = initialisation.first_pass(stazi, np.flipud(vel), np.flipud(dealias_vel), np.flipud(flag_vel), nyquist_velocity, vshift, delta_vmax)
-    dealias_vel = np.flipud(dealias_vel)
-    flag_vel = np.flipud(flag_vel)
 
     # Range
     dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity)

@@ -51,6 +51,11 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
 
 
 @jit(nopython=True)
+def flipud(arr):
+    return arr[::-1, :]
+
+
+@jit(nopython=True)
 def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=5):
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
@@ -85,52 +90,61 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
     azipos = np.zeros((2 * nazi), dtype=uint32)
     azipos[:nazi] = np.arange(nazi)
     azipos[nazi:] = np.arange(nazi)
+    
+    for mypass in range(2):
+        if mypass == 1:
+            velocity = flipud(velocity)
+            final_vel = flipud(final_vel)
+            vflag = flipud(vflag)
+            azi_start_pos = nazi - azi_start_pos - 1
 
-    for j in range(azi_start_pos, azi_start_pos + nazi // 2) :
-        for n in range(ngate):
-            # Build slice for comparison
-            j_idx = np.arange(j + 1, j + nfilter + 1)
-            j_idx[j_idx >= nazi] -= nazi
+        for j in range(azi_start_pos, azi_start_pos + nazi // 2) :
+            for n in range(ngate):
+                # Build slice for comparison
+                j_idx = np.arange(j + 1, j + nfilter + 1)
+                j_idx[j_idx >= nazi] -= nazi
 
-            idx_selected = vflag[j_idx, n]
-            if np.all((idx_selected == -3)):
-                # All values missing in slice.
-                continue
-            # Selection of velocity to dealias (j_idx is an array)
-            v_selected = velocity[j_idx, n]
-
-            # Searching reference
-            idx_ref = j
-            # Looking for last processed value for reference, within a nfilter distance.
-            if vflag[azipos[j], n] <= 0:
-                idx_ref = find_last_good_vel(j, n, azipos, vflag, nfilter)
-                if idx_ref == -999:
+                idx_selected = vflag[j_idx, n]
+                if np.all((idx_selected == -3)):
+                    # All values missing in slice.
                     continue
-#                 if vflag[azipos[int(idx_ref)], n] <= 0:
-#                     continue
+                # Selection of velocity to dealias (j_idx is an array)
+                v_selected = velocity[j_idx, n]
 
-            # Reference velocity
-            vref = final_vel[azipos[int(idx_ref)], n]
+                # Searching reference
+                idx_ref = j
+                # Looking for last processed value for reference, within a nfilter distance.
+                if vflag[azipos[j], n] <= 0:
+                    idx_ref = find_last_good_vel(j, n, azipos, vflag, nfilter)
+                    if idx_ref == -999:
+                        continue
 
-            # Dealiasing slice
-            for k in range(len(v_selected)):
-                if idx_selected[k] == -3:
-                    continue
+                # Reference velocity
+                vref = final_vel[azipos[int(idx_ref)], n]
 
-                vk = v_selected[k]
-                dv1 = np.abs(vk - vref)
-                if dv1 < delta_vmax:
-                    # No need to dealias
-                    final_vel[j_idx[k], n] = vk
-                    vflag[j_idx[k], n] = 1
-                else:
-                    vk_unfld = unfold(vref, vk, vnyquist)
-                    dvk = np.abs(vk_unfld - vref)
+                # Dealiasing slice
+                for k in range(len(v_selected)):
+                    if idx_selected[k] == -3:
+                        continue
 
-                    if dvk < delta_vmax:
-                        final_vel[j_idx[k], n] = vk_unfld
-                        vflag[j_idx[k], n] = 2
+                    vk = v_selected[k]
+                    dv1 = np.abs(vk - vref)
+                    if dv1 < delta_vmax:
+                        # No need to dealias
+                        final_vel[j_idx[k], n] = vk
+                        vflag[j_idx[k], n] = 1
+                    else:
+                        vk_unfld = unfold(vref, vk, vnyquist)
+                        dvk = np.abs(vk_unfld - vref)
 
+                        if dvk < delta_vmax:
+                            final_vel[j_idx[k], n] = vk_unfld
+                            vflag[j_idx[k], n] = 2
+    
+    velocity = flipud(velocity)
+    final_vel = flipud(final_vel)
+    vflag = flipud(vflag)
+    
     return final_vel, vflag
 
 

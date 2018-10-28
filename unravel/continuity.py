@@ -448,7 +448,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5):
 
 
 @jit(nopython=True)
-def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
+def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
     radials are used as reference. This function will look at unprocessed
@@ -473,8 +473,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """
-    window_len = 10
+    """    
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(1, maxrange):
@@ -511,7 +510,7 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq):
 
 
 @jit(nopython=True)
-def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
+def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
     radials are used as reference. This function will look at unprocessed
@@ -536,8 +535,7 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq):
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """
-    window_len = 10
+    """    
     maxazi, maxrange = final_vel.shape
     for nazi in range(maxazi):
         for ngate in range(maxrange - 2, -1):

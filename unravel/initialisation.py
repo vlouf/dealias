@@ -52,7 +52,11 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
 
 @jit(nopython=True)
 def flipud(arr):
-    return arr[::-1, :]
+    """
+    Numpy's flipud function is not supported by numba for some reasons.... 
+    So here it is.
+    """
+    return arr[::-1, :]  # Soooo complex!
 
 
 @jit(nopython=True)

@@ -186,17 +186,12 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     vel_name: str
         Name of the velocity field.
     dbz_name: str
-        Name of the reflectivity field.
-    zdr_name: str
-        Name of the differential reflectivity field.
-    rho_name: str
-        Name of the cross correlation ratio field.
+        Name of the reflectivity field.    
 
     Returns:
     ========
     ultimate_dealiased_velocity: ndarray
-        Dealised velocit
-        y field.
+        Dealised velocity field.
     """
     # Filter
     if gatefilter is None:
@@ -227,7 +222,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     ultimate_dealiased_velocity[myslice] = final_vel.copy()
 
     for slice_number in range(1, radar.nsweeps):
-        print(slice_number)
+        if debug:
+            print(slice_number)
         myslice = radar.get_slice(slice_number)
         azimuth_slice = radar.azimuth['data'][myslice]
         elevation_slice = radar.elevation['data'][myslice].mean()

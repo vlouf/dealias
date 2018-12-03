@@ -53,7 +53,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
 @jit(nopython=True)
 def flipud(arr):
     """
-    Numpy's flipud function is not supported by numba for some reasons.... 
+    Numpy's flipud function is not supported by numba for some reasons...
     So here it is.
     """
     return arr[::-1, :]  # Soooo complex!
@@ -94,7 +94,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
     azipos = np.zeros((2 * nazi), dtype=uint32)
     azipos[:nazi] = np.arange(nazi)
     azipos[nazi:] = np.arange(nazi)
-    
+
     for mypass in range(2):
         if mypass == 1:
             velocity = flipud(velocity)
@@ -102,7 +102,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
             vflag = flipud(vflag)
             azi_start_pos = nazi - azi_start_pos - 1
 
-        for j in range(azi_start_pos, azi_start_pos + nazi // 2) :
+        for j in range(azi_start_pos, azi_start_pos + nazi // 2):
             for n in range(ngate):
                 # Build slice for comparison
                 j_idx = np.arange(j + 1, j + nfilter + 1)
@@ -144,11 +144,11 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
                         if dvk < delta_vmax:
                             final_vel[j_idx[k], n] = vk_unfld
                             vflag[j_idx[k], n] = 2
-    
+
     velocity = flipud(velocity)
     final_vel = flipud(final_vel)
     vflag = flipud(vflag)
-    
+
     return final_vel, vflag
 
 
@@ -243,6 +243,6 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
                         vtrue = unfold(myvel[ngate - 1], myvel[ngate], vnyq)
                         if is_good_velocity(myvel[ngate - 1], vtrue, vnyq, alpha=0.4):
                             final_vel[pos_good, ngate] = vtrue
-                            flag_vel[pos_good, ngate] = 2    
-    
+                            flag_vel[pos_good, ngate] = 2
+
     return final_vel, flag_vel

@@ -63,7 +63,7 @@ def count_proc(myflag, debug=False):
 
 def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
                           debug=False, inherit_flag=None, inherit_azi_start=None,
-                          inherit_azi_end=None):
+                          inherit_azi_end=None, alpha=0.4):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 

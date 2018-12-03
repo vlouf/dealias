@@ -189,7 +189,7 @@ def get_iter_range(pos_center, nb_gate, maxrange):
     return np.arange(st_pos, end_pos)
 
 
-@jit(int64(float64, float64, float64), nopython=True)
+@jit(int64(float64, float64, float64, float64), nopython=True)
 def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     """
     Make a decision after comparing two velocities.

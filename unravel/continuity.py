@@ -190,7 +190,7 @@ def get_iter_range(pos_center, nb_gate, maxrange):
 
 
 @jit(int64(float64, float64, float64), nopython=True)
-def take_decision(velocity_reference, velocity_to_check, vnyq):
+def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     """
     Make a decision after comparing two velocities.
 
@@ -212,14 +212,15 @@ def take_decision(velocity_reference, velocity_to_check, vnyq):
         return -3
     elif np.isnan(velocity_reference):
         return 0
-    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq) or (np.sign(velocity_reference) == np.sign(velocity_to_check)):
+    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (np.sign(velocity_reference) ==
+                                                                                        np.sign(velocity_to_check)):
         return 1
     else:
         return 2
 
 
 @jit(nopython=True)
-def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3):
+def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.4):
     """
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
     used as reference. Clockwise means that we loop over increasing azimuth
@@ -254,55 +255,55 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     """
     maxgate = len(r)
     # the number 3 is because we use the previous 3 radials as reference.
-    for nazi in myquadrant[window_len:]:
+    for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
             # Check if already unfolded
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
             # We want the previous 3 radials.
-            npos = nazi - window_len
+            npos = nbeam - window_len
             # Unfolded velocity
             velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
             flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
 
             # Folded velocity
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
 
             if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
                 continue
 
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
 
-            decision = take_decision(mean_vel_ref, vel1, vnyq)
+            decision = take_decision(mean_vel_ref, vel1, vnyq, alpha=alpha)
 
             # If loose, skip this test.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
-                mean_vel_ref2 = final_vel[nazi, npos]
+                mean_vel_ref2 = final_vel[nbeam, npos]
 
-                decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
+                decision2 = take_decision(mean_vel_ref2, vel1, vnyq, alpha=alpha)
                 if decision != decision2:
                     continue
 
             if decision == -3:
-                flag_vel[nazi, ngate] = -3
+                flag_vel[nbeam, ngate] = -3
                 continue
             elif decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = vel1
+                flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1, vnyq)
-                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3):
+def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.4):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -337,55 +338,55 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     """
     maxgate = len(r)
 
-    for nazi in myquadrant:
+    for nbeam in myquadrant:
         for ngate in range(0, maxgate):
             # Check if already unfolded
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
             # We want the next 3 radials.
-            npos = nazi + 1
+            npos = nbeam + 1
             # Unfolded velocity.
             velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
             flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
 
             # Folded velocity
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
 
             if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
                 continue
 
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
 
-            decision = take_decision(mean_vel_ref, vel1, vnyq)
+            decision = take_decision(mean_vel_ref, vel1, vnyq, alpha=alpha)
 
             # If loose, skip this test.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
-                mean_vel_ref2 = final_vel[nazi, npos]
+                mean_vel_ref2 = final_vel[nbeam, npos]
 
-                decision2 = take_decision(mean_vel_ref2, vel1, vnyq)
+                decision2 = take_decision(mean_vel_ref2, vel1, vnyq, alpha=alpha)
                 if decision != decision2:
                     continue
 
             if decision == -3:
-                flag_vel[nazi, ngate] = -3
+                flag_vel[nbeam, ngate] = -3
                 continue
             elif decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = vel1
+                flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, vel1, vnyq)
-                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5):
+def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5, alpha=0.4):
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
     is used as reference. This function will look at unprocessed velocity only.
@@ -409,15 +410,15 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5):
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
             npos = ngate - 1
-            velref = final_vel[nazi, npos]
-            flagvelref = flag_vel[nazi, npos]
+            velref = final_vel[nbeam, npos]
+            flagvelref = flag_vel[nbeam, npos]
 
             if flagvelref <= 0:
                 cnt = 0
@@ -426,29 +427,29 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=5):
                     cnt += 1
                     if cnt == window_len:
                         break
-                    if flag_vel[nazi, npos] > 0:
-                        velref = final_vel[nazi, npos]
+                    if flag_vel[nbeam, npos] > 0:
+                        velref = final_vel[nbeam, npos]
                         break
                 if cnt == 5 or npos == -1:
                     continue
 
-            decision = take_decision(velref, vel1, vnyq)
+            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
             if decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = vel1
+                flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10):
+def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10, alpha=0.4):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
     radials are used as reference. This function will look at unprocessed
@@ -473,44 +474,44 @@ def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=1
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """    
+    """
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
 
             if ngate - window_len < 0:
                 npos = 0
             else:
                 npos = npos - window_len
 
-            velref_vec = final_vel[nazi, npos:ngate]
-            flagvelref = flag_vel[nazi, npos:ngate]
+            velref_vec = final_vel[nbeam, npos:ngate]
+            flagvelref = flag_vel[nbeam, npos:ngate]
             if np.sum(flagvelref > 0) < 2:
                 continue
             velref = np.nanmean(velref_vec[flagvelref > 0])
 
-            decision = take_decision(velref, vel1, vnyq)
+            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
             if decision == 1:
-                if is_good_velocity(velref, vel1, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vel1
-                    flag_vel[nazi, ngate] = 1
+                if is_good_velocity(velref, vel1, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vel1
+                    flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10):
+def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10, alpha=0.4):
     """
     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
     radials are used as reference. This function will look at unprocessed
@@ -535,42 +536,42 @@ def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """    
+    """
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in range(maxrange - 2, -1):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
 
             if ngate + window_len > maxrange:
                 npos = maxrange
 
-            velref_vec = final_vel[nazi, ngate:npos]
-            flagvelref = flag_vel[nazi, ngate:npos]
+            velref_vec = final_vel[nbeam, ngate:npos]
+            flagvelref = flag_vel[nbeam, ngate:npos]
             if np.sum(flagvelref > 0) < 2:
                 continue
             velref = np.nanmean(velref_vec[flagvelref > 0])
 
-            decision = take_decision(velref, vel1, vnyq)
+            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
             if decision == 1:
-                if is_good_velocity(velref, vel1, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vel1
-                    flag_vel[nazi, ngate] = 1
+                if is_good_velocity(velref, vel1, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vel1
+                    flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_range_backward(vel, final_vel, flag_vel, vnyq):
+def correct_range_backward(vel, final_vel, flag_vel, vnyq, alpha=0.4):
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
     backward, i.e. from the outside to the center) is used as reference.
@@ -594,41 +595,41 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq):
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    for nazi in range(vel.shape[0]):
-        start_vec = np.where(flag_vel[nazi, :] == 1)[0]
+    for nbeam in range(vel.shape[0]):
+        start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
         if len(start_vec) == 0:
             continue
 
         start_gate = start_vec[-1]
         for ngate in np.arange(start_gate - 1, -1, -1):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
             npos = ngate + 1
-            velref = final_vel[nazi, npos]
-            flagvelref = flag_vel[nazi, npos]
+            velref = final_vel[nbeam, npos]
+            flagvelref = flag_vel[nbeam, npos]
 
             if flagvelref <= 0:
                 continue
 
-            decision = take_decision(velref, vel1, vnyq)
+            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
             if decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = vel1
+                flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
+def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4):
     """
     Dealias using the closest cluster of value already processed. Once the
     closest correct value is found, a take a window of 10 radials and 40 gates
@@ -659,23 +660,23 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
     window_gate = 40
     maxazi, maxrange = final_vel.shape
 
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            vel1 = vel[nazi, ngate]
+            vel1 = vel[nbeam, ngate]
 
-            distance = (posazi_good - nazi) ** 2 + (posgate_good - ngate) ** 2
+            distance = (posazi_good - nbeam) ** 2 + (posgate_good - ngate) ** 2
             if len(distance) == 0:
                 continue
 
             closest = np.argmin(distance)
-            nazi_close = posazi_good[closest]
+            nbeam_close = posazi_good[closest]
             ngate_close = posgate_good[closest]
 
-            iter_azi = get_iter_pos(azimuth, nazi_close - window_azi // 2, window_azi)
+            iter_azi = get_iter_pos(azimuth, nbeam_close - window_azi // 2, window_azi)
             iter_range = get_iter_range(ngate_close, window_gate, maxrange)
 
             vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
@@ -687,27 +688,27 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq):
                 vel_ref_vec[pos] = np.nanmean(final_vel[na, iter_range[0]: iter_range[-1]][flag_vel[na, iter_range[0]: iter_range[-1]] > 0])
             velref = np.nanmedian(vel_ref_vec)
 
-            decision = take_decision(velref, vel1, vnyq)
+            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
             if decision == 1:
-                final_vel[nazi, ngate] = vel1
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = vel1
+                flag_vel[nbeam, ngate] = 1
                 continue
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
                 else:
-                    # print(f"BEWARE. Probably noise ({nazi}, {ngate})")
-                    final_vel[nazi, ngate] = velref
-                    flag_vel[nazi, ngate] = 3
+                    # print(f"BEWARE. Probably noise ({nbeam}, {ngate})")
+                    final_vel[nbeam, ngate] = velref
+                    flag_vel[nbeam, ngate] = 3
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10):
+def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10, alpha=0.4):
     """
     Dealias using a 20 gates by 10 radials box around around the point to
     dealias and use the median as of those points as a reference.
@@ -734,14 +735,14 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
-            if flag_vel[nazi, ngate] != 0:
+            if flag_vel[nbeam, ngate] != 0:
                 continue
 
-            myvel = vel[nazi, ngate]
+            myvel = vel[nbeam, ngate]
 
-            npos_azi = get_iter_pos(azi, nazi - window_azimuth // 2, window_azimuth)
+            npos_azi = get_iter_pos(azi, nbeam - window_azimuth // 2, window_azimuth)
             npos_range = get_iter_range(ngate, window_range, maxrange)
 
             flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
@@ -752,7 +753,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
             for na in npos_azi:
                 for nr in npos_range:
                     cnt += 1
-                    if (na, nr) == (nazi, ngate):
+                    if (na, nr) == (nbeam, ngate):
                         continue
                     vel_ref_vec[cnt] = final_vel[na, nr]
                     flag_ref_vec[cnt] = flag_vel[na, nr]
@@ -762,25 +763,25 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
 
             mean_vel_ref = np.nanmean(vel_ref_vec[flag_ref_vec >= 1])
 
-            decision = take_decision(mean_vel_ref, myvel, vnyq)
+            decision = take_decision(mean_vel_ref, myvel, vnyq, alpha=alpha)
 
             if decision <= 0:
                 continue
 
             if decision == 1:
-                final_vel[nazi, ngate] = myvel
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = myvel
+                flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
-                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit(nopython=True)
-def box_check(azi, final_vel, flag_vel, vnyq):
+def box_check(azi, final_vel, flag_vel, vnyq, alpha=0.4):
     """
     Check if all individual points are consistent with their surroundings. The
     reference is the median of the distribution of all points (the one we're
@@ -808,14 +809,14 @@ def box_check(azi, final_vel, flag_vel, vnyq):
     window_range = 80
     window_azimuth = 20
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
-            if flag_vel[nazi, ngate] <= 0:
+            if flag_vel[nbeam, ngate] <= 0:
                 continue
 
-            myvel = final_vel[nazi, ngate]
+            myvel = final_vel[nbeam, ngate]
 
-            npos_azi = get_iter_pos(azi, nazi - window_azimuth // 2, window_azimuth)
+            npos_azi = get_iter_pos(azi, nbeam - window_azimuth // 2, window_azimuth)
             npos_range = get_iter_range(ngate, window_range, maxrange)
 
             flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
@@ -825,7 +826,7 @@ def box_check(azi, final_vel, flag_vel, vnyq):
             for na in npos_azi:
                 for nr in npos_range:
                     cnt += 1
-                    if (na, nr) == (nazi, ngate):
+                    if (na, nr) == (nbeam, ngate):
                         continue
                     vel_ref_vec[cnt] = final_vel[na, nr]
                     flag_ref_vec[cnt] = flag_vel[na, nr]
@@ -838,15 +839,15 @@ def box_check(azi, final_vel, flag_vel, vnyq):
             svel = np.nanstd(true_vel)
             myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
 
-            if not is_good_velocity(myvelref, myvel, vnyq):
-                final_vel[nazi, ngate] = myvelref
-                flag_vel[nazi, ngate] = 3
+            if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
+                final_vel[nbeam, ngate] = myvelref
+                flag_vel[nbeam, ngate] = 3
 
     return final_vel, flag_vel
 
 
 @jit
-def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
+def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.4):
     """
     Dealias a linear regression of gates inside each radials.
     This function will look at PROCESSED velocity only. This function cannot be
@@ -875,9 +876,9 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
-    for nazi in range(maxazi):
-        myvel = final_vel[nazi, :]
-        myvel[flag_vel[nazi, :] <= 0] = np.NaN
+    for nbeam in range(maxazi):
+        myvel = final_vel[nbeam, :]
+        myvel[flag_vel[nbeam, :] <= 0] = np.NaN
 
         if len(myvel[~np.isnan(myvel)]) < 2:
             continue
@@ -889,42 +890,42 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq):
         vaffine = intercept + slope * r
 
         for ngate in range(maxrange):
-            if flag_vel[nazi, ngate] <= 0:
+            if flag_vel[nbeam, ngate] <= 0:
                 continue
 
-            myvel = final_vel[nazi, ngate]
+            myvel = final_vel[nbeam, ngate]
 
             if myvel >= fmin[ngate] and myvel <= fmax[ngate]:
                 continue
 
             mean_vel_ref = vaffine[ngate]
-            decision = take_decision(mean_vel_ref, myvel, vnyq)
+            decision = take_decision(mean_vel_ref, myvel, vnyq, alpha=alpha)
 
             if decision <= 0:
                 continue
 
             if decision == 1:
-                final_vel[nazi, ngate] = myvel
-                flag_vel[nazi, ngate] = 1
+                final_vel[nbeam, ngate] = myvel
+                flag_vel[nbeam, ngate] = 1
             elif decision == 2:
-                myvel = vel[nazi, ngate]
+                myvel = vel[nbeam, ngate]
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
-                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
-                    flag_vel[nazi, ngate] = 2
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel, flag_vel
 
 
 @jit
-def least_square_radial_last_module(r, azi, final_vel, vnyq):
+def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.4):
     """
     Similar as radial_least_square_check.
     """
     maxazi, maxrange = final_vel.shape
 
-    for nazi in range(maxazi):
-        myvel = final_vel[nazi, :]
+    for nbeam in range(maxazi):
+        myvel = final_vel[nbeam, :]
 
         if len(myvel[~np.isnan(myvel)]) < 10:
             continue
@@ -936,7 +937,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
         vaffine = intercept + slope * r
 
         for ngate in range(maxrange):
-            myvel = final_vel[nazi, ngate]
+            myvel = final_vel[nbeam, ngate]
             if np.isnan(myvel):
                 continue
 
@@ -944,24 +945,25 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq):
                 continue
 
             mean_vel_ref = vaffine[ngate]
-            decision = take_decision(mean_vel_ref, myvel, vnyq)
+            decision = take_decision(mean_vel_ref, myvel, vnyq, alpha=alpha)
 
             if decision <= 0:
                 continue
 
             if decision == 1:
-                final_vel[nazi, ngate] = myvel
+                final_vel[nbeam, ngate] = myvel
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
-                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=0.4):
-                    final_vel[nazi, ngate] = vtrue
+                if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = vtrue
 
     return final_vel
 
 
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
-                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq, theta_3db=1):
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq,
+                 theta_3db=1, alpha=0.4):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
@@ -1008,18 +1010,18 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
     altitude_slice_min = r * np.sin((elevation_slice - theta_3db) * np.pi / 180)
 
     maxazi, maxrange = velocity_slice.shape
-    for nazi in range(maxazi):
+    for nbeam in range(maxazi):
         for ngate in range(maxrange):
-            if flag_slice[nazi, ngate] <= 0:
+            if flag_slice[nbeam, ngate] <= 0:
                 continue
 
             if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
                 break
 
-            current_vel = velocity_slice[nazi, ngate]
+            current_vel = velocity_slice[nbeam, ngate]
 
             rpos_reference = np.argmin(np.abs(ground_range_reference - ground_range_slice[ngate]))
-            apos_reference = np.argmin(np.abs(azimuth_reference - azimuth_slice[nazi]))
+            apos_reference = np.argmin(np.abs(azimuth_reference - azimuth_slice[nbeam]))
 
             apos_iter = get_iter_pos(azimuth_reference, apos_reference - window_azimuth // 2,
                                      window_azimuth)
@@ -1047,10 +1049,10 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                   (velocity_refcomp_array <= vmean + vstd)
             compare_vel = np.nanmedian(velocity_refcomp_array[pos])
 
-            if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=0.4):
+            if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
                 vtrue = unfold(compare_vel, current_vel, vnyq)
-                if is_good_velocity(compare_vel, vtrue, vnyq, alpha=0.4):
-                    velocity_slice[nazi, ngate] = vtrue
-                    flag_slice[nazi, ngate] = 3
+                if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
+                    velocity_slice[nbeam, ngate] = vtrue
+                    flag_slice[nbeam, ngate] = 3
 
     return velocity_slice, flag_slice

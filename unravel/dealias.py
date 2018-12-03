@@ -127,22 +127,26 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                       vshift, delta_vmax)
 
     # Range
-    dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
-    dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
+    dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel,
+                                                            nyquist_velocity, alpha=alpha)
+    dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel,
+                                                              nyquist_velocity, alpha=alpha)
 
-    if count_proc(flag_vel, False) < 100:
-        azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
-        azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)
-        dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity, dealias_vel, flag_vel,
-                                                             azimuth_iteration, nyquist_velocity, 6, alpha=alpha)
-        dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity, dealias_vel, flag_vel,
-                                                                    azimuth_iteration, nyquist_velocity, 6, alpha=alpha)
+    for i in range(2):
+        if count_proc(flag_vel, False) < 100:
+            azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
+            azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)
+            dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity, dealias_vel, flag_vel,
+                                                                 azimuth_iteration, nyquist_velocity, 6, alpha=alpha)
+            dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity, dealias_vel, flag_vel,
+                                                                        azimuth_iteration,
+                                                                        nyquist_velocity, 6, alpha=alpha)
 
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_range_onward_loose(azimuth, velocity, dealias_vel,
-                                                                      flag_vel, nyquist_velocity, alpha=alpha)
-        dealias_vel, flag_vel = continuity.correct_range_backward_loose(azimuth, velocity, dealias_vel,
-                                                                        flag_vel, nyquist_velocity, alpha=alpha)
+        if count_proc(flag_vel, False) < 100:
+            dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity,
+                                                                    alpha=alpha, window_len=6)
+            dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity,
+                                                                      alpha=alpha, window_len=6)
 
     # Box error check with respect to surrounding velocities
     if count_proc(flag_vel, False) < 100:

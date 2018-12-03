@@ -4,3 +4,4 @@
 *.so
 *.so.*
 .vscode/settings.json
+*.ipynb

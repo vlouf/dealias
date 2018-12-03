@@ -60,7 +60,7 @@ def flipud(arr):
 
 
 @jit(nopython=True)
-def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=5):
+def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=3):
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
 

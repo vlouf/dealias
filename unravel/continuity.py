@@ -443,127 +443,9 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
 
     return final_vel, flag_vel
 
-#
-# @jit(nopython=True)
-# def correct_range_onward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10, alpha=0.4):
-#     """
-#     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
-#     radials are used as reference. This function will look at unprocessed
-#     velocity only.
-#
-#     Parameters:
-#     ===========
-#     azi: ndarray
-#         Radar scan azimuth.
-#     vel: ndarray <azimuth, r>
-#         Aliased Doppler velocity field.
-#     final_vel: ndarray <azimuth, r>
-#         Dealiased Doppler velocity field.
-#     flag_vel: ndarray int <azimuth, range>
-#         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-#     vnyq: float
-#         Nyquist velocity.
-#
-#     Returns:
-#     ========
-#     dealias_vel: ndarray <azimuth, range>
-#         Dealiased velocity slice.
-#     flag_vel: ndarray int <azimuth, range>
-#         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-#     """
-#     maxazi, maxrange = final_vel.shape
-#     for nbeam in range(maxazi):
-#         for ngate in range(window_len // 2, maxrange - window_len // 2):
-#             if flag_vel[nbeam, ngate] != 0:
-#                 continue
-#
-#             vel1 = vel[nbeam, ngate]
-#
-#             velref_vec = final_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
-#             flagvelref = flag_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
-            # if np.sum(flagvelref > 0) < 2:
-            #     continue
-            #
-            # velref = np.nanmean(velref_vec[flagvelref > 0])
-#
-#             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
-#
-#             if decision == 1:
-#                 if is_good_velocity(velref, vel1, vnyq, alpha=alpha):
-#                     final_vel[nbeam, ngate] = vel1
-#                     flag_vel[nbeam, ngate] = 1
-#                 continue
-#             elif decision == 2:
-#                 vtrue = unfold(velref, vel1, vnyq)
-#                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
-#                     final_vel[nbeam, ngate] = vtrue
-#                     flag_vel[nbeam, ngate] = 2
-#
-#     return final_vel, flag_vel
-#
-#
-# @jit(nopython=True)
-# def correct_range_backward_loose(azi, vel, final_vel, flag_vel, vnyq, window_len=10, alpha=0.4):
-#     """
-#     Dealias using gate-to-gate continuity. The 10 previous gates and the 2 last
-#     radials are used as reference. This function will look at unprocessed
-#     velocity only.
-#
-#     Parameters:
-#     ===========
-#     azi: ndarray
-#         Radar scan azimuth.
-#     vel: ndarray <azimuth, r>
-#         Aliased Doppler velocity field.
-#     final_vel: ndarray <azimuth, r>
-#         Dealiased Doppler velocity field.
-#     flag_vel: ndarray int <azimuth, range>
-#         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-#     vnyq: float
-#         Nyquist velocity.
-#
-#     Returns:
-#     ========
-#     dealias_vel: ndarray <azimuth, range>
-#         Dealiased velocity slice.
-#     flag_vel: ndarray int <azimuth, range>
-#         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-#     """
-#     maxazi, maxrange = final_vel.shape
-#     for nbeam in range(maxazi):
-#         for ngate in range(maxrange - 2, -1):
-#             if flag_vel[nbeam, ngate] != 0:
-#                 continue
-#
-#             vel1 = vel[nbeam, ngate]
-#
-#             if ngate + window_len > maxrange:
-#                 npos = maxrange
-#
-#             velref_vec = final_vel[nbeam, ngate:npos]
-#             flagvelref = flag_vel[nbeam, ngate:npos]
-#             if np.sum(flagvelref > 0) < 2:
-#                 continue
-#             velref = np.nanmean(velref_vec[flagvelref > 0])
-#
-#             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
-#
-#             if decision == 1:
-#                 if is_good_velocity(velref, vel1, vnyq, alpha=alpha):
-#                     final_vel[nbeam, ngate] = vel1
-#                     flag_vel[nbeam, ngate] = 1
-#                 continue
-#             elif decision == 2:
-#                 vtrue = unfold(velref, vel1, vnyq)
-#                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
-#                     final_vel[nbeam, ngate] = vtrue
-#                     flag_vel[nbeam, ngate] = 2
-#
-#     return final_vel, flag_vel
-
 
 @jit(nopython=True)
-def correct_range_backward(vel, final_vel, flag_vel, vnyq, alpha=0.4):
+def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4):
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
     backward, i.e. from the outside to the center) is used as reference.
@@ -593,7 +475,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, alpha=0.4):
             continue
 
         start_gate = start_vec[-1]
-        for ngate in np.arange(start_gate - 1, -1, -1):
+        for ngate in np.arange(start_gate - (window_len + 1), window_len, -1):
             if flag_vel[nbeam, ngate] != 0:
                 continue
 
@@ -603,7 +485,13 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, alpha=0.4):
             flagvelref = flag_vel[nbeam, npos]
 
             if flagvelref <= 0:
-                continue
+
+                velref_vec = final_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
+                flagvelref_vec = flag_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
+                if np.sum(flagvelref_vec > 0) == 0:
+                    continue
+
+                velref = np.nanmean(velref_vec[flagvelref_vec > 0])
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 

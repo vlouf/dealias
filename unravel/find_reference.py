@@ -34,8 +34,7 @@ def find_reference_radials(azimuth, velocity):
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
     except ValueError:
         start_beam = azimuth[np.argmin(np.nanmean(np.abs(velocity), axis=1))]
-
-    print('stbeam:', start_beam)
+    
     nb = np.zeros((4, ))
     for i in range(4):
         pos = (azimuth >= i * 90) & (azimuth < (i + 1) * 90)

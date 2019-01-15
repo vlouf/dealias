@@ -177,7 +177,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
 
 
 def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
-               debug=False, do_3D=True):
+               debug=False, do_3D=True, alpha=0.4):
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -219,7 +219,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
 
     # Dealiasing first sweep.
     final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_reference, velocity_reference,
-                                                              elevation_reference, nyquist_velocity, debug=False)
+                                                              elevation_reference, nyquist_velocity, debug=False, alpha=alpha)
 
     velocity_reference = final_vel.copy()
     flag_reference = flag_vel.copy()
@@ -247,7 +247,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
         final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_slice, velocity_slice,
                                                                   elevation_slice, nyquist_velocity,
                                                                   debug=debug, inherit_flag=flag_slice,
-                                                                  inherit_azi_start=azi_s, inherit_azi_end=azi_e)
+                                                                  inherit_azi_start=azi_s, inherit_azi_end=azi_e, alpha=alpha)
 
         if do_3D:
             velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference,

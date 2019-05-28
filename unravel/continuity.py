@@ -421,9 +421,11 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
             flagvelref = flag_vel[nbeam, npos]
 
             if flagvelref <= 0:
+                if ngate < window_len:
+                    continue
 
-                velref_vec = final_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
-                flagvelref_vec = flag_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
+                velref_vec = final_vel[nbeam, (ngate - window_len):ngate]
+                flagvelref_vec = flag_vel[nbeam, (ngate - window_len):ngate]
                 if np.sum(flagvelref_vec > 0) == 0:
                     continue
 
@@ -485,9 +487,12 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
             flagvelref = flag_vel[nbeam, npos]
 
             if flagvelref <= 0:
+                if ngate + window_len >= vel.shape[1]:
+                    # Out of range.
+                    continue
 
-                velref_vec = final_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
-                flagvelref_vec = flag_vel[nbeam, (ngate - window_len // 2):(ngate - window_len // 2)]
+                velref_vec = final_vel[nbeam, ngate:(ngate + window_len)]
+                flagvelref_vec = flag_vel[nbeam, ngate:(ngate + window_len)]
                 if np.sum(flagvelref_vec > 0) == 0:
                     continue
 

@@ -666,7 +666,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
 
 
 @jit(nopython=True)
-def box_check(azi, final_vel, flag_vel, vnyq, alpha=0.4):
+def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.4):
     """
     Check if all individual points are consistent with their surroundings. The
     reference is the median of the distribution of all points (the one we're
@@ -690,9 +690,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, alpha=0.4):
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
-    """
-    window_range = 80
-    window_azimuth = 20
+    """    
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):

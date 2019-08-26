@@ -251,11 +251,11 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
         if count_proc(flag_vel, debug) < 100:
             azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
             azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)
-            dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity, 
+            dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity,
                                                                 dealias_vel, flag_vel,
-                                                                azimuth_iteration, nyquist_velocity, 
+                                                                azimuth_iteration, nyquist_velocity,
                                                                 window, alpha=alpha)
-            dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity, 
+            dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity,
                                                                         dealias_vel, flag_vel,
                                                                         azimuth_iteration,
                                                                         nyquist_velocity, window, alpha=alpha)
@@ -284,7 +284,7 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                                      flag_vel, nyquist_velocity, alpha=alpha)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
-    dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, 
+    dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity,
                                                  window_range=160, window_azimuth=40, alpha=alpha)
 
     if debug:
@@ -346,11 +346,11 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     # Dealiasing first sweep.
     if strategy == 'default':
         final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_reference, velocity_reference,
-                                                                 elevation_reference, nyquist_velocity, 
+                                                                 elevation_reference, nyquist_velocity,
                                                                  debug=debug, alpha=alpha)
     else:
         final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_reference, velocity_reference,
-                                                               elevation_reference, nyquist_velocity, 
+                                                               elevation_reference, nyquist_velocity,
                                                                debug=debug, alpha=alpha)
 
     velocity_reference = final_vel.copy()
@@ -380,13 +380,13 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
             final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_slice, velocity_slice,
                                                                       elevation_slice, nyquist_velocity,
                                                                       debug=debug, inherit_flag=flag_slice,
-                                                                      inherit_azi_start=azi_s, inherit_azi_end=azi_e, 
+                                                                      inherit_azi_start=azi_s, inherit_azi_end=azi_e,
                                                                       alpha=alpha)
         else:
             final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_slice, velocity_slice,
                                                                    elevation_slice, nyquist_velocity,
                                                                    debug=debug, inherit_flag=flag_slice,
-                                                                   inherit_azi_start=azi_s, inherit_azi_end=azi_e, 
+                                                                   inherit_azi_start=azi_s, inherit_azi_end=azi_e,
                                                                    alpha=alpha)
 
         if do_3D:
@@ -410,3 +410,121 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
                                                      ultimate_dealiased_velocity)
 
     return ultimate_dealiased_velocity
+
+
+def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
+                 debug=False, alpha=0.6, strategy='long_range'):
+    """
+    Process driver.
+    Full dealiasing process 2D + 3D.
+
+    Parameters:
+    ===========
+    input_file: str
+        Input radar file to dealias. File must be compatible with Py-ART.
+    gatefilter: Object GateFilter
+        GateFilter for filtering noise. If not provided it will automaticaly
+        compute it with help of the dual-polar variables.
+    vel_name: str
+        Name of the velocity field.
+    dbz_name: str
+        Name of the reflectivity field.
+    strategy: ['default', 'long_range']
+        Using the default dealiasing strategy or the long range strategy.
+
+    Returns:
+    ========
+    ultimate_dealiased_velocity: ndarray
+        Dealised velocity field.
+    """
+    if strategy not in ['default', 'long_range']:
+        raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
+    # Filter
+    if gatefilter is None:
+        gatefilter = filtering.do_gatefilter(radar, velname, dbzname)
+
+    if nyquist_velocity is None:
+        nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
+
+    # Start with first reference.
+    slice_number = 0
+    myslice = radar.get_slice(slice_number)
+
+    r = radar.range['data'].copy()
+    velocity = radar.fields[velname]['data'].copy()
+    azimuth_reference = radar.azimuth['data'][myslice]
+    elevation_reference = radar.elevation['data'][myslice].mean()
+
+    velocity_reference = np.ma.masked_where(gatefilter.gate_excluded, velocity)[myslice]
+
+    # Dealiasing first sweep.
+    if strategy == 'default':
+        final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_reference, velocity_reference,
+                                                                 elevation_reference, nyquist_velocity,
+                                                                 debug=debug, alpha=alpha)
+    else:
+        final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_reference, velocity_reference,
+                                                               elevation_reference, nyquist_velocity,
+                                                               debug=debug, alpha=alpha)
+
+    velocity_reference = final_vel.copy()
+    flag_reference = flag_vel.copy()
+
+    # 3D/2D processing array results.
+    ultimate_dealiased_velocity = np.zeros(radar.fields[velname]['data'].shape)
+    ultimate_dealiased_velocity_2D = np.zeros(radar.fields[velname]['data'].shape)
+
+    ultimate_dealiased_velocity[myslice] = final_vel.copy()
+    ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
+
+    for slice_number in range(1, radar.nsweeps):
+        if debug:
+            print(slice_number)
+        myslice = radar.get_slice(slice_number)
+        azimuth_slice = radar.azimuth['data'][myslice]
+        elevation_slice = radar.elevation['data'][myslice].mean()
+
+        if len(azimuth_slice) < 60:
+            print(f"Problem with slice #{slice_number}, only {len(azimuth_slice)} radials.")
+            continue
+
+        vel = np.ma.masked_where(gatefilter.gate_excluded, velocity)[myslice]
+        velocity_slice = vel.filled(np.NaN)
+
+        flag_slice = np.zeros_like(velocity_slice) + 1
+        flag_slice[np.isnan(velocity_slice)] = -3
+
+        if strategy == 'default':
+            final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_slice, velocity_slice,
+                                                                      elevation_slice, nyquist_velocity,
+                                                                      debug=debug, inherit_flag=flag_slice,
+                                                                      inherit_azi_start=azi_s, inherit_azi_end=azi_e,
+                                                                      alpha=alpha)
+        else:
+            final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_slice, velocity_slice,
+                                                                   elevation_slice, nyquist_velocity,
+                                                                   debug=debug, inherit_flag=flag_slice,
+                                                                   inherit_azi_start=azi_s, inherit_azi_end=azi_e,
+                                                                   alpha=alpha)
+
+        ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
+
+        velocity_slice, flag_slice = continuity.unfolding_3D(r, elevation_reference,
+                                                                azimuth_reference,
+                                                                elevation_slice,
+                                                                azimuth_slice,
+                                                                velocity_reference,
+                                                                flag_reference,
+                                                                final_vel, flag_vel,
+                                                                nyquist_velocity)
+
+        azimuth_reference = azimuth_slice.copy()
+        velocity_reference = final_vel.copy()
+        flag_reference = flag_vel.copy()
+        elevation_reference = elevation_slice
+
+        ultimate_dealiased_velocity[myslice] = final_vel.copy()
+
+    ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded, ultimate_dealiased_velocity)
+
+    return ultimate_dealiased_velocity, ultimate_dealiased_velocity_2D

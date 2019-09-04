@@ -622,11 +622,8 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
     """
     if strategy == 'vertex':
         azi_window_offset = window_azimuth
-    elif strategy == 'surround':
-        azi_window_offset = window_azimuth // 2
     else:
-        raise ValueError(f"Dealiasing strategy ('{strategy}') not understood for box_check." +
-                          " Available strategies are ('vertex', 'surround').")
+        azi_window_offset = window_azimuth // 2
 
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
@@ -703,11 +700,8 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
     """
     if strategy == 'vertex':
         azi_window_offset = window_azimuth
-    elif strategy == 'surround':
-        azi_window_offset = window_azimuth // 2
     else:
-        raise ValueError(f"Dealiasing strategy ('{strategy}') not understood for box_check." +
-                          " Available strategies are ('vertex', 'surround').")
+        azi_window_offset = window_azimuth // 2
 
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):

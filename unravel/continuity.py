@@ -44,9 +44,9 @@ def unfold(v1, v2, vnyq, half_nyq=False):
             Dealiased velocity.
     """
     if half_nyq:
-        n = np.arange(1, 7, 1)
+        n = np.arange(0, 7, 1)
     else:
-        n = np.arange(2, 7, 2)
+        n = np.arange(0, 7, 2)
     if v1 > 0:
         voff = v1 + (n * vnyq - np.abs(v1 - v2))
     else:
@@ -254,6 +254,9 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
+    flag_threshold = window_len // 3
+    if flag_threshold == 0:
+        flag_threshold = 1
     # the number 3 is because we use the previous 3 radials as reference.
     for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
@@ -270,7 +273,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
             # Folded velocity
             vel1 = vel[nbeam, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
+            if np.sum(flagvelref > 0) < flag_threshold:
                 continue
 
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
@@ -338,6 +341,9 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
+    flag_threshold = window_len // 3
+    if flag_threshold == 0:
+        flag_threshold = 1
 
     for nbeam in myquadrant:
         for ngate in range(0, maxgate):
@@ -354,7 +360,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
             # Folded velocity
             vel1 = vel[nbeam, ngate]
 
-            if np.sum((flagvelref == 1) | (flagvelref == 2)) <= 1:
+            if np.sum(flagvelref > 0) < flag_threshold:
                 continue
 
             mean_vel_ref = np.mean(velref[(flagvelref == 1) | (flagvelref == 2)])
@@ -410,6 +416,10 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
+    flag_threshold = window_len // 3
+    if flag_threshold == 0:
+        flag_threshold = 1
+        
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
@@ -427,7 +437,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
 
                 velref_vec = final_vel[nbeam, (ngate - window_len):ngate]
                 flagvelref_vec = flag_vel[nbeam, (ngate - window_len):ngate]
-                if np.sum(flagvelref_vec > 0) == 0:
+                if np.sum(flagvelref_vec > 0) < flag_threshold:
                     continue
 
                 velref = np.nanmean(velref_vec[flagvelref_vec > 0])
@@ -472,6 +482,10 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
+    flag_threshold = window_len // 3
+    if flag_threshold == 0:
+        flag_threshold = 1
+        
     for nbeam in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
         if len(start_vec) == 0:
@@ -494,7 +508,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
 
                 velref_vec = final_vel[nbeam, ngate:(ngate + window_len)]
                 flagvelref_vec = flag_vel[nbeam, ngate:(ngate + window_len)]
-                if np.sum(flagvelref_vec > 0) == 0:
+                if np.sum(flagvelref_vec > 0) < flag_threshold:
                     continue
 
                 velref = np.nanmean(velref_vec[flagvelref_vec > 0])
@@ -594,7 +608,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
 
 @jit(nopython=True)
 def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
-                window_azimuth=10, strategy='vertex', alpha=0.4):
+                window_azimuth=10, strategy='surround', alpha=0.4):
     """
     This module dealiases velocities based on the median of an area of corrected
     velocities preceding the gate being processed. This module is similar to
@@ -626,7 +640,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
         azi_window_offset = window_azimuth // 2
 
     maxazi, maxrange = final_vel.shape
-    for nbeam in range(maxazi):
+    for nbeam in np.arange(maxazi - 1, -1, -1):
         for ngate in np.arange(maxrange - 1, -1, -1):
             if flag_vel[nbeam, ngate] != 0:
                 continue
@@ -673,7 +687,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
 
 @jit(nopython=True)
 def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
-              window_azimuth=20, alpha=0.4, strategy='vertex'):
+              window_azimuth=20, strategy='surround', alpha=0.4):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -703,7 +717,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
     else:
         azi_window_offset = window_azimuth // 2
 
-    maxazi, maxrange = final_vel.shape
+    maxazi, maxrange = final_vel.shape    
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
             if flag_vel[nbeam, ngate] <= 0:
@@ -857,7 +871,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.4):
 
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
-                 velocity_reference, flag_reference, velocity_slice, flag_slice, vnyq,
+                 velocity_reference, flag_reference, velocity_slice, flag_slice, original_velocity, vnyq,
                  theta_3db=1, alpha=0.4):
     """
     Dealias using 3D continuity. This function will look at the velocities from
@@ -895,14 +909,14 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
     flag_slice: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    window_azimuth = 5
-    window_range = 10
+    window_azimuth = 20
+    window_range = 80
 
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
 
-    altitude_reference_max = r * np.sin((elevation_reference + theta_3db) * np.pi / 180)
-    altitude_slice_min = r * np.sin((elevation_slice - theta_3db) * np.pi / 180)
+#     altitude_reference_max = r * np.sin((elevation_reference + theta_3db) * np.pi / 180)
+#     altitude_slice_min = r * np.sin((elevation_slice - theta_3db) * np.pi / 180)
 
     maxazi, maxrange = velocity_slice.shape
     for nbeam in range(maxazi):
@@ -910,8 +924,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
             if flag_slice[nbeam, ngate] <= 0:
                 continue
 
-            if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
-                break
+#             if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
+#                 break
 
             current_vel = velocity_slice[nbeam, ngate]
 
@@ -932,20 +946,15 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                     velocity_refcomp_array[cnt] = velocity_reference[na, nr]
                     flag_refcomp_array[cnt] = flag_reference[na, nr]
 
-            if np.sum(flag_refcomp_array >= 1) < 1:
+            if np.sum(flag_refcomp_array > 0) < 1:
                 # No comparison possible
                 continue
 
-            velocity_refcomp_array = velocity_refcomp_array[(flag_refcomp_array >= 1)]
-            vmean = np.nanmean(velocity_refcomp_array)
-            vstd = np.nanstd(velocity_refcomp_array)
+            compare_vel = np.nanmedian(velocity_refcomp_array[(flag_refcomp_array >= 1)])
+            ogvel = original_velocity[nbeam, ngate]
 
-            pos = (velocity_refcomp_array >= vmean - vstd) & \
-                  (velocity_refcomp_array <= vmean + vstd)
-            compare_vel = np.nanmedian(velocity_refcomp_array[pos])
-
-            if not is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
-                vtrue = unfold(compare_vel, current_vel, vnyq)
+            if not is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
+                vtrue = unfold(compare_vel, ogvel, vnyq)
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 3

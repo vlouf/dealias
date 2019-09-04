@@ -566,7 +566,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
 
             vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
 
-            # Numba don't support 2D slice, that's why I loop over things.
+            # Numba doesn't support 2D slice, that's why I loop over things.
             pos = -1
             for na in iter_azi:
                 pos += 1
@@ -585,7 +585,6 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
                 else:
-                    # print(f"BEWARE. Probably noise ({nbeam}, {ngate})")
                     final_vel[nbeam, ngate] = velref
                     flag_vel[nbeam, ngate] = 3
 
@@ -597,7 +596,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
                 window_azimuth=10, strategy='vertex', alpha=0.4):
     """
     This module dealiases velocities based on the median of an area of corrected 
-    velocities proceeding the gate being processed. This module is similar to 
+    velocities preceding the gate being processed. This module is similar to 
     the dealiasing technique from Bergen et al. (1988).
 
     Parameters:

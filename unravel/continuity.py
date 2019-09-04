@@ -303,7 +303,8 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
 
 
 @jit(nopython=True)
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.4):
+def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
+                             window_len=3, alpha=0.4):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -592,11 +593,11 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
 
 
 @jit(nopython=True)
-def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, 
+def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
                 window_azimuth=10, strategy='vertex', alpha=0.4):
     """
-    This module dealiases velocities based on the median of an area of corrected 
-    velocities preceding the gate being processed. This module is similar to 
+    This module dealiases velocities based on the median of an area of corrected
+    velocities preceding the gate being processed. This module is similar to
     the dealiasing technique from Bergen et al. (1988).
 
     Parameters:
@@ -671,12 +672,12 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
 
 
 @jit(nopython=True)
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, 
+def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
               window_azimuth=20, alpha=0.4, strategy='vertex'):
     """
-    Check if all individual points are consistent with their surrounding 
-    velocities based on the median of an area of corrected velocities preceding 
-    the gate being processed. This module is similar to the dealiasing technique 
+    Check if all individual points are consistent with their surrounding
+    velocities based on the median of an area of corrected velocities preceding
+    the gate being processed. This module is similar to the dealiasing technique
     from Bergen et al. (1988). This function will look at ALL points.
 
     Parameters:

@@ -593,11 +593,12 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
 
 
 @jit(nopython=True)
-def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10, alpha=0.4):
+def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, 
+                window_azimuth=10, strategy='vertex', alpha=0.4):
     """
-    Dealias using a 20 gates by 10 radials box around around the point to
-    dealias and use the median as of those points as a reference.
-    This function will look at unprocessed velocity only.
+    This module dealiases velocities based on the median of an area of corrected 
+    velocities proceeding the gate being processed. This module is similar to 
+    the dealiasing technique from Bergen et al. (1988).
 
     Parameters:
     ===========
@@ -619,6 +620,14 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
+    if strategy == 'vertex':
+        azi_window_offset = window_azimuth
+    elif strategy == 'surround':
+        azi_window_offset = window_azimuth // 2
+    else:
+        raise ValueError(f"Dealiasing strategy ('{strategy}') not understood for box_check." +
+                          " Available strategies are ('vertex', 'surround').")
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -627,7 +636,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
 
             myvel = vel[nbeam, ngate]
 
-            npos_azi = get_iter_pos(azi, nbeam - window_azimuth // 2, window_azimuth)
+            npos_azi = get_iter_pos(azi, nbeam - azi_window_offset, window_azimuth)
             npos_range = get_iter_range(ngate, window_range, maxrange)
 
             flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
@@ -666,12 +675,13 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azi
 
 
 @jit(nopython=True)
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.4):
+def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, 
+              window_azimuth=20, alpha=0.4, strategy='vertex'):
     """
-    Check if all individual points are consistent with their surroundings. The
-    reference is the median of the distribution of all points (the one we're
-    checking excluded) inside a box of 80 gates and 20 radials.
-    This function will look at ALL points.
+    Check if all individual points are consistent with their surrounding 
+    velocities based on the median of an area of corrected velocities preceding 
+    the gate being processed. This module is similar to the dealiasing technique 
+    from Bergen et al. (1988). This function will look at ALL points.
 
     Parameters:
     ===========
@@ -690,7 +700,15 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
         Dealiased velocity slice.
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
-    """    
+    """
+    if strategy == 'vertex':
+        azi_window_offset = window_azimuth
+    elif strategy == 'surround':
+        azi_window_offset = window_azimuth // 2
+    else:
+        raise ValueError(f"Dealiasing strategy ('{strategy}') not understood for box_check." +
+                          " Available strategies are ('vertex', 'surround').")
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -699,7 +717,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
 
             myvel = final_vel[nbeam, ngate]
 
-            npos_azi = get_iter_pos(azi, nbeam - window_azimuth // 2, window_azimuth)
+            npos_azi = get_iter_pos(azi, nbeam - azi_window_offset, window_azimuth)
             npos_range = get_iter_range(ngate, window_range, maxrange)
 
             flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN

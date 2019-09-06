@@ -57,16 +57,6 @@ def unfold(v1, v2, vnyq, half_nyq=False):
 
     return vtrue
 
-# @jit(nopython=True)
-# def unfold(vref, v, vnq, half_nyq=False):
-#     delv = v - vref
-#     vshift = vnq * 2
-#     if delv <= vnq:
-#         vout = v
-#     else:
-#         vout = v - int((delv + np.sign(delv) * vnq) / vshift) * vshift
-#     return vout
-
 
 @jit(nopython=True)
 def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
@@ -220,7 +210,7 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
 
 
 @jit(nopython=True)
-def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.4):
+def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.8):
     """
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
     used as reference. Clockwise means that we loop over increasing azimuth
@@ -307,7 +297,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
 
 @jit(nopython=True)
 def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
-                             window_len=3, alpha=0.4):
+                             window_len=3, alpha=0.8):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -393,7 +383,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
 
 
 @jit(nopython=True)
-def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4):
+def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
     is used as reference. This function will look at unprocessed velocity only.
@@ -458,7 +448,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
 
 
 @jit(nopython=True)
-def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4):
+def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
     backward, i.e. from the outside to the center) is used as reference.
@@ -529,7 +519,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
 
 
 @jit(nopython=True)
-def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4):
+def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Dealias using the closest cluster of value already processed. Once the
     closest correct value is found, a take a window of 10 radials and 40 gates
@@ -608,7 +598,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.4
 
 @jit(nopython=True)
 def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
-                window_azimuth=10, strategy='surround', alpha=0.4):
+                window_azimuth=10, strategy='surround', alpha=0.8):
     """
     This module dealiases velocities based on the median of an area of corrected
     velocities preceding the gate being processed. This module is similar to
@@ -687,7 +677,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
 
 @jit(nopython=True)
 def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
-              window_azimuth=20, strategy='surround', alpha=0.4):
+              window_azimuth=20, strategy='surround', alpha=0.8):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -756,7 +746,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
 
 
 @jit
-def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.4):
+def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Dealias a linear regression of gates inside each radials.
     This function will look at PROCESSED velocity only. This function cannot be
@@ -827,7 +817,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.4)
 
 
 @jit
-def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.4):
+def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     """
     Similar as radial_least_square_check.
     """
@@ -872,7 +862,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.4):
 @jit(nopython=True)
 def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azimuth_slice,
                  velocity_reference, flag_reference, velocity_slice, flag_slice, original_velocity, vnyq,
-                 theta_3db=1, alpha=0.4):
+                 theta_3db=1, alpha=0.8):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
@@ -954,10 +944,13 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                 continue
 
             ogvel = original_velocity[nbeam, ngate]
-            if not is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
+            if is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
+                velocity_slice[nbeam, ngate] = ogvel
+                flag_slice[nbeam, ngate] = 1
+            else:
                 vtrue = unfold(compare_vel, ogvel, vnyq)
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
                     velocity_slice[nbeam, ngate] = vtrue
-                    flag_slice[nbeam, ngate] = 3
+                    flag_slice[nbeam, ngate] = 2
 
     return velocity_slice, flag_slice, vel_used_as_ref

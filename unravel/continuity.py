@@ -963,10 +963,10 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 2
                     processing_flag[nbeam, ngate] = 2
-                elif is_good_velocity(compare_vel, vtrue, vnyq, alpha=1.2):
-                    # Using higher alphas.
-                    velocity_slice[nbeam, ngate] = vtrue
-                    flag_slice[nbeam, ngate] = 3
-                    processing_flag[nbeam, ngate] = 3
+                # elif is_good_velocity(compare_vel, vtrue, vnyq, alpha=1.2):
+                #     # Using higher alphas.
+                #     velocity_slice[nbeam, ngate] = vtrue
+                #     flag_slice[nbeam, ngate] = 3
+                #     processing_flag[nbeam, ngate] = 3
 
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag

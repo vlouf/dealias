@@ -419,7 +419,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.4
     flag_threshold = window_len // 3
     if flag_threshold == 0:
         flag_threshold = 1
-        
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
@@ -485,7 +485,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     flag_threshold = window_len // 3
     if flag_threshold == 0:
         flag_threshold = 1
-        
+
     for nbeam in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
         if len(start_vec) == 0:
@@ -717,7 +717,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
     else:
         azi_window_offset = window_azimuth // 2
 
-    maxazi, maxrange = final_vel.shape    
+    maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
             if flag_vel[nbeam, ngate] <= 0:
@@ -915,17 +915,11 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
 
-#     altitude_reference_max = r * np.sin((elevation_reference + theta_3db) * np.pi / 180)
-#     altitude_slice_min = r * np.sin((elevation_slice - theta_3db) * np.pi / 180)
-
     maxazi, maxrange = velocity_slice.shape
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
-            if flag_slice[nbeam, ngate] <= 0:
+            if flag_slice[nbeam, ngate] == -3:
                 continue
-
-#             if altitude_reference_max[ngate] < altitude_slice_min[ngate]:
-#                 break
 
             current_vel = velocity_slice[nbeam, ngate]
 
@@ -946,13 +940,16 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                     velocity_refcomp_array[cnt] = velocity_reference[na, nr]
                     flag_refcomp_array[cnt] = flag_reference[na, nr]
 
-            if np.sum(flag_refcomp_array > 0) < 1:
-                # No comparison possible
+            if np.sum(flag_refcomp_array != -3) < 1:
+                # No comparison possible all gates in the reference are missing.
                 continue
 
             compare_vel = np.nanmedian(velocity_refcomp_array[(flag_refcomp_array >= 1)])
-            ogvel = original_velocity[nbeam, ngate]
+            if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
+                # The current velocity is in agreement with the lower tilt velocity.
+                continue
 
+            ogvel = original_velocity[nbeam, ngate]
             if not is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
                 vtrue = unfold(compare_vel, ogvel, vnyq)
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):

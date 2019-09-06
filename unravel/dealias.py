@@ -396,7 +396,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
                                                                  azimuth_slice,
                                                                  velocity_reference,
                                                                  flag_reference,
-                                                                 final_vel, 
+                                                                 final_vel,
                                                                  flag_vel,
                                                                  velocity,
                                                                  nyquist_velocity)
@@ -517,9 +517,9 @@ def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_v
                                                                 azimuth_slice,
                                                                 velocity_reference,
                                                                 flag_reference,
-                                                                final_vel, 
+                                                                final_vel,
                                                                 flag_vel,
-                                                                velocity,
+                                                                velocity[myslice],
                                                                 nyquist_velocity)
 
         azimuth_reference = azimuth_slice.copy()

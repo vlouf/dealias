@@ -10,7 +10,7 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 @title: continuity
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 08/03/2018
+@date: 06/09/2019
 """
 
 # Other Libraries
@@ -952,14 +952,21 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
 
             ogvel = original_velocity[nbeam, ngate]
             if is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
+                # The original velocity was good
                 velocity_slice[nbeam, ngate] = ogvel
                 flag_slice[nbeam, ngate] = 1
                 processing_flag[nbeam, ngate] = 1
             else:
                 vtrue = unfold(compare_vel, ogvel, vnyq)
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
+                    # New dealiased velocity value found
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 2
                     processing_flag[nbeam, ngate] = 2
+                elif is_good_velocity(compare_vel, vtrue, vnyq, alpha=1.2):
+                    # Using higher alphas.
+                    velocity_slice[nbeam, ngate] = vtrue
+                    flag_slice[nbeam, ngate] = 3
+                    processing_flag[nbeam, ngate] = 3
 
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag

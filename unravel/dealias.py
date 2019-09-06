@@ -398,7 +398,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
             final_vel, flag_slice, _, _ = output
 
             # Final box check to the 3D unfolding.
-            final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity, alpha=alpha)
+            final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity,
+                                                         window_range=250, alpha=alpha)
 
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
@@ -519,7 +520,8 @@ def debug_dealising_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyq
         final_vel, flag_slice, vel_as_ref, proc_flag = output
 
         # Final box check to the 3D unfolding.
-        final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity, alpha=alpha)
+        final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity,
+                                                     window_range=250, alpha=alpha)
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()

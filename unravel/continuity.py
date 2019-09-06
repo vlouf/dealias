@@ -589,9 +589,12 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
-                else:
-                    final_vel[nbeam, ngate] = velref
-                    flag_vel[nbeam, ngate] = 3
+                # else:
+                #     final_vel[nbeam, ngate] = vel1
+                #     flag_vel[nbeam, ngate] = 1
+                # else:
+                #     final_vel[nbeam, ngate] = velref
+                #     flag_vel[nbeam, ngate] = 3
 
     return final_vel, flag_vel
 

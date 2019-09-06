@@ -901,6 +901,9 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     vel_used_as_ref: ndarray <azimuth, range>
         Velocity field used as reference (debugging purposes only).
+    processing_flag: ndarray <azimuth, range>
+        Flag array that track the decisions made by the algorithm (debugging
+        purposes only).
     """
     vel_used_as_ref = np.zeros(velocity_slice.shape)
     processing_flag = np.zeros(velocity_slice.shape) - 3
@@ -913,6 +916,7 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
         for ngate in range(maxrange):
             if flag_slice[nbeam, ngate] == -3:
                 # No data here.
+                processing_flag[nbeam, ngate] = -2
                 continue
 
             current_vel = velocity_slice[nbeam, ngate]
@@ -920,8 +924,7 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
             rpos_reference = np.argmin(np.abs(r_down - r_slice[ngate]))
             apos_reference = np.argmin(np.abs(azi_down - azi_slice[nbeam]))
 
-            apos_iter = get_iter_pos(azi_down, apos_reference - window_azi // 2,
-                                     window_azi)
+            apos_iter = get_iter_pos(azi_down, apos_reference - window_azi // 2, window_azi)
             rpos_iter = get_iter_range(rpos_reference, window_range, maxrange)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN

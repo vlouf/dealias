@@ -159,9 +159,9 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
 
     # Looking for the closest reference..
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
-                                                                     flag_vel, nyquist_velocity, alpha=alpha)
+    # if count_proc(flag_vel, False) < 100:
+    #     dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
+    #                                                                  flag_vel, nyquist_velocity, alpha=alpha)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
 

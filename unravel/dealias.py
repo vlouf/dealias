@@ -388,6 +388,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
                                                                    inherit_azi_start=azi_s, inherit_azi_end=azi_e,
                                                                    alpha=alpha)
 
+        final_vel[flag_vel == -3] = np.NaN
+
         if do_3D:
             output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
                                          azimuth_slice, velocity_reference, flag_reference, final_vel,
@@ -504,6 +506,7 @@ def debug_dealising_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyq
                                                                    inherit_azi_start=azi_s, inherit_azi_end=azi_e,
                                                                    alpha=alpha)
 
+        final_vel[flag_vel == -3] = np.NaN
         ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
 
         output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,

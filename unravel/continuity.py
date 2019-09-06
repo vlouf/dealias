@@ -202,8 +202,8 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
         return -3
     elif np.isnan(velocity_reference):
         return 0
-    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (np.sign(velocity_reference) ==
-                                                                                        np.sign(velocity_to_check)):
+    elif (is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or
+          (np.sign(velocity_reference) == np.sign(velocity_to_check))):
         return 1
     else:
         return 2

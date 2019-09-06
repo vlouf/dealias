@@ -284,8 +284,8 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                                      flag_vel, nyquist_velocity, alpha=alpha)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
-    dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity,
-                                                 window_range=160, window_azimuth=40, alpha=alpha)
+    # dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity,
+    #                                              window_range=160, window_azimuth=40, alpha=alpha)
 
     if debug:
         print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")

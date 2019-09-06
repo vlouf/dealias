@@ -925,7 +925,7 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
             rpos_iter = get_iter_range(rpos_reference, window_range, maxrange)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
-            flag_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
+            flag_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) - 3
 
             cnt = -1
             for na in apos_iter:
@@ -936,6 +936,7 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
 
             if np.sum(flag_refcomp_array != -3) < 1:
                 # No comparison possible all gates in the reference are missing.
+                processing_flag[nbeam, ngate] = -1
                 continue
 
             compare_vel = np.nanmedian(velocity_refcomp_array[(flag_refcomp_array >= 1)])
@@ -956,6 +957,6 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
                 if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 2
-                    processing_flag[nbeam, ngate] = 1
+                    processing_flag[nbeam, ngate] = 2
 
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag

@@ -333,8 +333,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
 
     # Start with first reference.
-    slice_number = 0
-    myslice = radar.get_slice(slice_number)
+    myslice = radar.get_slice(0)
 
     r = radar.range['data'].copy()
     velocity = radar.fields[velname]['data'].copy()
@@ -390,16 +389,11 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
                                                                    alpha=alpha)
 
         if do_3D:
-            final_vel, flag_slice, _ = continuity.unfolding_3D(r, elevation_reference,
-                                                                 azimuth_reference,
-                                                                 elevation_slice,
-                                                                 azimuth_slice,
-                                                                 velocity_reference,
-                                                                 flag_reference,
-                                                                 final_vel,
-                                                                 flag_vel,
-                                                                 velocity[myslice],
-                                                                 nyquist_velocity)
+            output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
+                                         azimuth_slice, velocity_reference, flag_reference, final_vel,
+                                         flag_vel, velocity[myslice], nyquist_velocity)
+
+            final_vel, flag_slice, _, _ = output
 
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
@@ -414,8 +408,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     return ultimate_dealiased_velocity
 
 
-def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
-                 debug=False, alpha=0.6, strategy='long_range'):
+def debug_dealising_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
+                       debug=True, alpha=0.6, strategy='long_range'):
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -449,14 +443,12 @@ def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_v
         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
 
     # Start with first reference.
-    slice_number = 0
-    myslice = radar.get_slice(slice_number)
+    myslice = radar.get_slice(0)
 
     r = radar.range['data'].copy()
     velocity = radar.fields[velname]['data'].copy()
     azimuth_reference = radar.azimuth['data'][myslice]
     elevation_reference = radar.elevation['data'][myslice].mean()
-
     velocity_reference = np.ma.masked_where(gatefilter.gate_excluded, velocity)[myslice]
 
     # Dealiasing first sweep.
@@ -473,9 +465,11 @@ def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_v
     flag_reference = flag_vel.copy()
 
     # 3D/2D processing array results.
-    ultimate_dealiased_velocity = np.zeros(radar.fields[velname]['data'].shape)
-    ultimate_dealiased_velocity_2D = np.zeros(radar.fields[velname]['data'].shape)
-    debug_3D_velocity =  np.zeros(radar.fields[velname]['data'].shape)
+    shape = radar.fields[velname]['data'].shape
+    ultimate_dealiased_velocity = np.zeros(shape)
+    ultimate_dealiased_velocity_2D = np.zeros(shape)
+    debug_3D_velocity =  np.zeros(shape)
+    processing_flag = np.zeros(shape)
 
     ultimate_dealiased_velocity[myslice] = final_vel.copy()
     ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
@@ -512,16 +506,11 @@ def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_v
 
         ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
 
-        final_vel, flag_slice, vel_as_ref = continuity.unfolding_3D(r, elevation_reference,
-                                                                azimuth_reference,
-                                                                elevation_slice,
-                                                                azimuth_slice,
-                                                                velocity_reference,
-                                                                flag_reference,
-                                                                final_vel,
-                                                                flag_vel,
-                                                                velocity[myslice],
-                                                                nyquist_velocity)
+        output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
+                                         azimuth_slice, velocity_reference, flag_reference, final_vel,
+                                         flag_vel, velocity[myslice], nyquist_velocity)
+
+        final_vel, flag_slice, vel_as_ref, proc_flag = output
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()
@@ -530,7 +519,8 @@ def process_2D3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_v
 
         ultimate_dealiased_velocity[myslice] = final_vel.copy()
         debug_3D_velocity[myslice] = vel_as_ref
+        processing_flag[myslice] = proc_flag
 
     ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded, ultimate_dealiased_velocity)
 
-    return ultimate_dealiased_velocity, ultimate_dealiased_velocity_2D, debug_3D_velocity
+    return ultimate_dealiased_velocity, ultimate_dealiased_velocity_2D, debug_3D_velocity, processing_flag

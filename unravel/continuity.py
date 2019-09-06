@@ -915,6 +915,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
     ground_range_reference = r * np.cos(elevation_reference * np.pi / 180)
     ground_range_slice = r * np.cos(elevation_slice * np.pi / 180)
 
+    vel_used_as_ref = np.zeros_like(velocity_slice)
+
     maxazi, maxrange = velocity_slice.shape
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
@@ -945,6 +947,8 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                 continue
 
             compare_vel = np.nanmedian(velocity_refcomp_array[(flag_refcomp_array >= 1)])
+            vel_used_as_ref[nbeam, ngate] = compare_vel
+
             if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
                 # The current velocity is in agreement with the lower tilt velocity.
                 continue
@@ -956,4 +960,4 @@ def unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice, azi
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 3
 
-    return velocity_slice, flag_slice
+    return velocity_slice, flag_slice, vel_used_as_ref

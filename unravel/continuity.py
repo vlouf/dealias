@@ -21,7 +21,7 @@ from scipy.stats import linregress
 
 
 @jit(nopython=True)
-def unfold(v1, v2, vnyq, half_nyq=False):
+def unfold(v1, v2, vnyq):
     """
     Compare two velocities, look at all possible unfolding value (up to a period
     of 7 times the nyquist) and find the unfolded velocity that is the closest
@@ -35,27 +35,21 @@ def unfold(v1, v2, vnyq, half_nyq=False):
         Velocity to unfold
     vnyq: float
         Nyquist velocity
-    half_nyq: bool
-        Deprecated argument, should not be used.
 
     Returns:
     ========
+    return voff[pos]
         vtrue: float
             Dealiased velocity.
     """
-    if half_nyq:
-        n = np.arange(0, 7, 1)
-    else:
-        n = np.arange(0, 7, 2)
+    n = np.arange(0, 7, 2)
     if v1 > 0:
         voff = v1 + (n * vnyq - np.abs(v1 - v2))
     else:
         voff = v1 - (n * vnyq - np.abs(v1 - v2))
 
     pos = np.argmin(np.abs(voff - v1))
-    vtrue = voff[pos]
-
-    return vtrue
+    return voff[pos]
 
 
 @jit(nopython=True)

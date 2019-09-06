@@ -159,9 +159,9 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
 
     # Looking for the closest reference..
-    # if count_proc(flag_vel, False) < 100:
-    #     dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
-    #                                                                  flag_vel, nyquist_velocity, alpha=alpha)
+    if count_proc(flag_vel, False) < 100:
+        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
+                                                                     flag_vel, nyquist_velocity, alpha=alpha)
 
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
 
@@ -344,10 +344,12 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
 
     # Dealiasing first sweep.
     if strategy == 'default':
+        print('Using default strategy.')
         final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_reference, velocity_reference,
                                                                  elevation_reference, nyquist_velocity,
                                                                  debug=debug, alpha=alpha)
     else:
+        print('Using long range strategy.')
         final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_reference, velocity_reference,
                                                                elevation_reference, nyquist_velocity,
                                                                debug=debug, alpha=alpha)
@@ -459,10 +461,12 @@ def debug_dealising_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyq
 
     # Dealiasing first sweep.
     if strategy == 'default':
+        print('Using default strategy.')
         final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r, azimuth_reference, velocity_reference,
                                                                  elevation_reference, nyquist_velocity,
                                                                  debug=debug, alpha=alpha)
     else:
+        print('Using long range strategy.')
         final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r, azimuth_reference, velocity_reference,
                                                                elevation_reference, nyquist_velocity,
                                                                debug=debug, alpha=alpha)

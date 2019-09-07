@@ -513,6 +513,80 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
 
 
 @jit(nopython=True)
+def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha=0.8):
+    """
+    Dealias using data close to the radar as reference for the most distant
+    points left to dealiase.
+
+    Parameters:
+    ===========
+    velocity: ndarray <azimuth, r>
+        Aliased Doppler velocity field.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+    r_step: int
+        Number of gates used to compute reference.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    """
+    maxazi, maxrange = final_vel.shape
+    for nbeam in range(maxazi):
+        if not np.any((flag_vel[nbeam, r_step:] == 0)):
+            # There is nothing left to process for this azimuth.
+            continue
+
+        pos = flag_vel[nbeam, :r_step] > 0
+        if np.sum(pos) == 0:
+            # There's nothing that can be used as reference.
+            continue
+
+        v_selected = final_vel[nbeam, :r_step][pos]
+        vmoy = np.mean(v_selected)
+
+        if np.any((v_selected > 0)):
+            vmoy_plus = np.nanmean(v_selected[v_selected > 0])
+        else:
+            vmoy_plus = np.NaN
+        if np.any((v_selected < 0)):
+            vmoy_minus = np.nanmean(v_selected[v_selected < 0])
+        else:
+            vmoy_minus = np.NaN
+
+        if np.isnan(vmoy_plus) and np.isnan(vmoy_minus):
+            continue
+
+        for ngate in range(r_step, maxrange):
+            if flag_vel[nbeam, ngate] != 0:
+                continue
+            current_vel = velocity[nbeam, ngate]
+
+            if vmoy >= 0:
+                decision = take_decision(vmoy_plus, current_vel, vnyq, alpha=alpha)
+                vtrue = unfold(vmoy_plus, current_vel, vnyq)
+            else:
+                decision = take_decision(vmoy_minus, current_vel, vnyq, alpha=alpha)
+                vtrue = unfold(vmoy_minus, current_vel, vnyq)
+
+            if decision == 1:
+                final_vel[nbeam, ngate] = current_vel
+                flag_vel[nbeam, ngate] = 1
+            elif decision == 2:
+                final_vel[nbeam, ngate] = vtrue
+                flag_vel[nbeam, ngate] = 2
+
+    return final_vel, flag_vel
+
+
+@jit(nopython=True)
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Dealias using the closest cluster of value already processed. Once the
@@ -583,12 +657,6 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
-                # else:
-                #     final_vel[nbeam, ngate] = vel1
-                #     flag_vel[nbeam, ngate] = 1
-                # else:
-                #     final_vel[nbeam, ngate] = velref
-                #     flag_vel[nbeam, ngate] = 3
 
     return final_vel, flag_vel
 

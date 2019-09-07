@@ -137,18 +137,10 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                                       alpha=alpha, window_len=6)
 
     # Box error check with respect to surrounding velocities
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
-                                                       nyquist_velocity, 5, 2, alpha=alpha)
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
-                                                       nyquist_velocity, 20, 10, alpha=alpha)
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
-                                                       nyquist_velocity, 40, 20, alpha=alpha)
-    if count_proc(flag_vel, False) < 100:
-        dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
-                                                       nyquist_velocity, 80, 40, alpha=alpha)
+    for window in [(5, 2), (20, 10), (40, 20), (80, 40)]:
+        if count_proc(flag_vel, debug) < 100:
+            dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
+                                                        nyquist_velocity, window[0], window[1], alpha=alpha)
 
     # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
     if elev_angle <= 6:
@@ -157,6 +149,11 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                                      flag_vel, nyquist_velocity, alpha=alpha)
         # No flag.
         dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
+
+    # Using clear air data to build a reference for the whole radial.
+    if count_proc(flag_vel, debug) < 100:
+        dealias_vel, flag_vel = continuity.correct_linear_interp(velocity, dealias_vel, flag_vel,
+                                                                 nyquist_velocity, alpha=alpha)
 
     # Looking for the closest reference..
     if count_proc(flag_vel, False) < 100:
@@ -271,21 +268,23 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
             dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
                                                         nyquist_velocity, window[0], window[1], alpha=alpha)
 
-    # Dealiasing with a circular area of points around the unprocessed ones (no point left unprocessed after this step).
     # Least squares error check in the radial direction
     dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity, dealias_vel,
-                                                                    flag_vel, nyquist_velocity, alpha=alpha)
-    # No flag.
-    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
+                                                                 flag_vel, nyquist_velocity, alpha=alpha)
+
+    # Using clear air data to build a reference for the whole radial.
+    if count_proc(flag_vel, debug) < 100:
+        dealias_vel, flag_vel = continuity.correct_linear_interp(velocity, dealias_vel, flag_vel,
+                                                                 nyquist_velocity, alpha=alpha)
 
     # Looking for the closest reference..
     if count_proc(flag_vel, debug) < 100:
         dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
                                                                      flag_vel, nyquist_velocity, alpha=alpha)
 
+    # Checking modules
+    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
-    # dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity,
-    #                                              window_range=160, window_azimuth=40, alpha=alpha)
 
     if debug:
         print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")

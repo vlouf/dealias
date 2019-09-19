@@ -268,9 +268,9 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
             dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
                                                         nyquist_velocity, window[0], window[1], alpha=alpha)
 
-    # Least squares error check in the radial direction
-    dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity, dealias_vel,
-                                                                 flag_vel, nyquist_velocity, alpha=alpha)
+    # # Least squares error check in the radial direction
+    # dealias_vel, flag_vel = continuity.radial_least_square_check(r, azimuth, velocity, dealias_vel,
+    #                                                              flag_vel, nyquist_velocity, alpha=alpha)
 
     # Using clear air data to build a reference for the whole radial.
     if count_proc(flag_vel, debug) < 100:
@@ -283,7 +283,7 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
                                                                      flag_vel, nyquist_velocity, alpha=alpha)
 
     # Checking modules
-    dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
+    # dealias_vel = continuity.least_square_radial_last_module(r, azimuth, dealias_vel, nyquist_velocity, alpha=alpha)
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
 
     if debug:
@@ -298,7 +298,7 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
 
 
 def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
-               debug=False, do_3D=True, alpha=0.6, strategy='default'):
+               debug=False, do_3D=None, alpha=0.6, strategy='default'):
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -322,6 +322,9 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     ultimate_dealiased_velocity: ndarray
         Dealised velocity field.
     """
+    if do_3D is not None:
+        raise DeprecationWarning("'do_3D' argument is deprecated and will stop working in future version.")
+
     if strategy not in ['default', 'long_range']:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     # Filter
@@ -390,22 +393,20 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
                                                                    alpha=alpha)
 
         final_vel[flag_vel == -3] = np.NaN
+        output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
+                                        azimuth_slice, velocity_reference, flag_reference, final_vel,
+                                        flag_vel, velocity[myslice], nyquist_velocity)
 
-        if do_3D:
-            output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
-                                         azimuth_slice, velocity_reference, flag_reference, final_vel,
-                                         flag_vel, velocity[myslice], nyquist_velocity)
+        final_vel, flag_slice, _, _ = output
 
-            final_vel, flag_slice, _, _ = output
+        # Final box check to the 3D unfolding.
+        final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity,
+                                                        window_range=250, alpha=alpha)
 
-            # Final box check to the 3D unfolding.
-            final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity,
-                                                         window_range=250, alpha=alpha)
-
-            azimuth_reference = azimuth_slice.copy()
-            velocity_reference = final_vel.copy()
-            flag_reference = flag_vel.copy()
-            elevation_reference = elevation_slice
+        azimuth_reference = azimuth_slice.copy()
+        velocity_reference = final_vel.copy()
+        flag_reference = flag_vel.copy()
+        elevation_reference = elevation_slice
 
         ultimate_dealiased_velocity[myslice] = final_vel.copy()
 

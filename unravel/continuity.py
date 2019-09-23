@@ -10,14 +10,45 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 @title: continuity
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 06/09/2019
+@date: 23/09/2019
 """
-
-# Other Libraries
 import numpy as np
-
 from numba import jit, int64, float64
-from scipy.stats import linregress
+
+
+@jit(nopython=True, cache=True)
+def linregress(x, y):
+    """
+    Linear regression is an approach for predicting a response using a single
+    feature. It is assumed that the two variables are linearly related. Hence,
+    we try to find a linear function that predicts the response value(y) as
+    accurately as possible as a function of the feature or independent
+    variable(x).
+
+    Parameters:
+    ===========
+    x: ndarray <vector>
+    y: ndarray <vector>
+
+    Returns:
+    ========
+
+    """
+    # number of observations/points
+    n = np.size(x)
+
+    # mean of x and y vector
+    m_x, m_y = np.mean(x), np.mean(y)
+
+    # calculating cross-deviation and deviation about x
+    SS_xy = np.sum(y * x) - n * m_y * m_x
+    SS_xx = np.sum(x * x) - n * m_x * m_x
+
+    # calculating regression coefficients
+    slope = SS_xy / SS_xx
+    intercept = m_y - b_1 * m_x
+
+    return slope, intercept
 
 
 @jit(nopython=True, cache=True)
@@ -810,7 +841,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
     return final_vel, flag_vel
 
 
-@jit
+@jit(nopython=True, cache=True)
 def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Dealias a linear regression of gates inside each radials.
@@ -847,7 +878,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
         if len(myvel[~np.isnan(myvel)]) < 2:
             continue
 
-        slope, intercept, _, _, _ = linregress(r[~np.isnan(myvel)], myvel[~np.isnan(myvel)])
+        slope, intercept = linregress(r[~np.isnan(myvel)], myvel[~np.isnan(myvel)])
 
         fmin = intercept + slope * r - 0.4 * vnyq
         fmax = intercept + slope * r + 0.4 * vnyq
@@ -881,7 +912,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     return final_vel, flag_vel
 
 
-@jit
+@jit(nopython=True, cache=True)
 def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     """
     Similar as radial_least_square_check.
@@ -894,7 +925,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
         if len(myvel[~np.isnan(myvel)]) < 10:
             continue
 
-        slope, intercept, _, _, _ = linregress(r[~np.isnan(myvel)], myvel[~np.isnan(myvel)])
+        slope, intercept = linregress(r[~np.isnan(myvel)], myvel[~np.isnan(myvel)])
 
         fmin = intercept + slope * r - 0.4 * vnyq
         fmax = intercept + slope * r + 0.4 * vnyq

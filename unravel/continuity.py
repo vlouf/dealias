@@ -872,10 +872,11 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
+    myvel = np.zeros(maxrange, dtype=float64)
+
     for nbeam in range(maxazi):
         myvel = final_vel[nbeam, :]
         myvel[flag_vel[nbeam, :] <= 0] = np.NaN
-
         if len(myvel[~np.isnan(myvel)]) < 2:
             continue
 
@@ -919,10 +920,10 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     Similar as radial_least_square_check.
     """
     maxazi, maxrange = final_vel.shape
+    myvel = np.zeros(maxrange, dtype=float64)
 
     for nbeam in range(maxazi):
         myvel = final_vel[nbeam, :]
-
         if len(myvel[~np.isnan(myvel)]) < 10:
             continue
 

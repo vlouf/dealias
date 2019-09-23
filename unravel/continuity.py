@@ -27,15 +27,16 @@ def linregress(x, y):
 
     Parameters:
     ===========
-    x: ndarray <vector>
-    y: ndarray <vector>
+        x: ndarray <vector>
+        y: ndarray <vector>
 
     Returns:
     ========
-
+        slope
+        intecept
     """
     # number of observations/points
-    n = np.size(x)
+    n = len(x)
 
     # mean of x and y vector
     m_x, m_y = np.mean(x), np.mean(y)
@@ -46,7 +47,7 @@ def linregress(x, y):
 
     # calculating regression coefficients
     slope = SS_xy / SS_xx
-    intercept = m_y - b_1 * m_x
+    intercept = m_y - slope * m_x
 
     return slope, intercept
 

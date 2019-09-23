@@ -120,7 +120,7 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
     dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel,
                                                               nyquist_velocity, alpha=alpha)
 
-    for i in range(2):
+    for _ in range(2):
         if count_proc(flag_vel, False) < 100:
             azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
             azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)

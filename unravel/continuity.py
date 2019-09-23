@@ -20,7 +20,7 @@ from numba import jit, int64, float64
 from scipy.stats import linregress
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unfold(v1, v2, vnyq):
     """
     Compare two velocities, look at all possible unfolding value (up to a period
@@ -52,7 +52,7 @@ def unfold(v1, v2, vnyq):
     return voff[pos]
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
     """
     Compare two velocities, and check if they are comparable to each other.
@@ -76,7 +76,7 @@ def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
     return np.abs(vel2 - vel1) < alpha * vnyq
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def get_iter_pos(azi, st, nb=180):
     """
     Return a sequence of integers from start (inclusive) to stop (start + nb)
@@ -140,7 +140,7 @@ def get_iter_pos(azi, st, nb=180):
     return out
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def get_iter_range(pos_center, nb_gate, maxrange):
     """
     Similar as get_iter_pos, but this time for creating an array of iterative
@@ -173,7 +173,7 @@ def get_iter_range(pos_center, nb_gate, maxrange):
     return np.arange(st_pos, end_pos)
 
 
-@jit(int64(float64, float64, float64, float64), nopython=True)
+@jit(int64(float64, float64, float64, float64), nopython=True, cache=True)
 def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     """
     Make a decision after comparing two velocities.
@@ -203,7 +203,7 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
         return 2
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.8):
     """
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
@@ -289,7 +289,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
                              window_len=3, alpha=0.8):
     """
@@ -376,7 +376,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
@@ -441,7 +441,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
@@ -512,7 +512,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha=0.8):
     """
     Dealias using data close to the radar as reference for the most distant
@@ -586,7 +586,7 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Dealias using the closest cluster of value already processed. Once the
@@ -661,7 +661,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
                 window_azimuth=10, strategy='surround', alpha=0.8):
     """
@@ -740,7 +740,7 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
     return final_vel, flag_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
               window_azimuth=20, strategy='surround', alpha=0.8):
     """
@@ -924,7 +924,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     return final_vel
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_down,
                  velocity_slice, flag_slice, original_velocity, vnyq,
                  window_azi=20, window_range=80, alpha=0.8):
@@ -1028,10 +1028,5 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
                     velocity_slice[nbeam, ngate] = vtrue
                     flag_slice[nbeam, ngate] = 2
                     processing_flag[nbeam, ngate] = 2
-                # elif is_good_velocity(compare_vel, vtrue, vnyq, alpha=1.2):
-                #     # Using higher alphas.
-                #     velocity_slice[nbeam, ngate] = vtrue
-                #     flag_slice[nbeam, ngate] = 3
-                #     processing_flag[nbeam, ngate] = 3
 
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag

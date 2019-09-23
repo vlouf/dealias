@@ -415,8 +415,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     return ultimate_dealiased_velocity
 
 
-def debug_dealising_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
-                       debug=True, alpha=0.6, strategy='long_range'):
+def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
+                     debug=True, alpha=0.6, strategy='long_range'):
     """
     Process driver.
     Full dealiasing process 2D + 3D.

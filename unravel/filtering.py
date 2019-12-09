@@ -62,14 +62,14 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
                 continue
 
             v_selected = velocity[j, n1: n2][idx_selected != -3]
-            vmoy = np.mean(v_selected)
+            vmoy = np.median(v_selected)
 
             if np.any((v_selected > 0)):
-                vmoy_plus = np.mean(v_selected[v_selected > 0])
+                vmoy_plus = np.median(v_selected[v_selected > 0])
             else:
                 vmoy_plus = np.NaN
             if np.any((v_selected < 0)):
-                vmoy_minus = np.mean(v_selected[v_selected < 0])
+                vmoy_minus = np.median(v_selected[v_selected < 0])
             else:
                 vmoy_minus = np.NaN
 

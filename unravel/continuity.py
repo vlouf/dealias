@@ -109,7 +109,7 @@ def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
 
 
 @jit(nopython=True)
-def get_iter_pos(azi, st, nb=180):
+def get_iter_pos(azi, idx_start, window_len):
     """
     Return a sequence of integers from start (inclusive) to stop (start + nb)
     by step of 1 for iterating over the azimuth (handle the case that azimuth
@@ -121,10 +121,10 @@ def get_iter_pos(azi, st, nb=180):
     ===========
     azi: ndarray<float>
         Azimuth.
-    st: int
+    idx_start: int
         Starting point.
-    nb: int
-        Number of unitary steps.
+    window_len: int
+        Window size.
 
     Returns:
     ========
@@ -132,44 +132,8 @@ def get_iter_pos(azi, st, nb=180):
         Array containing the position from start to start + nb, i.e.
         azi[out[0]] <=> st
     """
-    if st < 0:
-        st += len(azi)
-    if st >= len(azi):
-        st -= len(azi)
-
-    ed = st + nb
-    if ed >= len(azi):
-        ed -= len(azi)
-    if ed < 0:
-        ed += len(azi)
-
-    posazi = np.arange(0, len(azi))
-    mypos = np.empty_like(posazi)
-
-    if nb > 0:
-        if st < ed:
-            end = ed - st
-            mypos[:end] = posazi[st:ed]
-        else:
-            mid = (len(azi) - st)
-            end = (len(azi) - st + ed)
-            mypos[:mid] = posazi[st:]
-            mypos[mid:end] = posazi[:ed]
-    else:  # Goin backward.
-        if st < ed:
-            mid = st + 1
-            end = st + len(azi) - ed
-            mypos[:mid] = posazi[st::-1]
-            mypos[mid:end] = posazi[-1:ed:-1]
-        else:
-            end = np.abs(st - ed)
-            mypos[:end] = posazi[st:ed:-1]
-
-    out = np.zeros((end, ), dtype=mypos.dtype)
-    for n in range(end):
-        out[n] = mypos[n]
-
-    return out
+    nbeam = len(azi)
+    return np.arange(idx_start, idx_start + window_len) % nbeam
 
 
 @jit(nopython=True)

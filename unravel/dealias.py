@@ -319,7 +319,7 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
 
     Returns:
     ========
-    ultimate_dealiased_velocity: ndarray
+    unraveled_velocity: ndarray
         Dealised velocity field.
     """
     if do_3D is not None:
@@ -359,8 +359,8 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
     velocity_reference = final_vel.copy()
     flag_reference = flag_vel.copy()
 
-    ultimate_dealiased_velocity = np.zeros(radar.fields[velname]['data'].shape)
-    ultimate_dealiased_velocity[myslice] = final_vel.copy()
+    unraveled_velocity = np.zeros(radar.fields[velname]['data'].shape)
+    unraveled_velocity[myslice] = final_vel.copy()
 
     for slice_number in range(1, radar.nsweeps):
         if debug:
@@ -408,12 +408,12 @@ def process_3D(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_vel
         flag_reference = flag_vel.copy()
         elevation_reference = elevation_slice
 
-        ultimate_dealiased_velocity[myslice] = final_vel.copy()
+        unraveled_velocity[myslice] = final_vel.copy()
 
-    ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded,
-                                                     ultimate_dealiased_velocity)
+    unraveled_velocity = np.ma.masked_where(gatefilter.gate_excluded,
+                                                     unraveled_velocity)
 
-    return ultimate_dealiased_velocity
+    return unraveled_velocity
 
 
 def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None,
@@ -438,7 +438,7 @@ def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyqui
 
     Returns:
     ========
-    ultimate_dealiased_velocity: ndarray
+    unraveled_velocity: ndarray
         Dealised velocity field.
     """
     if strategy not in ['default', 'long_range']:
@@ -476,13 +476,13 @@ def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyqui
 
     # 3D/2D processing array results.
     shape = radar.fields[velname]['data'].shape
-    ultimate_dealiased_velocity = np.zeros(shape)
-    ultimate_dealiased_velocity_2D = np.zeros(shape)
+    unraveled_velocity = np.zeros(shape)
+    unraveled_velocity_2D = np.zeros(shape)
     debug_3D_velocity =  np.zeros(shape)
     processing_flag = np.zeros(shape)
 
-    ultimate_dealiased_velocity[myslice] = final_vel.copy()
-    ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
+    unraveled_velocity[myslice] = final_vel.copy()
+    unraveled_velocity_2D[myslice] = final_vel.copy()
 
     for slice_number in range(1, radar.nsweeps):
         if debug:
@@ -515,7 +515,7 @@ def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyqui
                                                                    alpha=alpha)
 
         final_vel[flag_vel == -3] = np.NaN
-        ultimate_dealiased_velocity_2D[myslice] = final_vel.copy()
+        unraveled_velocity_2D[myslice] = final_vel.copy()
 
         output = continuity.unfolding_3D(r, elevation_reference, azimuth_reference, elevation_slice,
                                          azimuth_slice, velocity_reference, flag_reference, final_vel,
@@ -532,10 +532,10 @@ def debug_dealiasing(radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyqui
         flag_reference = flag_vel.copy()
         elevation_reference = elevation_slice
 
-        ultimate_dealiased_velocity[myslice] = final_vel.copy()
+        unraveled_velocity[myslice] = final_vel.copy()
         debug_3D_velocity[myslice] = vel_as_ref
         processing_flag[myslice] = proc_flag
 
-    ultimate_dealiased_velocity = np.ma.masked_where(gatefilter.gate_excluded, ultimate_dealiased_velocity)
+    unraveled_velocity = np.ma.masked_where(gatefilter.gate_excluded, unraveled_velocity)
 
-    return ultimate_dealiased_velocity, ultimate_dealiased_velocity_2D, debug_3D_velocity, processing_flag
+    return unraveled_velocity, unraveled_velocity_2D, debug_3D_velocity, processing_flag

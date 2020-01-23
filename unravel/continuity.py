@@ -109,7 +109,7 @@ def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
 
 
 @jit(nopython=True)
-def get_iter_pos(azi, idx_start, window_len):
+def iter_azimuth(azi, idx_start, window_len):
     """
     Return a sequence of integers from start (inclusive) to stop (start + nb)
     by step of 1 for iterating over the azimuth (handle the case that azimuth
@@ -137,32 +137,32 @@ def get_iter_pos(azi, idx_start, window_len):
 
 
 @jit(nopython=True)
-def get_iter_range(pos_center, nb_gate, maxrange):
+def iter_range(pos_center, window_len, ngate):
     """
-    Similar as get_iter_pos, but this time for creating an array of iterative
+    Similar as iter_azimuth, but this time for creating an array of iterative
     indices over the radar range. JIT-friendly function.
 
     Parameters:
     ===========
     pos_center: int
         Starting point
-    nb_gate: int
+    window_len: int
         Number of gates to iter to.
-    maxrange: int
-        Length of the radar range, i.e. maxrange = len(r)
+    ngate: int
+        Length of the radar range, i.e. ngate = len(r)
 
     Returns:
     ========
     Array of iteration indices.
     """
-    half_range = nb_gate // 2
+    half_range = window_len // 2
     if pos_center < half_range:
         st_pos = 0
     else:
         st_pos = pos_center - half_range
 
-    if pos_center + half_range >= maxrange:
-        end_pos = maxrange
+    if pos_center + half_range >= ngate:
+        end_pos = ngate
     else:
         end_pos = pos_center + half_range
 
@@ -247,8 +247,8 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
             # We want the previous 3 radials.
             npos = nbeam - window_len
             # Unfolded velocity
-            velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
-            flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
+            velref = final_vel[iter_azimuth(azi, npos, window_len), ngate]
+            flagvelref = flag_vel[iter_azimuth(azi, npos, window_len), ngate]
 
             # Folded velocity
             vel1 = vel[nbeam, ngate]
@@ -334,8 +334,8 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
             # We want the next 3 radials.
             npos = nbeam + 1
             # Unfolded velocity.
-            velref = final_vel[get_iter_pos(azi, npos, window_len), ngate]
-            flagvelref = flag_vel[get_iter_pos(azi, npos, window_len), ngate]
+            velref = final_vel[iter_azimuth(azi, npos, window_len), ngate]
+            flagvelref = flag_vel[iter_azimuth(azi, npos, window_len), ngate]
 
             # Folded velocity
             vel1 = vel[nbeam, ngate]
@@ -630,16 +630,14 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
             nbeam_close = posazi_good[closest]
             ngate_close = posgate_good[closest]
 
-            iter_azi = get_iter_pos(azimuth, nbeam_close - window_azi // 2, window_azi)
-            iter_range = get_iter_range(ngate_close, window_gate, maxrange)
-
-            vel_ref_vec = np.zeros((len(iter_azi) * len(iter_range), ), dtype=float64) + np.NaN
+            npos_range = iter_range(ngate_close, window_gate, maxrange)
+            vel_ref_vec = np.zeros((window_azi * maxrange)) + np.NaN
 
             # Numba doesn't support 2D slice, that's why I loop over things.
             pos = -1
-            for na in iter_azi:
+            for na in iter_azimuth(azimuth, nbeam_close - window_azi // 2, window_azi):
                 pos += 1
-                vel_ref_vec[pos] = np.nanmean(final_vel[na, iter_range[0]: iter_range[-1]][flag_vel[na, iter_range[0]: iter_range[-1]] > 0])
+                vel_ref_vec[pos] = np.nanmean(final_vel[na, npos_range[0]: npos_range[-1]][flag_vel[na, npos_range[0]: npos_range[-1]] > 0])
             velref = np.nanmedian(vel_ref_vec)
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
@@ -697,16 +695,14 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
                 continue
 
             myvel = vel[nbeam, ngate]
+            npos_range = iter_range(ngate, window_range, maxrange)
 
-            npos_azi = get_iter_pos(azi, nbeam - azi_window_offset, window_azimuth)
-            npos_range = get_iter_range(ngate, window_range, maxrange)
-
-            flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
-            vel_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
+            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
 
             # I know a slice would be better, but this is for jit to work.
             cnt = -1
-            for na in npos_azi:
+            for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
                 for nr in npos_range:
                     cnt += 1
                     if (na, nr) == (nbeam, ngate):
@@ -776,14 +772,13 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
 
             myvel = final_vel[nbeam, ngate]
 
-            npos_azi = get_iter_pos(azi, nbeam - azi_window_offset, window_azimuth)
-            npos_range = get_iter_range(ngate, window_range, maxrange)
+            npos_range = iter_range(ngate, window_range, maxrange)
 
-            flag_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
-            vel_ref_vec = np.zeros((len(npos_range) * len(npos_azi))) + np.NaN
+            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
+            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
 
             cnt = -1
-            for na in npos_azi:
+            for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
                 for nr in npos_range:
                     cnt += 1
                     if (na, nr) == (nbeam, ngate):
@@ -986,14 +981,13 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
             rpos_reference = np.argmin(np.abs(r_down - r_slice[ngate]))
             apos_reference = np.argmin(np.abs(azi_down - azi_slice[nbeam]))
 
-            apos_iter = get_iter_pos(azi_down, apos_reference - window_azi // 2, window_azi)
-            rpos_iter = get_iter_range(rpos_reference, window_range, maxrange)
+            rpos_iter = iter_range(rpos_reference, window_range, maxrange)
 
-            velocity_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) + np.NaN
-            flag_refcomp_array = np.zeros((len(rpos_iter) * len(apos_iter))) - 3
+            velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.NaN
+            flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3
 
             cnt = -1
-            for na in apos_iter:
+            for na in iter_azimuth(azi_down, apos_reference - window_azi // 2, window_azi):
                 for nr in rpos_iter:
                     cnt += 1
                     velocity_refcomp_array[cnt] = vel_down[na, nr]

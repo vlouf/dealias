@@ -10,7 +10,7 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 @title: continuity
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 23/09/2019
+@date: 23/01/2020
 """
 import numpy as np
 from numba import jit, int64, float64
@@ -111,11 +111,7 @@ def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
 @jit(nopython=True)
 def iter_azimuth(azi, idx_start, window_len):
     """
-    Return a sequence of integers from start (inclusive) to stop (start + nb)
-    by step of 1 for iterating over the azimuth (handle the case that azimuth
-    360 is in fact 0, i.e. a cycle).
-    JIT-friendly function (this is why the function looks much longer than the
-    pythonic way of doing this).
+    Return a sequence of indices that are circling around for the azimuth.
 
     Parameters:
     ===========
@@ -137,7 +133,7 @@ def iter_azimuth(azi, idx_start, window_len):
 
 
 @jit(nopython=True)
-def iter_range(pos_center, window_len, ngate):
+def iter_range(pos_center, window_len, maxgate):
     """
     Similar as iter_azimuth, but this time for creating an array of iterative
     indices over the radar range. JIT-friendly function.
@@ -148,8 +144,8 @@ def iter_range(pos_center, window_len, ngate):
         Starting point
     window_len: int
         Number of gates to iter to.
-    ngate: int
-        Length of the radar range, i.e. ngate = len(r)
+    maxgate: int
+        Length of the radar range, i.e. maxgate = len(r)
 
     Returns:
     ========
@@ -161,8 +157,8 @@ def iter_range(pos_center, window_len, ngate):
     else:
         st_pos = pos_center - half_range
 
-    if pos_center + half_range >= ngate:
-        end_pos = ngate
+    if pos_center + half_range >= maxgate:
+        end_pos = maxgate
     else:
         end_pos = pos_center + half_range
 

@@ -9,7 +9,8 @@ Driver script for the dealiasing module. You want to call process_3D.
 
     count_proc
     dealiasing_process_2D
-    process_3D
+    dealias_long_range
+    unravel_3D_pyart
 """
 # Python Standard Library
 import time
@@ -76,12 +77,6 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
     """
-    # Make sure velocity is not a masked array.
-    try:
-        velocity = velocity.filled(np.NaN)
-    except Exception:
-        pass
-
     # Parameters from Michel Chong
     vshift = 2 * nyquist_velocity  # By how much the velocity shift when folding
     delta_vmax = 0.5 * nyquist_velocity  # The authorised change in velocity from one gate to the other.
@@ -173,9 +168,16 @@ def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
     return dealias_vel, flag_vel, azi_start_pos, azi_end_pos
 
 
-def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
-                          debug=False, inherit_flag=None, inherit_azi_start=None,
-                          inherit_azi_end=None, alpha=0.6):
+def dealias_long_range(r,
+                       azimuth,
+                       velocity,
+                       elev_angle,
+                       nyquist_velocity,
+                       debug=False,
+                       inherit_flag=None,
+                       inherit_azi_start=None,
+                       inherit_azi_end=None,
+                       alpha=0.6):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -200,12 +202,6 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
     """
-    # Make sure velocity is not a masked array.
-    try:
-        velocity = velocity.filled(np.NaN)
-    except Exception:
-        pass
-
     # Parameters from Michel Chong
     vshift = 2 * nyquist_velocity  # By how much the velocity shift when folding
     delta_vmax = 0.5 * nyquist_velocity  # The authorised change in velocity from one gate to the other.
@@ -216,77 +212,107 @@ def dealias_long_range(r, azimuth, velocity, elev_angle, nyquist_velocity,
     velocity, flag_vel = filtering.filter_data(velocity, flag_vel, nyquist_velocity, vshift, delta_vmax)
     velocity[flag_vel == -3] = np.NaN
 
-    st_time = time.time()  # tic
-
-    tot_gate = velocity.shape[0] * velocity.shape[1]
-    nmask_gate = np.sum(np.isnan(velocity))
     if debug:
+        tot_gate = velocity.shape[0] * velocity.shape[1]
+        nmask_gate = np.sum(np.isnan(velocity))
         print(f"There are {tot_gate - nmask_gate} gates to dealias at elevation {elev_angle}.")
 
     start_beam, end_beam = find_reference.find_reference_radials(azimuth, velocity)
     azi_start_pos = np.argmin(np.abs(azimuth - start_beam))
     azi_end_pos = np.argmin(np.abs(azimuth - end_beam))
-
-    dealias_vel, flag_vel = initialisation.initialize_unfolding(r, azimuth, azi_start_pos, azi_end_pos, velocity,
-                                                                flag_vel, vnyq=nyquist_velocity)
+    dealias_vel, flag_vel = initialisation.initialize_unfolding(r,
+                                                                azimuth,
+                                                                azi_start_pos,
+                                                                azi_end_pos,
+                                                                velocity,
+                                                                flag_vel,
+                                                                vnyq=nyquist_velocity)
 
     vel = velocity.copy()
     vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
     delta_vmax = 0.75 * nyquist_velocity
-
-    dealias_vel, flag_vel = initialisation.first_pass(azi_start_pos, vel, dealias_vel, flag_vel, nyquist_velocity,
+    dealias_vel, flag_vel = initialisation.first_pass(azi_start_pos,
+                                                      vel,
+                                                      dealias_vel,
+                                                      flag_vel,
+                                                      nyquist_velocity,
                                                       vshift, delta_vmax)
 
     # Range
-    dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel,
-                                                            nyquist_velocity, alpha=alpha)
-    dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel,
-                                                              nyquist_velocity, alpha=alpha)
+    dealias_vel, flag_vel = continuity.correct_range_onward(velocity,
+                                                            dealias_vel,
+                                                            flag_vel,
+                                                            nyquist_velocity,
+                                                            alpha=alpha)
+    dealias_vel, flag_vel = continuity.correct_range_backward(velocity,
+                                                              dealias_vel,
+                                                              flag_vel,
+                                                              nyquist_velocity,
+                                                              alpha=alpha)
 
     for window in [6, 12, 24, 48, 96]:
         if count_proc(flag_vel, debug) < 100:
-            azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth))
-            azimuth_iteration[azimuth_iteration >= len(azimuth)] -= len(azimuth)
-            dealias_vel, flag_vel = continuity.correct_clockwise(r, azimuth, velocity,
-                                                                dealias_vel, flag_vel,
-                                                                azimuth_iteration, nyquist_velocity,
-                                                                window, alpha=alpha)
-            dealias_vel, flag_vel = continuity.correct_counterclockwise(r, azimuth, velocity,
-                                                                        dealias_vel, flag_vel,
+            azimuth_iteration = np.arange(azi_start_pos, azi_start_pos + len(azimuth)) % len(azimuth)
+            dealias_vel, flag_vel = continuity.correct_clockwise(r,
+                                                                 azimuth,
+                                                                 velocity,
+                                                                 dealias_vel,
+                                                                 flag_vel,
+                                                                 azimuth_iteration,
+                                                                 nyquist_velocity,
+                                                                 window_len=window,
+                                                                 alpha=alpha)
+            dealias_vel, flag_vel = continuity.correct_counterclockwise(r,
+                                                                        azimuth,
+                                                                        velocity,
+                                                                        dealias_vel,
+                                                                        flag_vel,
                                                                         azimuth_iteration,
-                                                                        nyquist_velocity, window, alpha=alpha)
-
-            dealias_vel, flag_vel = continuity.correct_range_onward(velocity, dealias_vel, flag_vel, nyquist_velocity,
-                                                                                alpha=alpha, window_len=window)
-            dealias_vel, flag_vel = continuity.correct_range_backward(velocity, dealias_vel, flag_vel, nyquist_velocity,
-                                                                            alpha=alpha, window_len=window)
+                                                                        nyquist_velocity,
+                                                                        window_len=window,
+                                                                        alpha=alpha)
+            dealias_vel, flag_vel = continuity.correct_range_onward(velocity,
+                                                                    dealias_vel,
+                                                                    flag_vel,
+                                                                    nyquist_velocity,
+                                                                    alpha=alpha,
+                                                                    window_len=window)
+            dealias_vel, flag_vel = continuity.correct_range_backward(velocity,
+                                                                      dealias_vel,
+                                                                      flag_vel,
+                                                                      nyquist_velocity,
+                                                                      alpha=alpha,
+                                                                      window_len=window)
 
     # Box error check with respect to surrounding velocities
     for window in [(20, 20), (40, 40), (80, 80)]:
         if count_proc(flag_vel, debug) < 100:
-            dealias_vel, flag_vel = continuity.correct_box(azimuth, velocity, dealias_vel, flag_vel,
-                                                        nyquist_velocity, window[0], window[1], alpha=alpha)
-
+            dealias_vel, flag_vel = continuity.correct_box(azimuth,
+                                                           velocity,
+                                                           dealias_vel,
+                                                           flag_vel,
+                                                           nyquist_velocity,
+                                                           window[0],
+                                                           window[1],
+                                                           alpha=alpha)
     # Using clear air data to build a reference for the whole radial.
     if count_proc(flag_vel, debug) < 100:
-        dealias_vel, flag_vel = continuity.correct_linear_interp(velocity, dealias_vel, flag_vel,
-                                                                 nyquist_velocity, alpha=alpha)
-
+        dealias_vel, flag_vel = continuity.correct_linear_interp(velocity,
+                                                                 dealias_vel,
+                                                                 flag_vel,
+                                                                 nyquist_velocity,
+                                                                 alpha=alpha)
     # Looking for the closest reference..
     if count_proc(flag_vel, debug) < 100:
-        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth, velocity, dealias_vel,
-                                                                     flag_vel, nyquist_velocity, alpha=alpha)
+        dealias_vel, flag_vel = continuity.correct_closest_reference(azimuth,
+                                                                     velocity,
+                                                                     dealias_vel,
+                                                                     flag_vel,
+                                                                     nyquist_velocity,
+                                                                     alpha=alpha)
 
     # Checking modules
     dealias_vel, flag_vel = continuity.box_check(azimuth, dealias_vel, flag_vel, nyquist_velocity, alpha=alpha)
-
-    if debug:
-        print(f"2D fields processed in {time.time() - st_time:0.2f} seconds for {elev_angle:0.2f} elevation.")
-
-    try:
-        dealias_vel = dealias_vel.filled(np.NaN)
-    except Exception:
-        pass
 
     return dealias_vel, flag_vel, azi_start_pos, azi_end_pos
 
@@ -328,14 +354,22 @@ def unravel_3D_pyart(radar,
         gatefilter = filtering.do_gatefilter(radar, velname, dbzname)
     if nyquist_velocity is None:
         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
+        if nyquist_velocity is None:
+            raise ValueError('Nyquist velocity not found.')
 
-    # Start with first reference.
+    # Read the velocity field.
+    try:
+        velocity = radar.fields[velname]['data'].filled(np.NaN)
+    except Exception:
+        velocity = radar.fields[velname]['data']
+    velocity[gatefilter.gate_excluded] = np.NaN
+
+    # Read coordinates and start with the first sweep.
     sweep = radar.get_slice(0)
-    r = radar.range['data'].copy()
-    velocity = radar.fields[velname]['data'].copy()
+    r = radar.range['data']
     azimuth_reference = radar.azimuth['data'][sweep]
     elevation_reference = radar.elevation['data'][sweep].mean()
-    velocity_reference = np.ma.masked_where(gatefilter.gate_excluded, velocity)[sweep]
+    velocity_reference = velocity[sweep]
 
     # Dealiasing first sweep.
     if strategy == 'default':

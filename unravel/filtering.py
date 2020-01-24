@@ -43,8 +43,9 @@ def unfold(v, vref, vnq, vshift):
 
 @jit(nopython=True)
 def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
-    nazi, ngate = velocity.shape
-    for j in range(0, nazi):
+    nrays = velocity.shape[0]
+    ngate = velocity.shape[1]
+    for j in range(0, nrays):
         for n in range(0, ngate):
             if vflag[j, n] == -3:
                 continue

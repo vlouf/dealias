@@ -51,8 +51,7 @@ def count_proc(myflag, debug=False):
 
 
 def dealiasing_process_2D(r, azimuth, velocity, elev_angle, nyquist_velocity,
-                          debug=False, inherit_flag=None, inherit_azi_start=None,
-                          inherit_azi_end=None, alpha=0.6):
+                          debug=False, alpha=0.6):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -174,9 +173,6 @@ def dealias_long_range(r,
                        elev_angle,
                        nyquist_velocity,
                        debug=False,
-                       inherit_flag=None,
-                       inherit_azi_start=None,
-                       inherit_azi_end=None,
                        alpha=0.6):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
@@ -408,9 +404,6 @@ def unravel_3D_pyart(radar,
                                                                       velocity_slice,
                                                                       elevation_slice,
                                                                       nyquist_velocity,
-                                                                      inherit_flag=flag_slice,
-                                                                      inherit_azi_start=azi_s,
-                                                                      inherit_azi_end=azi_e,
                                                                       **kwargs)
         else:
             final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r,
@@ -418,9 +411,6 @@ def unravel_3D_pyart(radar,
                                                                    velocity_slice,
                                                                    elevation_slice,
                                                                    nyquist_velocity,
-                                                                   inherit_flag=flag_slice,
-                                                                   inherit_azi_start=azi_s,
-                                                                   inherit_azi_end=azi_e,
                                                                    **kwargs)
 
         final_vel[flag_vel == -3] = np.NaN

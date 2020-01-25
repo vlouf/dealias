@@ -39,7 +39,7 @@ class Dealias:
                                                       self.nyquist,
                                                       self.vshift,
                                                       self.delta_vmax)
-        self.velocity[flag_vel == -3] = np.NaN
+        # self.velocity[flag_vel == -3] = np.NaN
         start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
         azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))
         azi_end_pos = np.argmin(np.abs(self.azimuth - end_beam))

@@ -90,7 +90,7 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:
                         velocity[j, n + k] = vk_unfld
-                    else:
-                        vflag[j, n + k] = -3
+                    # else:
+                    #     vflag[j, n + k] = -3
 
     return velocity, vflag

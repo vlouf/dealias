@@ -37,7 +37,7 @@ class Dealias:
         self.dealias_vel = self._gen_empty_velocity()
 
     def _gen_empty_velocity(self):
-        vel = np.zeros_like(self.velocity)
+        vel = np.zeros_like(self.velocity, dtype=self.velocity.dtype)
         vel[np.isnan(self.velocity)] = np.NaN
         return vel
 

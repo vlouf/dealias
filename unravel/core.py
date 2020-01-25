@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from . import continuity
@@ -161,18 +160,25 @@ class Dealias:
 
     def plot(self):
         import matplotlib.pyplot as pl
-        [R, A] = np.meshgrid(self.r / 1e3, self.azimuth)
+        [R, A] = np.meshgrid(self.r, self.azimuth)
         TH = (450 - A) % 360
         x = R * np.cos(np.deg2rad(TH))
         y = R * np.sin(np.deg2rad(TH))
         phi = np.linspace(0, np.pi * 2)
+        maxrange = np.max(self.r)
 
-        fig, ax = pl.subplots(1, 2, figsize=(10, 8), sharex=True, sharey=True)
+        fig, ax = pl.subplots(1, 2, figsize=(9.5, 4), sharex=True, sharey=True)
         ax = ax.ravel()
         ax[0].pcolormesh(x, y, self.velocity, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
         ax[1].pcolormesh(x, y, self.dealias_vel, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
-        for a in ax:
-            [a.plot(50 * r * np.cos(phi), 50 * r * np.sin(phi), 'k', linewidth=.5) for r in range(1, self.r.max() + 1, self.r.max() // 50)]
+        for a in ax:            
+            a.set_xlim(-maxrange, maxrange)
+            a.set_ylim(-maxrange, maxrange)
+            a.set_aspect(1)
+            for rho in np.arange(50e3, maxrange + 1, 50e3):
+                a.plot(rho * np.cos(phi),
+                       rho * np.sin(phi),
+                       'k', linewidth=.5)
         pl.show()
         del fig, ax
         return None

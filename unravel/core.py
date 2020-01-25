@@ -158,3 +158,21 @@ class Dealias:
                                                      alpha=alpha)
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
+
+    def plot(self):
+        import matplotlib.pyplot as pl
+        [R, A] = np.meshgrid(self.r / 1e3, self.azimuth)
+        TH = (450 - A) % 360
+        x = R * np.cos(np.deg2rad(TH))
+        y = R * np.sin(np.deg2rad(TH))
+        phi = np.linspace(0, np.pi * 2)
+
+        fig, ax = pl.subplots(1, 2, figsize=(10, 8), sharex=True, sharey=True)
+        ax = ax.ravel()
+        ax[0].pcolormesh(x, y, self.velocity, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
+        ax[1].pcolormesh(x, y, self.dealias_vel, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
+        for a in ax:
+            [a.plot(50 * r * np.cos(phi), 50 * r * np.sin(phi), 'k', linewidth=.5) for r in range(1, self.r.max() + 1, self.r.max() // 50)]
+        pl.show()
+        del fig, ax
+        return None

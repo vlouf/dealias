@@ -230,9 +230,12 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
-    flag_threshold = window_len // 3
+    flag_threshold = window_len // 10
     if flag_threshold == 0:
         flag_threshold = 1
+    elif flag_threshold > 10:
+        flag_threshold = 10
+
     # the number 3 is because we use the previous 3 radials as reference.
     for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
@@ -317,9 +320,11 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxgate = len(r)
-    flag_threshold = window_len // 3
+    flag_threshold = window_len // 10
     if flag_threshold == 0:
         flag_threshold = 1
+    elif flag_threshold > 10:
+        flag_threshold = 10
 
     for nbeam in myquadrant:
         for ngate in range(0, maxgate):
@@ -392,9 +397,11 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    flag_threshold = window_len // 3
+    flag_threshold = window_len // 10
     if flag_threshold == 0:
         flag_threshold = 1
+    elif flag_threshold > 10:
+        flag_threshold = 10
 
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
@@ -458,9 +465,11 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    flag_threshold = window_len // 3
+    flag_threshold = window_len // 10
     if flag_threshold == 0:
         flag_threshold = 1
+    elif flag_threshold > 10:
+        flag_threshold = 10
 
     for nbeam in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nbeam, :] == 1)[0]

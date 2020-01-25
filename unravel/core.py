@@ -1,3 +1,17 @@
+"""
+The dealiasing class.
+
+@title: core.py
+@author: Valentin Louf <valentin.louf@monash.edu>
+@institutions: Monash University and the Australian Bureau of Meteorology
+@date: 25/01/2020
+
+.. autosummary::
+    :toctree: generated/
+
+    Dealias
+"""
+import copy
 import numpy as np
 
 from . import continuity
@@ -11,7 +25,7 @@ class Dealias:
         self.r = r
         self.azimuth = azimuth
         self.elevation = elevation
-        self.velocity = velocity
+        self.velocity = copy.deepcopy(velocity)
         self.nyquist = nyquist_velocity
         self.alpha = alpha
         self.vshift = 2 * nyquist_velocity
@@ -20,6 +34,12 @@ class Dealias:
         self.ngates = len(r)
         self._check_inputs()
         self.flag = self._gen_flag_array()
+        self.dealias_vel = self._gen_empty_velocity()
+
+    def _gen_empty_velocity(self):
+        vel = np.zeros_like(self.velocity)
+        vel[np.isnan(self.velocity)] = np.NaN
+        return vel
 
     def _gen_flag_array(self):
         flag = np.zeros(self.velocity.shape, dtype=np.int32)

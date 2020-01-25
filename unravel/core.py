@@ -187,7 +187,7 @@ class Dealias:
         phi = np.linspace(0, np.pi * 2)
         maxrange = np.max(self.r)
 
-        fig, ax = pl.subplots(1, 2, figsize=(9.5, 4), sharex=True, sharey=True)
+        fig, ax = pl.subplots(1, 2, figsize=(9.5, 4.5), sharex=True, sharey=True)
         ax = ax.ravel()
         ax[0].pcolormesh(x, y, self.velocity, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
         ax[1].pcolormesh(x, y, self.dealias_vel, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
@@ -195,6 +195,7 @@ class Dealias:
             a.set_xlim(-maxrange, maxrange)
             a.set_ylim(-maxrange, maxrange)
             a.set_aspect(1)
+            a.axis('off')
             for rho in np.arange(50e3, maxrange + 1, 50e3):
                 a.plot(rho * np.cos(phi),
                        rho * np.sin(phi),

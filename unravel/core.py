@@ -113,7 +113,7 @@ class Dealias:
             alpha = self.alpha
         if window_size is int:
             window_size = (window_size, window_size)
-            
+
         dealias_vel, flag_vel = continuity.correct_box(self.azimuth,
                                                        self.velocity,
                                                        self.dealias_vel,
@@ -145,5 +145,16 @@ class Dealias:
                                                                      self.flag,
                                                                      self.nyquist,
                                                                      alpha=alpha)
+        self.dealias_vel = dealias_vel
+        self.flag = flag_vel
+
+    def check_box(self, alpha=None):
+        if alpha is None:
+            alpha = self.alpha   
+        dealias_vel, flag_vel = continuity.box_check(self.azimuth, 
+                                                     self.dealias_vel,
+                                                     self.flag,
+                                                     self.nyquist,
+                                                     alpha=alpha)
         self.dealias_vel = dealias_vel
         self.flag = flag_vel

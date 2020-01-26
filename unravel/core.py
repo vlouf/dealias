@@ -21,6 +21,9 @@ from . import find_reference
 
 
 class Dealias:
+    '''
+    A class to store the velocity field and its coordinates for dealiasing.
+    '''
     def __init__(self, r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
         self.r = r
         self.azimuth = azimuth
@@ -37,23 +40,29 @@ class Dealias:
         self.dealias_vel = self._gen_empty_velocity()
 
     def _gen_empty_velocity(self):
+        '''Initialiaze empty dealiased velocity field'''
         vel = np.zeros_like(self.velocity, dtype=self.velocity.dtype)
         vel[np.isnan(self.velocity)] = np.NaN
         return vel
 
     def _gen_flag_array(self):
+        '''Initialiaze empty flag field'''
         flag = np.zeros(self.velocity.shape, dtype=np.int32)
         flag[np.isnan(self.velocity)] = -3
         return flag
 
     def _check_inputs(self):
+        '''Check if coordinates correspond to the velocity field dimension'''
         if self.velocity.shape != (self.nrays, self.ngates):
             raise ValueError(f'Velocity, range and azimuth shape mismatch.')
 
     def check_completed(self):
+        '''Check if there are still gates to process'''
         return (self.flag == 0).sum() <= 10
 
     def initialize(self):
+        '''Initialize the dealiasing by filtering the data, finding the radials 
+        of reference and executer the first pass.'''
         dealias_vel, flag_vel = filtering.filter_data(self.velocity,
                                                       self.flag,
                                                       self.nyquist,
@@ -85,6 +94,14 @@ class Dealias:
         self.azi_end_pos = azi_end_pos
 
     def correct_range(self, window_length=6, alpha=None):
+        '''
+        Gate-by-gate velocity dealiasing through range continuity.
+
+        Parameters:
+        ===========
+        window_length: int
+            Size of window to look for a reference.
+        '''
         if alpha is None:
             alpha = self.alpha
         dealias_vel, flag_vel = continuity.correct_range_onward(self.velocity,
@@ -103,6 +120,14 @@ class Dealias:
         self.flag = flag_vel
 
     def correct_clock(self, window_length=3, alpha=None):
+        '''
+        Radial-by-radial velocity dealiasing through azimuthal continuity.
+
+        Parameters:
+        ===========
+        window_length: int
+            Size of window to look for a reference.
+        '''
         if alpha is None:
             alpha = self.alpha
         azimuth_iteration = np.arange(self.azi_start_pos, self.azi_start_pos + self.nrays) % self.nrays
@@ -128,6 +153,14 @@ class Dealias:
         self.flag = flag_vel
 
     def correct_box(self, window_size=(20, 20), alpha=None):
+        '''
+        Velocity dealiasing using a 2D plane continuity.
+
+        Parameters:
+        ===========
+        window_length: (int, int)
+            Size of plane to look for a reference.
+        '''
         if alpha is None:
             alpha = self.alpha
         if window_size is int:
@@ -145,6 +178,10 @@ class Dealias:
         self.flag = flag_vel
 
     def correct_linregress(self, alpha=None):
+        '''
+        Gate-by-gate velocity dealiasing through range continuity using a 
+        linear regression.
+        '''
         if alpha is None:
             alpha = self.alpha
         dealias_vel, flag_vel = continuity.correct_linear_interp(self.velocity,
@@ -156,6 +193,10 @@ class Dealias:
         self.flag = flag_vel
 
     def correct_closest(self, alpha=None):
+        '''
+        Velocity dealiasing using the closest available reference in a 2D 
+        plane.
+        '''
         if alpha is None:
             alpha = self.alpha
         dealias_vel, flag_vel = continuity.correct_closest_reference(self.azimuth,
@@ -168,6 +209,9 @@ class Dealias:
         self.flag = flag_vel
 
     def check_box(self, alpha=None):
+        '''
+        Checking function using a 2D plane of surrounding velocities.
+        '''
         if alpha is None:
             alpha = self.alpha   
         dealias_vel, flag_vel = continuity.box_check(self.azimuth, 
@@ -179,6 +223,9 @@ class Dealias:
         self.flag = flag_vel
 
     def plot(self):
+        '''
+        Plot the original and the dealiased velocity fields.
+        '''
         import matplotlib.pyplot as pl
         [R, A] = np.meshgrid(self.r, self.azimuth)
         TH = (450 - A) % 360
@@ -200,6 +247,5 @@ class Dealias:
                 a.plot(rho * np.cos(phi),
                        rho * np.sin(phi),
                        'k', linewidth=.5)
-        pl.show()
-        del fig, ax
+        pl.show()        
         return None

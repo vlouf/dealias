@@ -61,7 +61,7 @@ class Dealias:
         return (self.flag == 0).sum() <= 10
 
     def initialize(self):
-        '''Initialize the dealiasing by filtering the data, finding the radials 
+        '''Initialize the dealiasing by filtering the data, finding the radials
         of reference and executer the first pass.'''
         dealias_vel, flag_vel = filtering.filter_data(self.velocity,
                                                       self.flag,
@@ -177,9 +177,26 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
+    def correct_leastsquare(self, alpha=None):
+        if alpha is None:
+            alpha = self.alpha
+        if self.elevation > 6:
+            return None
+
+        # Least squares error check in the radial direction
+        dealias_vel, flag_vel = continuity.radial_least_square_check(self.r,
+                                                                     self.azimuth,
+                                                                     self.velocity,
+                                                                     self.dealias_vel,
+                                                                     self.flag,
+                                                                     self.nyquist,
+                                                                     alpha=alpha)
+        self.dealias_vel = dealias_vel
+        self.flag = flag_vel
+
     def correct_linregress(self, alpha=None):
         '''
-        Gate-by-gate velocity dealiasing through range continuity using a 
+        Gate-by-gate velocity dealiasing through range continuity using a
         linear regression.
         '''
         if alpha is None:
@@ -194,7 +211,7 @@ class Dealias:
 
     def correct_closest(self, alpha=None):
         '''
-        Velocity dealiasing using the closest available reference in a 2D 
+        Velocity dealiasing using the closest available reference in a 2D
         plane.
         '''
         if alpha is None:
@@ -208,13 +225,27 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
+    def check_leastsquare(self, alpha=None):
+        if alpha is None:
+            alpha = self.alpha
+        if self.elevation > 6:
+            return None
+
+        # Least squares error check in the radial direction
+        dealias_vel = continuity.least_square_radial_last_module(self.r,
+                                                                 self.azimuth,
+                                                                 self.dealias_vel,
+                                                                 self.nyquist,
+                                                                 alpha=alpha)
+        self.dealias_vel = dealias_vel
+
     def check_box(self, alpha=None):
         '''
         Checking function using a 2D plane of surrounding velocities.
         '''
         if alpha is None:
-            alpha = self.alpha   
-        dealias_vel, flag_vel = continuity.box_check(self.azimuth, 
+            alpha = self.alpha
+        dealias_vel, flag_vel = continuity.box_check(self.azimuth,
                                                      self.dealias_vel,
                                                      self.flag,
                                                      self.nyquist,
@@ -238,7 +269,7 @@ class Dealias:
         ax = ax.ravel()
         ax[0].pcolormesh(x, y, self.velocity, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
         ax[1].pcolormesh(x, y, self.dealias_vel, vmin=-self.nyquist, vmax=self.nyquist, cmap='bwr')
-        for a in ax:            
+        for a in ax:
             a.set_xlim(-maxrange, maxrange)
             a.set_ylim(-maxrange, maxrange)
             a.set_aspect(1)
@@ -247,5 +278,5 @@ class Dealias:
                 a.plot(rho * np.cos(phi),
                        rho * np.sin(phi),
                        'k', linewidth=.5)
-        pl.show()        
+        pl.show()
         return None

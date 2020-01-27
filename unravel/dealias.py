@@ -91,7 +91,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
 
-    return unfold_vel, dealias_2D.flag, dealias_2D.azi_start_pos, dealias_2D.azi_end_pos
+    return unfold_vel, dealias_2D.flag
 
 
 def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
@@ -150,7 +150,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
 
-    return unfold_vel, dealias_2D.flag, dealias_2D.azi_start_pos, dealias_2D.azi_end_pos
+    return unfold_vel, dealias_2D.flag
 
 
 def unravel_3D_pyart(radar,
@@ -209,19 +209,19 @@ def unravel_3D_pyart(radar,
 
     # Dealiasing first sweep.
     if strategy == 'default':
-        final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r,
-                                                                  azimuth_reference,
-                                                                  velocity_reference,
-                                                                  elevation_reference,
-                                                                  nyquist_velocity,
-                                                                  **kwargs)
+        final_vel, flag_vel = dealiasing_process_2D(r,
+                                                    azimuth_reference,
+                                                    velocity_reference,
+                                                    elevation_reference,
+                                                    nyquist_velocity,
+                                                    **kwargs)
     else:
-        final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r,
-                                                               azimuth_reference,
-                                                               elevation_reference,
-                                                               velocity_reference,
-                                                               nyquist_velocity,
-                                                               **kwargs)
+        final_vel, flag_vel = dealias_long_range(r,
+                                                 azimuth_reference,
+                                                 elevation_reference,
+                                                 velocity_reference,
+                                                 nyquist_velocity,
+                                                 **kwargs)
 
     velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
     unraveled_velocity = np.zeros(radar.fields[velname]['data'].shape)
@@ -239,21 +239,21 @@ def unravel_3D_pyart(radar,
         flag_slice[np.isnan(velocity_slice)] = -3
 
         if strategy == 'default':
-            final_vel, flag_vel, azi_s, azi_e = dealiasing_process_2D(r,
-                                                                      azimuth_slice,
-                                                                      velocity_slice,
-                                                                      elevation_slice,
-                                                                      nyquist_velocity,
-                                                                      **kwargs)
+            final_vel, flag_vel = dealiasing_process_2D(r,
+                                                        azimuth_slice,
+                                                        velocity_slice,
+                                                        elevation_slice,
+                                                        nyquist_velocity,
+                                                        **kwargs)
         else:
-            final_vel, flag_vel, azi_s, azi_e = dealias_long_range(r,
-                                                                   azimuth_slice,
-                                                                   elevation_slice,
-                                                                   velocity_slice,
-                                                                   nyquist_velocity,
-                                                                   **kwargs)
+            final_vel, flag_vel = dealias_long_range(r,
+                                                     azimuth_slice,
+                                                     elevation_slice,
+                                                     velocity_slice,
+                                                     nyquist_velocity,
+                                                     **kwargs)
 
-        final_vel[flag_vel == -3] = np.NaN
+        final_vel = final_vel.filled(np.NaN)
         final_vel, flag_slice, _, _ = continuity.unfolding_3D(r,
                                                               elevation_reference,
                                                               azimuth_reference,

@@ -23,6 +23,7 @@ setup(
     # package, this name will be registered for you. It will determine how
     # users can install this project, e.g.:
     name='unravel',  # Required
+    zip_safe=False,
     #
     # $ pip install sampleproject
     #

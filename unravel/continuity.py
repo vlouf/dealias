@@ -922,32 +922,36 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
 
 
 @jit(nopython=True, cache=True)
-def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_down,
-                 velocity_slice, flag_slice, original_velocity, vnyq,
-                 window_azi=20, window_range=80, alpha=0.8):
+def unfolding_3D(r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
+                 r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
+                 original_velocity, vnyq, window_azi=20, window_range=80, alpha=0.8):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
     Parameters:
     ===========
-    r: ndarray
-        Radar range
-    elev_down: float
-        Elevation angle of the reference sweep.
-    azi_down: ndarray
-        Azimuth of the reference sweep.
-    elev_slice: float
-        Elevation angle of the sweep to dealias.
+    r_swref: ndarray
+        Range-coordinate of the reference sweep.
+    elev_swref: float
+        Elevation-coordinate of the reference sweep.
+    azi_swref: ndarray
+        Azimuth-coordinate the reference sweep.
+    vel_swref: ndarray <azimuth, r>
+        Velocity of the reference sweep.
+    flag_swref:
+        Flag array of the reference
+    r_slice: ndarray
+        Range-coordinate of the sweep to dealias.
     azi_slice: ndarray
         Azimuth of the sweep to dealias.
-    vel_down: ndarray <azimuth, r>
-        Velocity of the reference sweep.
-    flag_down:
-        Flag array of the reference
+    elev_slice: float
+        Elevation angle of the sweep to dealias.
     velocity_slice: ndarray <azimuth, r>
-        Velocity of the sweep to dealias.
+        2D-dealiased velocity of the sweep to dealias in 3D.
     flag_slice:
         Flag array of the sweep to dealias.
+    original_velocity: ndarray <azimuth, r>
+        Original aliased velocity field of the sweep to dealias.
     vnyq: float
         Nyquist velocity.
     window_azi: int
@@ -971,8 +975,8 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
     processing_flag = np.zeros(velocity_slice.shape) - 3
     maxazi, maxrange = velocity_slice.shape
 
-    r_down = r * np.cos(elev_down * np.pi / 180)
-    r_slice = r * np.cos(elev_slice * np.pi / 180)
+    gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
+    gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
 
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
@@ -983,8 +987,8 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
 
             current_vel = velocity_slice[nbeam, ngate]
 
-            rpos_reference = np.argmin(np.abs(r_down - r_slice[ngate]))
-            apos_reference = np.argmin(np.abs(azi_down - azi_slice[nbeam]))
+            rpos_reference = np.argmin(np.abs(gr_swref - gr_slice[ngate]))
+            apos_reference = np.argmin(np.abs(azi_swref - azi_slice[nbeam]))
 
             rpos_iter = iter_range(rpos_reference, window_range, maxrange)
 
@@ -992,11 +996,11 @@ def unfolding_3D(r, elev_down, azi_down, elev_slice, azi_slice, vel_down, flag_d
             flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3
 
             cnt = -1
-            for na in iter_azimuth(azi_down, apos_reference - window_azi // 2, window_azi):
+            for na in iter_azimuth(azi_swref, apos_reference - window_azi // 2, window_azi):
                 for nr in rpos_iter:
                     cnt += 1
-                    velocity_refcomp_array[cnt] = vel_down[na, nr]
-                    flag_refcomp_array[cnt] = flag_down[na, nr]
+                    velocity_refcomp_array[cnt] = vel_swref[na, nr]
+                    flag_refcomp_array[cnt] = flag_swref[na, nr]
 
             if np.sum(flag_refcomp_array != -3) < 1:
                 # No comparison possible all gates in the reference are missing.

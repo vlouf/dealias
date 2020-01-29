@@ -1,5 +1,5 @@
 """
-Driver script for the dealiasing module. 
+Driver script for the dealiasing module.
 TODO: Implement native ODIM H5 file reader.
 TODO: Implement new scan strategy with different PRF (Nyquist) for each elev.
 
@@ -255,12 +255,13 @@ def unravel_3D_pyart(radar,
 
         final_vel = final_vel.filled(np.NaN)
         final_vel, flag_slice, _, _ = continuity.unfolding_3D(r,
-                                                              elevation_reference,
                                                               azimuth_reference,
-                                                              elevation_slice,
-                                                              azimuth_slice,
+                                                              elevation_reference,
                                                               velocity_reference,
                                                               flag_reference,
+                                                              r,
+                                                              azimuth_slice,
+                                                              elevation_slice,
                                                               final_vel,
                                                               flag_vel,
                                                               velocity[sweep],

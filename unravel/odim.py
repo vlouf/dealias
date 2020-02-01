@@ -378,3 +378,37 @@ def read_odim_slice(odim_file, nslice=0, include_fields=[], exclude_fields=[]):
                              'latitude': (('azimuth', 'range'), latitude)})
 
     return dataset
+
+
+def read_odim(odim_file, lazy_load=True, **kwargs):
+    '''
+    Read an ODIM H5 file.
+    Parameters:
+    ===========
+    odim_file: str
+        ODIM H5 filename.
+    lazy_load: bool
+        Lazily load the data if true, read and load in memory the entire dataset
+        if false.
+    include_fields: list
+        Specific fields to be exclusively read.
+    exclude_fields: list
+        Specific fields to be excluded from reading.
+    Returns:
+    ========
+    radar: list
+        List of xarray datasets, each item in a the list is one sweep of the
+        radar data (ordered from lowest elevation scan to highest).
+    '''
+    with h5py.File(odim_file) as hfile:
+        nsweep = len([k for k in hfile['/'].keys() if k.startswith('dataset')])
+
+    radar = []
+    for sweep in range(1, nsweep + 1):
+        c = dask.delayed(read_odim_slice)(odim_file, sweep, **kwargs)
+        radar.append(c)
+
+    if not lazy_load:
+        radar = [r.compute() for r in radar]
+
+    return radar

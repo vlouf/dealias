@@ -9,7 +9,17 @@ ODIM convention file reader. Natively reads ODIM H5 files.
 .. autosummary::
     :toctree: generated/
 
-    
+    _to_str
+    field_metadata
+    cartesian_to_geographic
+    radar_coordinates_to_xyz
+    generate_timestamp
+    get_root_metadata
+    coord_from_metadata
+    get_dataset_metadata
+    check_nyquist
+    read_odim_slice
+    read_odim
 """
 import datetime
 

@@ -199,3 +199,182 @@ def get_root_metadata(hfile):
     rootmetadata['wavelength'] = hfile['/how'].attrs['wavelength']
 
     return rootmetadata
+
+
+def coord_from_metadata(metadata):
+    '''
+    Create the radar coordinates from the ODIM H5 metadata specification.
+    Parameter:
+    ==========
+    metadata: dict()
+        Metadata dictionnary containing the specific ODIM H5 keys: astart,
+        nrays, nbins, rstart, rscale, elangle.
+    Returns:
+    ========
+    r: ndarray<nbins>
+        Sweep range
+    azimuth: ndarray<nrays>
+        Sweep azimuth
+    elev: float
+        Sweep elevation
+    '''
+    da = 360 / metadata['nrays']
+    azimuth = np.linspace(metadata['astart'] + da / 2,
+                          360 - da,
+                          metadata['nrays'], dtype=np.float32)
+
+    # rstart is in KM !!! STUPID.
+    rstart_center = 1e3 * metadata['rstart'] + metadata['rscale'] / 2
+    r = np.arange(rstart_center,
+                  rstart_center + metadata['nbins'] * metadata['rscale'],
+                  metadata['rscale'], dtype=np.float32)
+
+    elev = np.array([metadata['elangle']], dtype=np.float32)
+    return r, azimuth, elev
+
+
+def get_dataset_metadata(hfile, dataset='dataset1'):
+    '''
+    Get the dataset metadata of the ODIM H5 file.
+    Parameters:
+    ===========
+    hfile: h5py.File
+        H5 file identifier.
+    dataset: str
+        Key of the dataset for which to extract the metadata
+    Returns:
+    ========
+    metadata: dict
+        General metadata of the dataset.
+    coordinates_metadata: dict
+        Coordinates-specific metadata.
+    '''
+    metadata = dict()
+    coordinates_metadata = dict()
+    # General metadata
+    metadata['NI'] = hfile[f'/{dataset}/how'].attrs['NI']
+    metadata['highprf'] = hfile[f'/{dataset}/how'].attrs['highprf']
+    metadata['product'] = _to_str(hfile[f'/{dataset}/what'].attrs['product'])
+
+    sdate = _to_str(hfile[f'/{dataset}/what'].attrs['startdate'])
+    stime = _to_str(hfile[f'/{dataset}/what'].attrs['starttime'])
+    edate = _to_str(hfile[f'/{dataset}/what'].attrs['enddate'])
+    etime = _to_str(hfile[f'/{dataset}/what'].attrs['endtime'])
+    metadata['start_time'] = f'{sdate}_{stime}'
+    metadata['end_time'] = f'{edate}_{etime}'
+
+    # Coordinates:
+    try:
+        coordinates_metadata['astart'] = hfile[f'/{dataset}/how'].attrs['astart']
+    except KeyError:
+        # Optional coordinates (!).
+        coordinates_metadata['astart'] = 0
+    coordinates_metadata['a1gate'] = hfile[f'/{dataset}/where'].attrs['a1gate']
+    coordinates_metadata['nrays'] = hfile[f'/{dataset}/where'].attrs['nrays']
+
+    coordinates_metadata['rstart'] = hfile[f'/{dataset}/where'].attrs['rstart']
+    coordinates_metadata['rscale'] = hfile[f'/{dataset}/where'].attrs['rscale']
+    coordinates_metadata['nbins'] = hfile[f'/{dataset}/where'].attrs['nbins']
+
+    coordinates_metadata['elangle'] = hfile[f'/{dataset}/where'].attrs['elangle']
+
+    return metadata, coordinates_metadata
+
+
+def check_nyquist(dset):
+    '''
+    Check if the dataset Nyquist velocity corresponds to the PRF information.
+    '''
+    wavelength = dset.attrs['wavelength']
+    prf = dset.attrs['highprf']
+    nyquist = dset.attrs['NI']
+    ny_int = 1e-2 * prf * wavelength / 4
+
+    assert np.abs(nyquist - ny_int) < 0.5, 'Nyquist not consistent with PRF'
+
+
+def read_odim_slice(odim_file, nslice=0, include_fields=[], exclude_fields=[]):
+    '''
+    Read into an xarray dataset one sweep of the ODIM file.
+    Parameters:
+    ===========
+    odim_file: str
+        ODIM H5 filename.
+    nslice: int
+        Slice number we want to extract (start indexing at 0).
+    include_fields: list
+        Specific fields to be exclusively read.
+    exclude_fields: list
+        Specific fields to be excluded from reading.
+    Returns:
+    ========
+    dataset: xarray.Dataset
+        xarray dataset of one sweep of the ODIM file.
+    '''
+    if nslice == 0:
+        raise ValueError('Slice numbering start at 1.')
+    if type(include_fields) is not list:
+        raise TypeError('Argument `include_fields` should be a list')
+
+    with h5py.File(odim_file) as hfile:
+        # Number of sweep in dataset
+        nsweep = len([k for k in hfile['/'].keys() if k.startswith('dataset')])
+        assert nslice <= nsweep, f"Wrong slice number asked. Only {nsweep} available."
+
+        # Order datasets by increasing elevations.
+        sweeps = dict()
+        for key in hfile['/'].keys():
+            if key.startswith('dataset'):
+                sweeps[key] = hfile[f'/{key}/where'].attrs['elangle']
+
+        sorted_keys = sorted(sweeps, key=lambda k: sweeps[k])
+        rootkey = sorted_keys[nslice]
+
+        # Retrieve dataset metadata and coordinates metadata.
+        metadata, coordinates_metadata = get_dataset_metadata(hfile, rootkey)
+
+        dataset = xr.Dataset()
+        dataset.attrs = get_root_metadata(hfile)
+        dataset.attrs.update(metadata)
+        check_nyquist(dataset)
+        for datakey in hfile[f'/{rootkey}'].keys():
+            if not datakey.startswith('data'):
+                continue
+
+            gain = hfile[f'/{rootkey}/{datakey}/what'].attrs['gain']
+            nodata = hfile[f'/{rootkey}/{datakey}/what'].attrs['nodata']
+            offset = hfile[f'/{rootkey}/{datakey}/what'].attrs['offset']
+            name = _to_str(hfile[f'/{rootkey}/{datakey}/what'].attrs['quantity'])
+            # Check if field should be read.
+            if len(include_fields) > 0:
+                if name not in include_fields:
+                    continue
+            if name in exclude_fields:
+                continue
+
+            data_value = hfile[f'/{rootkey}/{datakey}/data'][:].astype(np.float32)
+            data_value = gain * np.ma.masked_equal(data_value, nodata) + offset
+            dataset = dataset.merge({name: (('azimuth', 'range'), data_value)})
+            dataset[name].attrs = field_metadata(name)
+
+    time = generate_timestamp(metadata['start_time'],
+                              metadata['end_time'],
+                              coordinates_metadata['nrays'],
+                              coordinates_metadata['a1gate'])
+    r, azi, elev = coord_from_metadata(coordinates_metadata)
+    x, y, z = radar_coordinates_to_xyz(r, azi, elev)
+    longitude, latitude = cartesian_to_geographic(x, y,
+                                                  dataset.attrs['longitude'],
+                                                  dataset.attrs['latitude'])
+
+    dataset = dataset.merge({'range': (('range'), r),
+                             'azimuth': (('azimuth'), azi),
+                             'elevation': (('elevation'), elev),
+                             'time': (('time'), time),
+                             'x': (('azimuth', 'range'), x),
+                             'y': (('azimuth', 'range'), y),
+                             'z': (('azimuth', 'range'), z + dataset.attrs['height']),
+                             'longitude': (('azimuth', 'range'), longitude),
+                             'latitude': (('azimuth', 'range'), latitude)})
+
+    return dataset

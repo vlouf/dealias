@@ -286,7 +286,12 @@ def unravel_3D_pyart(radar,
     return unraveled_velocity
 
 
-def unravel_3D_pyodim(odim_file, vel_name='VRADH', output_vel_name='unraveled_velocity', gatefilter=None, strategy='long_range', **kwargs):
+def unravel_3D_pyodim(odim_file, 
+                      vel_name='VRADH', 
+                      output_vel_name='unraveled_velocity', 
+                      gatefilter=None, 
+                      strategy='long_range', 
+                      **kwargs):
     '''
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
     scan strategy is using single-PRF, to avoid dual-PRF artifacts, but with
@@ -345,7 +350,8 @@ def unravel_3D_pyodim(odim_file, vel_name='VRADH', output_vel_name='unraveled_ve
                                                  nyquist_velocity,
                                                  **kwargs)
     velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
-    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({output_vel_name: (('azimuth', 'range'), velocity_reference)})
+    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({output_vel_name: (('azimuth', 'range'), 
+                                                                                     velocity_reference)})
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:

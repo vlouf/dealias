@@ -304,6 +304,16 @@ def unravel_3D_pyodim(odim_file,
         ODIM H5 file name.
     vel_name: str
         Velocity field name.
+    output_vel_name: str
+        Output dealiased velocity name
+    load_all_fields: bool
+        Load all fields in the ODIM H5 files (for writing the H5 file on disk)
+        or just the velocity field.
+    gatefilter: NoneType
+        Placeholder for the GateFilter argument like in unravel_3D_pyart.
+        Feature not supported yet.
+    strategy: ['default', 'long_range']
+        Using the default dealiasing strategy or the long range strategy.
 
     Returns:
     ========

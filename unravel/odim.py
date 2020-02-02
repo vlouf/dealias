@@ -23,6 +23,7 @@ ODIM convention file reader. Natively reads ODIM H5 files.
 """
 import datetime
 
+import dask
 import h5py
 import pyproj
 import pandas as pd

@@ -286,11 +286,11 @@ def unravel_3D_pyart(radar,
     return unraveled_velocity
 
 
-def unravel_3D_pyodim(odim_file, 
-                      vel_name='VRADH', 
-                      output_vel_name='unraveled_velocity', 
-                      gatefilter=None, 
-                      strategy='long_range', 
+def unravel_3D_pyodim(odim_file,
+                      vel_name='VRADH',
+                      output_vel_name='unraveled_velocity',
+                      gatefilter=None,
+                      strategy='long_range',
                       **kwargs):
     '''
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -309,17 +309,17 @@ def unravel_3D_pyodim(odim_file,
     radar_datasets: List
         List of xarray datasets. PyODIM output data model.
     '''
-    # NOTE: This function is made to handle a variable PRF, and thus a variable 
-    # Nyquist. We use the sweeps with the highest Nyquist in the lowest 
-    # elevation scans as reference and we dealise in 3D, down and up from that 
+    # NOTE: This function is made to handle a variable PRF, and thus a variable
+    # Nyquist. We use the sweeps with the highest Nyquist in the lowest
+    # elevation scans as reference and we dealise in 3D, down and up from that
     # sweep.
     if strategy not in ['default', 'long_range']:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is not None:
         raise ValueError('gatefilter not supported with pyodim structure. Please use Py-ART instead.')
-    
+
     import pyodim
-    radar_datasets = pyodim.read_odim(odim_file)
+    radar_datasets = pyodim.read_odim(odim_file, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
     elev_angles = [r['elevation'].values[0] for r in radar_datasets]
     nyquists = [r.attrs['NI'] for r in radar_datasets]
@@ -350,7 +350,7 @@ def unravel_3D_pyodim(odim_file,
                                                  nyquist_velocity,
                                                  **kwargs)
     velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
-    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({output_vel_name: (('azimuth', 'range'), 
+    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({output_vel_name: (('azimuth', 'range'),
                                                                                      velocity_reference)})
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps

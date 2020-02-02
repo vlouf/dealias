@@ -289,6 +289,7 @@ def unravel_3D_pyart(radar,
 def unravel_3D_pyodim(odim_file,
                       vel_name='VRADH',
                       output_vel_name='unraveled_velocity',
+                      load_all_fields=False,
                       gatefilter=None,
                       strategy='long_range',
                       **kwargs):
@@ -319,13 +320,16 @@ def unravel_3D_pyodim(odim_file,
         raise ValueError('gatefilter not supported with pyodim structure. Please use Py-ART instead.')
 
     import pyodim
-    radar_datasets = pyodim.read_odim(odim_file, include_fields=[vel_name])
+    if load_all_fields:
+        radar_datasets = pyodim.read_odim(odim_file)
+    else:
+        radar_datasets = pyodim.read_odim(odim_file, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
-    elev_angles = [r['elevation'].values[0] for r in radar_datasets]
-    nyquists = [r.attrs['NI'] for r in radar_datasets]
 
     # Looking for low-elevation sweep with the highest Nyquist velocity to use
     # as reference.
+    elev_angles = [r['elevation'].values[0] for r in radar_datasets]
+    nyquists = [r.attrs['NI'] for r in radar_datasets]
     nslice_ref = np.argmax(nyquists[:len(elev_angles) // 2])
 
     r_reference = radar_datasets[nslice_ref].range.values

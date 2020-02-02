@@ -286,7 +286,7 @@ def unravel_3D_pyart(radar,
     return unraveled_velocity
 
 
-def unravel_3D_pyodim(odim_file, vel_name='VRADH', gatefilter=None, strategy='long_range', **kwargs):
+def unravel_3D_pyodim(odim_file, vel_name='VRADH', output_vel_name='unraveled_velocity', gatefilter=None, strategy='long_range', **kwargs):
     '''
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
     scan strategy is using single-PRF, to avoid dual-PRF artifacts, but with
@@ -304,11 +304,15 @@ def unravel_3D_pyodim(odim_file, vel_name='VRADH', gatefilter=None, strategy='lo
     radar_datasets: List
         List of xarray datasets. PyODIM output data model.
     '''
+    # NOTE: This function is made to handle a variable PRF, and thus a variable 
+    # Nyquist. We use the sweeps with the highest Nyquist in the lowest 
+    # elevation scans as reference and we dealise in 3D, down and up from that 
+    # sweep.
     if strategy not in ['default', 'long_range']:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is not None:
         raise ValueError('gatefilter not supported with pyodim structure. Please use Py-ART instead.')
-
+    
     import pyodim
     radar_datasets = pyodim.read_odim(odim_file)
     radar_datasets = [r.compute() for r in radar_datasets]
@@ -341,7 +345,7 @@ def unravel_3D_pyodim(odim_file, vel_name='VRADH', gatefilter=None, strategy='lo
                                                  nyquist_velocity,
                                                  **kwargs)
     velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
-    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({'unraveled_velocity': (('azimuth', 'range'), velocity_reference)})
+    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge({output_vel_name: (('azimuth', 'range'), velocity_reference)})
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:
@@ -386,11 +390,11 @@ def unravel_3D_pyodim(odim_file, vel_name='VRADH', gatefilter=None, strategy='lo
             elevation_reference = elevation_slice
             r_reference = r_slice
 
-            radar_datasets[sweep] = radar_datasets[sweep].merge({'unraveled_velocity': (('azimuth', 'range'), final_vel)})
+            radar_datasets[sweep] = radar_datasets[sweep].merge({output_vel_name: (('azimuth', 'range'), final_vel)})
 
         r_reference = radar_datasets[nslice_ref].range.values
         azimuth_reference = radar_datasets[nslice_ref].azimuth.values
-        velocity_reference = radar_datasets[nslice_ref]['unraveled_velocity'].values
+        velocity_reference = radar_datasets[nslice_ref][output_vel_name].values
         elevation_reference = radar_datasets[nslice_ref]['elevation'].values[0]
 
     # Processing sweeps by increasing elevations from the nslice_ref sweeps
@@ -435,6 +439,6 @@ def unravel_3D_pyodim(odim_file, vel_name='VRADH', gatefilter=None, strategy='lo
         elevation_reference = elevation_slice
         r_reference = r_slice
 
-        radar_datasets[sweep] = radar_datasets[sweep].merge({'unraveled_velocity': (('azimuth', 'range'), final_vel)})
+        radar_datasets[sweep] = radar_datasets[sweep].merge({output_vel_name: (('azimuth', 'range'), final_vel)})
 
     return radar_datasets

@@ -56,6 +56,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
         raise TypeError('Elevation should be scalar, not an array.')
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')
+    dtype = velocity.dtype
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
@@ -91,7 +92,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
 
-    return unfold_vel, dealias_2D.flag
+    return unfold_vel.astype(dtype), dealias_2D.flag
 
 
 def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
@@ -123,6 +124,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
         raise TypeError('Elevation should be scalar, not an array.')
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')
+    dtype = velocity.dtype
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
@@ -150,7 +152,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
 
-    return unfold_vel, dealias_2D.flag
+    return unfold_vel.astype(dtype), dealias_2D.flag
 
 
 def unravel_3D_pyart(radar,

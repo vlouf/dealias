@@ -52,13 +52,12 @@ class Dealias:
         return flag
 
     def _check_velocity(self, velocity):
-        '''FillValue should be NaN'''
-        vel = copy.deepcopy(velocity)
+        '''FillValue should be NaN'''        
         try:
-            vel.filled(np.NaN)
+            velocity = velocity.filled(np.NaN)
         except AttributeError:
             pass
-        return vel
+        return velocity
 
     def _check_inputs(self):
         '''Check if coordinates correspond to the velocity field dimension'''

@@ -28,7 +28,7 @@ class Dealias:
         self.r = r
         self.azimuth = azimuth
         self.elevation = elevation
-        self.velocity = copy.deepcopy(velocity)
+        self.velocity = self._check_velocity(velocity)
         self.nyquist = nyquist_velocity
         self.alpha = alpha
         self.vshift = 2 * nyquist_velocity
@@ -50,6 +50,15 @@ class Dealias:
         flag = np.zeros(self.velocity.shape, dtype=np.int32)
         flag[np.isnan(self.velocity)] = -3
         return flag
+
+    def _check_velocity(self, velocity):
+        '''FillValue should be NaN'''
+        vel = copy.deepcopy(velocity)
+        try:
+            vel.filled(np.NaN)
+        except AttributeError:
+            pass
+        return vel
 
     def _check_inputs(self):
         '''Check if coordinates correspond to the velocity field dimension'''

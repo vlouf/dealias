@@ -1,10 +1,18 @@
 """
-Module 2: Initialize the unfolding.
+Module initialize the unfolding.
 
 @title: initialisation
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 29/01/2018
+@date: 07/02/2020
+
+.. autosummary::
+    :toctree: generated/
+
+    find_last_good_vel
+    flipud
+    first_pass
+    initialize_unfolding
 """
 # Other Libraries
 import numpy as np
@@ -16,7 +24,7 @@ from numba import uint32
 from .continuity import take_decision, unfold, is_good_velocity
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def find_last_good_vel(j, n, azipos, vflag, nfilter):
     """
     Looking for the last good (i.e. processed) velocity in a slice.
@@ -50,7 +58,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
     return -999
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def flipud(arr):
     """
     Numpy's flipud function is not supported by numba for some reasons...
@@ -59,7 +67,7 @@ def flipud(arr):
     return arr[::-1, :]  # Soooo complex!
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=3):
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
@@ -152,7 +160,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
     return final_vel, vflag
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     """
     Initialize the unfolding procedure and unfold the reference radials..

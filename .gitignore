@@ -125,5 +125,6 @@ dmypy.json
 .pyre/
 
 # VSCode and notebooks
+.vscode
 .vscode/settings.json
 *.ipynb

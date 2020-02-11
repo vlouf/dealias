@@ -27,7 +27,7 @@ from . import find_reference
 from .core import Dealias
 
 
-def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
+def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -56,6 +56,8 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
         raise TypeError('Elevation should be scalar, not an array.')
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')
+    if debug:
+        brake = None
     dtype = velocity.dtype
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
@@ -69,21 +71,26 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
         dealias_2D.correct_range(window)
         dealias_2D.correct_clock(window)
         if dealias_2D.check_completed():
+            brake = 'range'
             break
 
     if not dealias_2D.check_completed():
         for window in [(5, 2), (20, 10), (40, 20), (80, 40)]:
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
+                brake = 'box'
                 break
 
     if not dealias_2D.check_completed():
+        brake = 'square'
         dealias_2D.correct_leastsquare()
 
     if not dealias_2D.check_completed():
+        brake = 'regression'
         dealias_2D.correct_linregress()
 
     if not dealias_2D.check_completed():
+        brake = 'closest'
         dealias_2D.correct_closest()
 
     # Checking modules.
@@ -91,6 +98,9 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     dealias_2D.check_box()
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
+
+    if debug:
+        return unfold_vel.astype(dtype), dealias_2D.flag, brake
 
     return unfold_vel.astype(dtype), dealias_2D.flag
 
@@ -161,6 +171,7 @@ def unravel_3D_pyart(radar,
                      gatefilter=None,
                      nyquist_velocity=None,
                      strategy='default',
+                     debug=False,
                      **kwargs):
     """
     Process driver.
@@ -194,6 +205,8 @@ def unravel_3D_pyart(radar,
         nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
         if nyquist_velocity is None:
             raise ValueError('Nyquist velocity not found.')
+    if debug:
+        pointbreak = []
 
     # Read the velocity field.
     try:
@@ -211,12 +224,18 @@ def unravel_3D_pyart(radar,
 
     # Dealiasing first sweep.
     if strategy == 'default':
-        final_vel, flag_vel = dealiasing_process_2D(r,
-                                                    azimuth_reference,
-                                                    velocity_reference,
-                                                    elevation_reference,
-                                                    nyquist_velocity,
-                                                    **kwargs)
+        outargs = dealiasing_process_2D(r,
+                                        azimuth_reference,
+                                        velocity_reference,
+                                        elevation_reference,
+                                        nyquist_velocity,
+                                        debug=debug,
+                                        **kwargs)
+        if debug:
+            final_vel, flag_vel, brake = outargs
+            pointbreak.append(brake)
+        else:
+            final_vel, flag_vel = outargs
     else:
         final_vel, flag_vel = dealias_long_range(r,
                                                  azimuth_reference,
@@ -241,12 +260,18 @@ def unravel_3D_pyart(radar,
         flag_slice[np.isnan(velocity_slice)] = -3
 
         if strategy == 'default':
-            final_vel, flag_vel = dealiasing_process_2D(r,
-                                                        azimuth_slice,
-                                                        velocity_slice,
-                                                        elevation_slice,
-                                                        nyquist_velocity,
-                                                        **kwargs)
+            outargs = dealiasing_process_2D(r,
+                                            azimuth_slice,
+                                            velocity_slice,
+                                            elevation_slice,
+                                            nyquist_velocity,
+                                            debug=debug,
+                                            **kwargs)
+            if debug:
+                final_vel, flag_vel, brake = outargs
+                pointbreak.append(brake)
+            else:
+                final_vel, flag_vel = outargs
         else:
             final_vel, flag_vel = dealias_long_range(r,
                                                      azimuth_slice,
@@ -283,6 +308,9 @@ def unravel_3D_pyart(radar,
         unraveled_velocity[sweep] = final_vel.copy()
 
     unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
+    if debug:
+        return unraveled_velocity, pointbreak
+
     return unraveled_velocity
 
 

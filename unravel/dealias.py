@@ -226,8 +226,8 @@ def unravel_3D_pyart(radar,
     if strategy == 'default':
         outargs = dealiasing_process_2D(r,
                                         azimuth_reference,
-                                        velocity_reference,
                                         elevation_reference,
+                                        velocity_reference,
                                         nyquist_velocity,
                                         debug=debug,
                                         **kwargs)
@@ -262,8 +262,8 @@ def unravel_3D_pyart(radar,
         if strategy == 'default':
             outargs = dealiasing_process_2D(r,
                                             azimuth_slice,
-                                            velocity_slice,
                                             elevation_slice,
+                                            velocity_slice,
                                             nyquist_velocity,
                                             debug=debug,
                                             **kwargs)
@@ -380,8 +380,8 @@ def unravel_3D_pyodim(odim_file,
     if strategy == 'default':
         final_vel, flag_vel = dealiasing_process_2D(r_reference,
                                                     azimuth_reference,
-                                                    velocity_reference,
                                                     elevation_reference,
+                                                    velocity_reference,
                                                     nyquist_velocity,
                                                     **kwargs)
     else:

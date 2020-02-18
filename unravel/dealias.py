@@ -105,7 +105,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     return unfold_vel.astype(dtype), dealias_2D.flag
 
 
-def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
+def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -144,23 +144,30 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
         dealias_2D.correct_range(window)
         dealias_2D.correct_clock(window)
         if dealias_2D.check_completed():
+            brake = 'range'
             break
 
     if not dealias_2D.check_completed():
         for window in [(20, 20), (40, 40), (80, 80)]:
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
+                brake = 'box'
                 break
 
     if not dealias_2D.check_completed():
+        brake = 'regression'
         dealias_2D.correct_linregress()
 
     if not dealias_2D.check_completed():
+        brake = 'closest'
         dealias_2D.correct_closest()
 
     dealias_2D.check_box()
 
     unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
+
+    if debug:
+        return unfold_vel.astype(dtype), dealias_2D.flag, brake
 
     return unfold_vel.astype(dtype), dealias_2D.flag
 

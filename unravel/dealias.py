@@ -238,18 +238,18 @@ def unravel_3D_pyart(radar,
                                         nyquist_velocity,
                                         debug=debug,
                                         **kwargs)
-        if debug:
-            final_vel, flag_vel, brake = outargs
-            pointbreak.append(brake)
-        else:
-            final_vel, flag_vel = outargs
     else:
-        final_vel, flag_vel = dealias_long_range(r,
-                                                 azimuth_reference,
-                                                 elevation_reference,
-                                                 velocity_reference,
-                                                 nyquist_velocity,
-                                                 **kwargs)
+        outargs = dealias_long_range(r,
+                                     azimuth_reference,
+                                     elevation_reference,
+                                     velocity_reference,
+                                     nyquist_velocity,
+                                     **kwargs)
+    if debug:
+        final_vel, flag_vel, brake = outargs
+        pointbreak.append(brake)
+    else:
+        final_vel, flag_vel = outargs
 
     velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
     unraveled_velocity = np.zeros(radar.fields[velname]['data'].shape)
@@ -274,18 +274,18 @@ def unravel_3D_pyart(radar,
                                             nyquist_velocity,
                                             debug=debug,
                                             **kwargs)
-            if debug:
-                final_vel, flag_vel, brake = outargs
-                pointbreak.append(brake)
-            else:
-                final_vel, flag_vel = outargs
         else:
-            final_vel, flag_vel = dealias_long_range(r,
-                                                     azimuth_slice,
-                                                     elevation_slice,
-                                                     velocity_slice,
-                                                     nyquist_velocity,
-                                                     **kwargs)
+            outargs = dealias_long_range(r,
+                                         azimuth_slice,
+                                         elevation_slice,
+                                         velocity_slice,
+                                         nyquist_velocity,
+                                         **kwargs)
+        if debug:
+            final_vel, flag_vel, brake = outargs
+            pointbreak.append(brake)
+        else:
+            final_vel, flag_vel = outargs
 
         final_vel = final_vel.filled(np.NaN)
         final_vel, flag_slice, _, _ = continuity.unfolding_3D(r,

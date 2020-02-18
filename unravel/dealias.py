@@ -327,6 +327,7 @@ def unravel_3D_pyodim(odim_file,
                       load_all_fields=False,
                       gatefilter=None,
                       strategy='long_range',
+                      debug=False,
                       **kwargs):
     '''
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -363,6 +364,8 @@ def unravel_3D_pyodim(odim_file,
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is not None:
         raise ValueError('gatefilter not supported with pyodim structure. Please use Py-ART instead.')
+    if debug:
+        print('Argument debug=True is not yet supported with ODIM files.')
 
     import pyodim
     if load_all_fields:

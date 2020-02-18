@@ -1,25 +1,19 @@
 """
 Driver script for the dealiasing module.
-TODO: Implement native ODIM H5 file reader.
-TODO: Implement new scan strategy with different PRF (Nyquist) for each elev.
 
 @title: dealias
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 28/01/2020
+@date: 18/02/2020
 
     dealiasing_process_2D
     dealias_long_range
     unravel_3D_pyart
+    unravel_3D_pyodim
 """
-# Python Standard Library
-import traceback
-
-# Other python libraries.
 import numpy as np
 
-# Local
 from . import continuity
 from . import filtering
 from . import initialisation

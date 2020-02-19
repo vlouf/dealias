@@ -93,8 +93,8 @@ setup(
         'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
-        'Intended Audience :: Engineers',
-        'Topic :: Science',
+        'Intended Audience :: Science/Research',
+        'Topic :: Scientific/Engineering :: Atmospheric Science',
 
         # Pick your license as you wish
         'License :: OSI Approved :: MIT License',
@@ -109,7 +109,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords='science radar weather meteorology',  # Optional
+    keywords='radar weather meteorology dealiasing Doppler',  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -128,7 +128,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['numpy', 'numba<=0.46'],  # Optional    
+    install_requires=['numpy', 'numba<=0.46'],  # Optional
 
     # List additional URLs that are relevant to your project as a dict.
     #

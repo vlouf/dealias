@@ -3,6 +3,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.5
-  - numpy  
-  - numba<=0.46  
+  - python>3.5
+  - numpy
+  - numba!=0.47

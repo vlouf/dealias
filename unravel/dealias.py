@@ -191,6 +191,10 @@ def unravel_3D_pyart(radar,
         Name of the reflectivity field.
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
+    nyquist_velocity: float or list
+        If it is a scalar, then it is assume as being the same nyquist for the
+        whole volume. If it is a list, it is expected to be the value of nyquist
+        for each sweep.
 
     Returns:
     ========
@@ -202,12 +206,27 @@ def unravel_3D_pyart(radar,
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is None:
         gatefilter = filtering.do_gatefilter(radar, velname, dbzname)
-    if nyquist_velocity is None:
-        nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
-        if nyquist_velocity is None:
-            raise ValueError('Nyquist velocity not found.')
     if debug:
         pointbreak = []
+
+    # If nyquist is not defined, then it will assume that it is the same
+    # nyquist for the whole sweep. If you want a different nyquist at each
+    # sweep then pass a list.
+    if nyquist_velocity is None:
+        nyquist_velocity = radar.instrument_parameters['nyquist_velocity']['data'][0]
+        nyquist_list = [nyquist_velocity] * radar.nsweeps
+        if nyquist_velocity is None:
+            raise ValueError('Nyquist velocity not found.')
+    else:
+        if np.isscalar(nyquist_velocity):
+            nyquist_list = [nyquist_velocity] * radar.nsweeps
+            pass
+        else:
+            if len(nyquist_velocity) != radar.nsweeps:
+                raise IndexError('Nyquist velocity list size is different from the number of radar sweeps.')
+            else:
+                nyquist_list = nyquist_velocity
+
 
     # Read the velocity field.
     try:
@@ -224,6 +243,7 @@ def unravel_3D_pyart(radar,
     velocity_reference = velocity[sweep]
 
     # Dealiasing first sweep.
+    nyquist_velocity = nyquist_list[0]
     if strategy == 'default':
         outargs = dealiasing_process_2D(r,
                                         azimuth_reference,
@@ -250,6 +270,7 @@ def unravel_3D_pyart(radar,
     unraveled_velocity[sweep] = final_vel.copy()
 
     for slice_number in range(1, radar.nsweeps):
+        nyquist_velocity = nyquist_list[slice_number]
         sweep = radar.get_slice(slice_number)
         azimuth_slice = radar.azimuth['data'][sweep]
         elevation_slice = radar.elevation['data'][sweep].mean()

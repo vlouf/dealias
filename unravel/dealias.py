@@ -227,7 +227,6 @@ def unravel_3D_pyart(radar,
             else:
                 nyquist_list = nyquist_velocity
 
-
     # Read the velocity field.
     try:
         velocity = radar.fields[velname]['data'].filled(np.NaN)
@@ -438,24 +437,24 @@ def unravel_3D_pyodim(odim_file,
                                                             **kwargs)
             else:
                 final_vel, flag_vel = dealias_long_range(r_slice,
-                                                        azimuth_slice,
-                                                        elevation_slice,
-                                                        velocity_slice,
-                                                        nyquist_velocity,
-                                                        **kwargs)
+                                                         azimuth_slice,
+                                                         elevation_slice,
+                                                         velocity_slice,
+                                                         nyquist_velocity,
+                                                         **kwargs)
 
             final_vel, flag_slice, _, _ = continuity.unfolding_3D(r_reference,
-                                                                azimuth_reference,
-                                                                elevation_reference,
-                                                                velocity_reference,
-                                                                flag_reference,
-                                                                r_slice,
-                                                                azimuth_slice,
-                                                                elevation_slice,
-                                                                final_vel,
-                                                                flag_vel,
-                                                                velocity_slice,
-                                                                nyquist_velocity)
+                                                                  azimuth_reference,
+                                                                  elevation_reference,
+                                                                  velocity_reference,
+                                                                  flag_reference,
+                                                                  r_slice,
+                                                                  azimuth_slice,
+                                                                  elevation_slice,
+                                                                  final_vel,
+                                                                  flag_vel,
+                                                                  velocity_slice,
+                                                                  nyquist_velocity)
 
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
@@ -487,24 +486,24 @@ def unravel_3D_pyodim(odim_file,
                                                             **kwargs)
         else:
             final_vel, flag_vel = dealias_long_range(r_slice,
-                                                    azimuth_slice,
-                                                    elevation_slice,
-                                                    velocity_slice,
-                                                    nyquist_velocity,
-                                                    **kwargs)
+                                                     azimuth_slice,
+                                                     elevation_slice,
+                                                     velocity_slice,
+                                                     nyquist_velocity,
+                                                     **kwargs)
 
         final_vel, flag_slice, _, _ = continuity.unfolding_3D(r_reference,
-                                                            azimuth_reference,
-                                                            elevation_reference,
-                                                            velocity_reference,
-                                                            flag_reference,
-                                                            r_slice,
-                                                            azimuth_slice,
-                                                            elevation_slice,
-                                                            final_vel,
-                                                            flag_vel,
-                                                            velocity_slice,
-                                                            nyquist_velocity)
+                                                              azimuth_reference,
+                                                              elevation_reference,
+                                                              velocity_reference,
+                                                              flag_reference,
+                                                              r_slice,
+                                                              azimuth_slice,
+                                                              elevation_slice,
+                                                              final_vel,
+                                                              flag_vel,
+                                                              velocity_slice,
+                                                              nyquist_velocity)
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()

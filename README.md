@@ -10,6 +10,10 @@ The easiest method for installing UNRAVEL is to use pip:
 
 ```pip install unravel```
 
+If you want to package UNRAVEL in an application (using for example cx_Freeze), make sure to remove this line from `setup.py`:
+
+```zip_safe=False```
+
 ## Dependencies
 
 Mandatory dependencies:
@@ -24,4 +28,4 @@ Even thought it does not directly requires [Py-ART][3] to run, UNRAVEL can use [
 
 # References:
 
-A paper describing UNRAVEL and its performances is currently under review in the Journal of Atmospheric and Oceanic Technology.
+A paper describing UNRAVEL and its performances is being published in the Journal of Atmospheric and Oceanic Technology (JTECH-D-19-0020).

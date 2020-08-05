@@ -10,9 +10,10 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 @title: continuity
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 23/01/2020
+@date: 06/08/2020
 """
 import numpy as np
+from astropy.convolution import convolve
 from numba import jit, int64, float64
 
 
@@ -734,6 +735,60 @@ def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
 
+    return final_vel, flag_vel
+
+
+@jit(nopython=True, cache=True)
+def _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha):
+    """
+    JIT part of the convolution_check function.
+    """
+    maxazi, maxrange = final_vel.shape
+    for nbeam in range(maxazi):
+        for ngate in range(maxrange):
+            if flag_vel[nbeam, ngate] <= 0:
+                continue
+
+            if not is_good_velocity(velref[nbeam, ngate], final_vel[nbeam, ngate], vnyq, alpha=alpha):
+                final_vel[nbeam, ngate] = velref[nbeam, ngate]
+                flag_vel[nbeam, ngate] = 3
+
+    return final_vel, flag_vel
+
+
+def convolution_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy='surround', alpha=0.8):
+    """
+    Faster version of the box_check this time using a convolution product.
+
+    Parameters:
+    ===========
+    azi: ndarray
+        Radar scan azimuth.
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array NEW value: 3->had to be corrected.
+    """
+    # Odd number only
+    if window_range % 2 == 0:
+        window_range += 1
+    if window_azimuth % 2 == 0:
+        window_azimuth += 1
+
+    kernel = np.zeros((window_azimuth, window_range)) + 1
+    kernel = kernel / kernel.sum()
+    velref = convolve(np.ma.masked_where(flag_vel < 1, final_vel), kernel, nan_treatment='interpolate')
+
+    final_vel, flag_vel = _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha)
     return final_vel, flag_vel
 
 

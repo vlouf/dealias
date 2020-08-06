@@ -286,8 +286,15 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
 
 
 @jit(nopython=True, cache=True)
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
-                             window_len=3, alpha=0.8):
+def correct_counterclockwise(r,
+                             azi,
+                             vel,
+                             final_vel,
+                             flag_vel,
+                             myquadrant,
+                             vnyq,
+                             window_len=3,
+                             alpha=0.8):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -662,8 +669,15 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
 
 @jit(nopython=True, cache=True)
-def correct_box(azi, vel, final_vel, flag_vel, vnyq, window_range=20,
-                window_azimuth=10, strategy='surround', alpha=0.8):
+def correct_box(azi,
+                vel,
+                final_vel,
+                flag_vel,
+                vnyq,
+                window_range=20,
+                window_azimuth=10,
+                strategy='surround',
+                alpha=0.8):
     """
     This module dealiases velocities based on the median of an area of corrected
     velocities preceding the gate being processed. This module is similar to
@@ -756,7 +770,14 @@ def _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-def convolution_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy='surround', alpha=0.8):
+def convolution_check(azi,
+                      final_vel,
+                      flag_vel,
+                      vnyq,
+                      window_range=80,
+                      window_azimuth=20,
+                      strategy='surround',
+                      alpha=0.8):
     """
     Faster version of the box_check this time using a convolution product.
 
@@ -793,8 +814,14 @@ def convolution_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_az
 
 
 @jit(nopython=True, cache=True)
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80,
-              window_azimuth=20, strategy='surround', alpha=0.8):
+def box_check(azi,
+              final_vel,
+              flag_vel,
+              vnyq,
+              window_range=80,
+              window_azimuth=20,
+              strategy='surround',
+              alpha=0.8):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -977,9 +1004,21 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
 
 
 @jit(nopython=True, cache=True)
-def unfolding_3D(r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
-                 r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
-                 original_velocity, vnyq, window_azi=20, window_range=80, alpha=0.8):
+def unfolding_3D(r_swref,
+                 azi_swref,
+                 elev_swref,
+                 vel_swref,
+                 flag_swref,
+                 r_slice,
+                 azi_slice,
+                 elev_slice,
+                 velocity_slice,
+                 flag_slice,
+                 original_velocity,
+                 vnyq,
+                 window_azi=20,
+                 window_range=80,
+                 alpha=0.8):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).

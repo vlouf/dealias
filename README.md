@@ -28,4 +28,4 @@ Even thought it does not directly requires [Py-ART][3] to run, UNRAVEL can use [
 
 # References:
 
-A paper describing UNRAVEL and its performances is being published in the Journal of Atmospheric and Oceanic Technology (JTECH-D-19-0020).
+Louf, V., Protat, A., Jackson, R. C., Collis, S. M., & Helmus, J. (2020). UNRAVEL: A Robust Modular Velocity Dealiasing Technique For Doppler Radar. Journal of Atmospheric and Oceanic Technology, 4(1), 741–758. [https://doi.org/10.1175/jtech-d-19-0020.1]

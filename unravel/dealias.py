@@ -91,12 +91,14 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     dealias_2D.check_leastsquare()
     dealias_2D.check_box()
 
-    unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
+    unfold_vel = dealias_2D.dealias_vel.copy()
+    unfold_vel[dealias_2D.flag <= 0] = np.NaN
+    unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
-        return unfold_vel.astype(dtype), dealias_2D.flag, brake
+        return unfold_vel, dealias_2D.flag, brake
 
-    return unfold_vel.astype(dtype), dealias_2D.flag
+    return unfold_vel, dealias_2D.flag
 
 
 def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
@@ -158,12 +160,14 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
     dealias_2D.check_box()
 
-    unfold_vel = np.ma.masked_where(dealias_2D.flag == -3, dealias_2D.dealias_vel)
+    unfold_vel = dealias_2D.dealias_vel.copy()
+    unfold_vel[dealias_2D.flag <= 0] = np.NaN
+    unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
-        return unfold_vel.astype(dtype), dealias_2D.flag, brake
+        return unfold_vel, dealias_2D.flag, brake
 
-    return unfold_vel.astype(dtype), dealias_2D.flag
+    return unfold_vel, dealias_2D.flag
 
 
 def unravel_3D_pyart(radar,

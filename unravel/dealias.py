@@ -91,7 +91,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
-    unfold_vel[dealias_2D.flag <= 0] = np.NaN
+    unfold_vel[dealias_2D.flag < 0] = np.NaN
     unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
@@ -159,7 +159,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
     dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
-    unfold_vel[dealias_2D.flag <= 0] = np.NaN
+    unfold_vel[dealias_2D.flag < 0] = np.NaN
     unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:

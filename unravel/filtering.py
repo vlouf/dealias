@@ -24,7 +24,7 @@ def do_gatefilter(radar, vel_name, dbz_name):
     import pyart
 
     gf = pyart.filters.GateFilter(radar)
-    gf.exclude_outside(dbz_name, 5, 65)
+    gf.exclude_outside(dbz_name, -15, 70)
     gf_desp = pyart.correct.despeckle_field(radar, dbz_name, gatefilter=gf)
 
     return gf_desp

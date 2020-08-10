@@ -5,7 +5,7 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@monash.edu>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 18/02/2020
+@date: 10/08/2020
 
     dealiasing_process_2D
     dealias_long_range
@@ -51,8 +51,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')
     if debug:
-        brake = None
-    dtype = velocity.dtype
+        brake = None    
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
@@ -129,8 +128,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
     if not np.isscalar(elevation):
         raise TypeError('Elevation should be scalar, not an array.')
     if velocity.shape != (len(azimuth), len(r)):
-        raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')
-    dtype = velocity.dtype
+        raise ValueError('The dimensions of the velocity field should be <azimuth, range>.')    
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 

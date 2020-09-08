@@ -2,24 +2,37 @@
 Codes for creating and manipulating gate filters.
 
 @title: filtering
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 20/01/2018
+@date: 08/09/2020
 
 .. autosummary::
     :toctree: generated/
 
-    velocity_texture
     do_gatefilter
+    unfold
+    filter_data
 """
 # Other Libraries
 import numpy as np
 from numba import jit
 
 
-def do_gatefilter(radar, vel_name, dbz_name):
+def do_gatefilter(radar, dbz_name: str):
     """
     Generate a GateFilter that remove all bad data.
+
+    Parameters:
+    ===========
+    radar: pyart.core.Radar
+        Radar pyart object.
+    dbz_name: str
+        Reflectivity field name.
+
+    Returns:
+    ========
+    gf_desp: pyart.filters.GateFilter
+        GateFilter object.
     """
     import pyart
 
@@ -31,10 +44,29 @@ def do_gatefilter(radar, vel_name, dbz_name):
 
 
 @jit(nopython=True)
-def unfold(v, vref, vnq, vshift):
+def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
+    """
+    Unfold velocity.
+
+    Parameters:
+    ===========
+    v: float
+        Velocity to unfold.
+    vref: float
+        Reference velocity.
+    vnq: float
+        Nyquist velocity.
+    vshift: float
+        Allowed shift (twice the Nyquist co-interval.)
+
+    Returns:
+    ========
+    unfld: float
+        Unfolded velocity.
+    """
     delv = v - vref
 
-    if(np.abs(delv) < vnq):
+    if np.abs(delv) < vnq:
         unfld = v
     else:
         unfld = v - int((delv + np.sign(delv) * vnq) / vshift) * vshift
@@ -43,6 +75,32 @@ def unfold(v, vref, vnq, vshift):
 
 @jit(nopython=True)
 def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
+    """
+    Filter data (despeckling) using MAD and first quick attempt at unfolding 
+    velocity.
+
+    Parameters:
+    ===========
+    velocity: ndarray
+        Velocity field.
+    vflag: ndarray
+        Flag array.
+    vnyquist: float
+        Nyquist velocity.
+    vshift: float
+        Allowed shift.
+    delta_vmax: float
+        Maximum difference allowd between vi and vr.
+    nfilter: int
+        Window size.
+    
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    """
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
     for j in range(0, nrays):
@@ -58,11 +116,11 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
             n2 = n1 + nfilter
             n2 = np.min(np.array([ngate, n2]))
 
-            idx_selected = vflag[j, n1: n2]
+            idx_selected = vflag[j, n1:n2]
             if np.all((idx_selected == -3)):
                 continue
 
-            v_selected = velocity[j, n1: n2][idx_selected != -3]
+            v_selected = velocity[j, n1:n2][idx_selected != -3]
             vmoy = np.median(v_selected)
 
             if np.any((v_selected > 0)):
@@ -90,7 +148,5 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:
                         velocity[j, n + k] = vk_unfld
-                    # else:
-                    #     vflag[j, n + k] = -3
 
     return velocity, vflag

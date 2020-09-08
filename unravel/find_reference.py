@@ -5,6 +5,12 @@ Module 1: Finding reference.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @date: 08/09/2020
+
+.. autosummary::
+    :toctree: generated/
+
+    find_reference_radials
+    get_quadrant
 """
 
 # Other Libraries

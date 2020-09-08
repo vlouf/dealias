@@ -2,10 +2,10 @@
 Driver script for the dealiasing module.
 
 @title: dealias
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 10/08/2020
+@date: 08/09/2020
 
     dealiasing_process_2D
     dealias_long_range
@@ -207,7 +207,7 @@ def unravel_3D_pyart(radar,
     if strategy not in ['default', 'long_range']:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is None:
-        gatefilter = filtering.do_gatefilter(radar, velname, dbzname)
+        gatefilter = filtering.do_gatefilter(radar, dbzname)
     if debug:
         pointbreak = []
 

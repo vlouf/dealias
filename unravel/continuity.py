@@ -8,9 +8,32 @@ structure controls to make the function compatible with the Just-In-Time (JIT)
 compiler of numba while they are sometimes shorter pythonic ways to do things.
 
 @title: continuity
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 06/08/2020
+@date: 08/09/2020
+
+.. autosummary::
+    :toctree: generated/
+
+    linregress
+    unfold
+    is_good_velocity
+    iter_azimuth
+    iter_range
+    take_decision
+    correct_clockwise
+    correct_counterclockwise
+    correct_range_onward
+    correct_range_backward
+    correct_linear_interp
+    correct_closest_reference
+    correct_box
+    _convolve_check
+    convolution_check
+    box_check
+    radial_least_square_check
+    least_square_radial_last_module
+    unfolding_3D
 """
 import numpy as np
 from astropy.convolution import convolve
@@ -189,8 +212,9 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
         return -3
     elif np.isnan(velocity_reference):
         return 0
-    elif (is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or
-          (np.sign(velocity_reference) == np.sign(velocity_to_check))):
+    elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
+        np.sign(velocity_reference) == np.sign(velocity_to_check)
+    ):
         return 1
     else:
         return 2
@@ -286,15 +310,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
 
 
 @jit(nopython=True, cache=True)
-def correct_counterclockwise(r,
-                             azi,
-                             vel,
-                             final_vel,
-                             flag_vel,
-                             myquadrant,
-                             vnyq,
-                             window_len=3,
-                             alpha=0.8):
+def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.8):
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -426,8 +442,8 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
                 if ngate < window_len:
                     continue
 
-                velref_vec = final_vel[nbeam, (ngate - window_len):ngate]
-                flagvelref_vec = flag_vel[nbeam, (ngate - window_len):ngate]
+                velref_vec = final_vel[nbeam, (ngate - window_len) : ngate]
+                flagvelref_vec = flag_vel[nbeam, (ngate - window_len) : ngate]
                 if np.sum(flagvelref_vec > 0) < flag_threshold:
                     continue
 
@@ -499,8 +515,8 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
                     # Out of range.
                     continue
 
-                velref_vec = final_vel[nbeam, ngate:(ngate + window_len)]
-                flagvelref_vec = flag_vel[nbeam, ngate:(ngate + window_len)]
+                velref_vec = final_vel[nbeam, ngate : (ngate + window_len)]
+                flagvelref_vec = flag_vel[nbeam, ngate : (ngate + window_len)]
                 if np.sum(flagvelref_vec > 0) < flag_threshold:
                     continue
 
@@ -650,7 +666,9 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
             pos = -1
             for na in iter_azimuth(azimuth, nbeam_close - window_azi // 2, window_azi):
                 pos += 1
-                vel_ref_vec[pos] = np.nanmean(final_vel[na, npos_range[0]: npos_range[-1]][flag_vel[na, npos_range[0]: npos_range[-1]] > 0])
+                vel_ref_vec[pos] = np.nanmean(
+                    final_vel[na, npos_range[0] : npos_range[-1]][flag_vel[na, npos_range[0] : npos_range[-1]] > 0]
+                )
             velref = np.nanmedian(vel_ref_vec)
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
@@ -669,15 +687,9 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
 
 @jit(nopython=True, cache=True)
-def correct_box(azi,
-                vel,
-                final_vel,
-                flag_vel,
-                vnyq,
-                window_range=20,
-                window_azimuth=10,
-                strategy='surround',
-                alpha=0.8):
+def correct_box(
+    azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10, strategy="surround", alpha=0.8
+):
     """
     This module dealiases velocities based on the median of an area of corrected
     velocities preceding the gate being processed. This module is similar to
@@ -703,7 +715,7 @@ def correct_box(azi,
     flag_vel: ndarray int <azimuth, range>
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
-    if strategy == 'vertex':
+    if strategy == "vertex":
         azi_window_offset = window_azimuth
     else:
         azi_window_offset = window_azimuth // 2
@@ -770,14 +782,9 @@ def _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-def convolution_check(azi,
-                      final_vel,
-                      flag_vel,
-                      vnyq,
-                      window_range=80,
-                      window_azimuth=20,
-                      strategy='surround',
-                      alpha=0.8):
+def convolution_check(
+    azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy="surround", alpha=0.8
+):
     """
     Faster version of the box_check this time using a convolution product.
 
@@ -807,21 +814,14 @@ def convolution_check(azi,
 
     kernel = np.zeros((window_azimuth, window_range)) + 1
     kernel = kernel / kernel.sum()
-    velref = convolve(np.ma.masked_where(flag_vel < 1, final_vel), kernel, nan_treatment='interpolate')
+    velref = convolve(np.ma.masked_where(flag_vel < 1, final_vel), kernel, nan_treatment="interpolate")
 
     final_vel, flag_vel = _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha)
     return final_vel, flag_vel
 
 
 @jit(nopython=True, cache=True)
-def box_check(azi,
-              final_vel,
-              flag_vel,
-              vnyq,
-              window_range=80,
-              window_azimuth=20,
-              strategy='surround',
-              alpha=0.8):
+def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy="surround", alpha=0.8):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -846,7 +846,7 @@ def box_check(azi,
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
     """
-    if strategy == 'vertex':
+    if strategy == "vertex":
         azi_window_offset = window_azimuth
     else:
         azi_window_offset = window_azimuth // 2
@@ -1004,21 +1004,23 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
 
 
 @jit(nopython=True, cache=True)
-def unfolding_3D(r_swref,
-                 azi_swref,
-                 elev_swref,
-                 vel_swref,
-                 flag_swref,
-                 r_slice,
-                 azi_slice,
-                 elev_slice,
-                 velocity_slice,
-                 flag_slice,
-                 original_velocity,
-                 vnyq,
-                 window_azi=20,
-                 window_range=80,
-                 alpha=0.8):
+def unfolding_3D(
+    r_swref,
+    azi_swref,
+    elev_swref,
+    vel_swref,
+    flag_swref,
+    r_slice,
+    azi_slice,
+    elev_slice,
+    velocity_slice,
+    flag_slice,
+    original_velocity,
+    vnyq,
+    window_azi=20,
+    window_range=80,
+    alpha=0.8,
+):
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).

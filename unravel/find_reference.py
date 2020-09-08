@@ -2,9 +2,9 @@
 Module 1: Finding reference.
 
 @title: find_reference
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 29/01/2018
+@date: 08/09/2020
 """
 
 # Other Libraries
@@ -16,8 +16,23 @@ def find_reference_radials(azimuth, velocity):
     A beam is valid if it contains at least 10 valid gates (not NaN).
     We seek beams that contain the most valid gate, defined by being
     more than the total mean of valid gate per beam. Of these selected
-    beams, we are looking for the beam with the minimu absolute mean velocity.
+    beams, we are looking for the beam with the minimum absolute mean velocity.
+
+    Parameters:
+    ===========
+    azimuth: ndarray
+        Azimuth array.
+    velocity: ndarray
+        Velocity field.
+
+    Returns:
+    ========
+    start_beam: int
+        Index of first reference
+    end_beam: int
+        Index of end reference
     """
+
     def find_min_quadrant(azi, vel, nvalid_gate_qd, nsum_moy):
         return azi[nvalid_gate_qd >= nsum_moy][np.argmin(np.nanmean(np.abs(vel), axis=1)[nvalid_gate_qd >= nsum_moy])]
 
@@ -34,8 +49,8 @@ def find_reference_radials(azimuth, velocity):
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
     except ValueError:
         start_beam = azimuth[np.argmin(np.nanmean(np.abs(velocity), axis=1))]
-    
-    nb = np.zeros((4, ))
+
+    nb = np.zeros((4,))
     for i in range(4):
         pos = (azimuth >= i * 90) & (azimuth < (i + 1) * 90)
         try:
@@ -53,6 +68,24 @@ def find_reference_radials(azimuth, velocity):
 
 
 def get_quadrant(azimuth, azi_start_pos, azi_end_pos):
+    """
+    Get the 2 mid-points to end the unfolding azimuthal continuity and divide
+    the scan in 4 pieces.
+
+    Parameters:
+    ===========
+    azimuth: ndarray
+        Azimuth array.
+    azi_start_pos: int
+        Index of first reference.
+    azi_end_pos: int
+        Index of second reference.
+
+    Returns:
+    ========
+    quad: List<4>
+        Index list of the 4 quandrants.
+    """
     nbeam = len(azimuth)
     if azi_start_pos > azi_end_pos:
         iter_plus = np.append(np.arange(azi_start_pos, nbeam), np.arange(0, azi_end_pos + 1))
@@ -62,9 +95,9 @@ def get_quadrant(azimuth, azi_start_pos, azi_end_pos):
         iter_minus = np.append(np.arange(azi_end_pos, nbeam), np.arange(0, azi_start_pos + 1))[::-1]
 
     quad = [None] * 4
-    quad[0] = iter_plus[:len(iter_plus) // 2]
-    quad[1] = iter_minus[:len(iter_minus) // 2]
-    quad[2] = iter_plus[len(iter_plus) // 2:][::-1]
-    quad[3] = iter_minus[len(iter_minus) // 2:][::-1]
+    quad[0] = iter_plus[: len(iter_plus) // 2]
+    quad[1] = iter_minus[: len(iter_minus) // 2]
+    quad[2] = iter_plus[len(iter_plus) // 2 :][::-1]
+    quad[3] = iter_minus[len(iter_minus) // 2 :][::-1]
 
     return quad

@@ -195,8 +195,8 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
                 continue
 
             for ngate in range(3, len(myvel) - 3):
-                velref0 = np.nanmedian(myvel[ngate - 3:ngate])
-                velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
+                velref0 = np.nanmedian(myvel[ngate - 3 : ngate])
+                velref1 = np.nanmedian(myvel[ngate + 1 : ngate + 4])
                 decision = take_decision(velref0, velref1, vnyq, alpha=0.4)
                 if decision != 1:
                     continue
@@ -228,8 +228,8 @@ def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq
                     if np.abs(myvel[ngate]) >= 0.5 * vnyq:
                         continue
 
-                    velref0 = np.nanmedian(myvel[ngate - 3:ngate])
-                    velref1 = np.nanmedian(myvel[ngate + 1:ngate + 4])
+                    velref0 = np.nanmedian(myvel[ngate - 3 : ngate])
+                    velref1 = np.nanmedian(myvel[ngate + 1 : ngate + 4])
                     decision = take_decision(velref0, velref1, vnyq, alpha=0.4)
                     if decision != 1:
                         continue

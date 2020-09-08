@@ -2,7 +2,7 @@
 Module initialize the unfolding.
 
 @title: initialisation
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @date: 07/02/2020
 

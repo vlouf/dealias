@@ -2,7 +2,7 @@
 Driver script for the debugging module.
 
 @title: dealias
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
 @date: 24/01/2020

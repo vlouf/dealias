@@ -2,7 +2,7 @@
 The dealiasing class.
 
 @title: core.py
-@author: Valentin Louf <valentin.louf@monash.edu>
+@author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @date: 06/08/2020
 

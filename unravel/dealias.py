@@ -7,8 +7,10 @@ Driver script for the dealiasing module.
 @creation: 05/04/2018
 @date: 15/12/2020
 
+    _check_nyquist
     dealiasing_process_2D
     dealias_long_range
+    unravel_3D_pyart_multiproc
     unravel_3D_pyart
     unravel_3D_pyodim
 """
@@ -21,6 +23,42 @@ from . import filtering
 from . import initialisation
 from . import find_reference
 from .core import Dealias
+
+
+def _check_nyquist(radar, nyquist_velocity):
+    """
+    If nyquist is not defined, then it will assume that it is the same
+    nyquist for the whole sweep. If you want a different nyquist at each
+    sweep then pass a list.
+    
+    Parameters:
+    ===========
+    radar: pyart.core.Radar
+        Radar object
+    nyquist_velocity: List or Scalar
+        Nyquist velocity associated with each sweep.
+
+    Returns:
+    ========
+    nyquist_list: List[float: nsweep]
+        List of Nyquist velocity for each radar sweep.
+    """
+    if nyquist_velocity is None:
+        nyquist_velocity = radar.instrument_parameters["nyquist_velocity"]["data"][0]
+        nyquist_list = [nyquist_velocity] * radar.nsweeps
+        if nyquist_velocity is None:
+            raise ValueError("Nyquist velocity not found.")
+    else:
+        if np.isscalar(nyquist_velocity):
+            nyquist_list = [nyquist_velocity] * radar.nsweeps
+            pass
+        else:
+            if len(nyquist_velocity) != radar.nsweeps:
+                raise IndexError("Nyquist velocity list size is different from the number of radar sweeps.")
+            else:
+                nyquist_list = nyquist_velocity
+
+    return nyquist_list
 
 
 def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
@@ -206,24 +244,7 @@ def unravel_3D_pyart_multiproc(
     if gatefilter is None:
         gatefilter = filtering.do_gatefilter(radar, dbzname)
     unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
-
-    # If nyquist is not defined, then it will assume that it is the same
-    # nyquist for the whole sweep. If you want a different nyquist at each
-    # sweep then pass a list.
-    if nyquist_velocity is None:
-        nyquist_velocity = radar.instrument_parameters["nyquist_velocity"]["data"][0]
-        nyquist_list = [nyquist_velocity] * radar.nsweeps
-        if nyquist_velocity is None:
-            raise ValueError("Nyquist velocity not found.")
-    else:
-        if np.isscalar(nyquist_velocity):
-            nyquist_list = [nyquist_velocity] * radar.nsweeps
-            pass
-        else:
-            if len(nyquist_velocity) != radar.nsweeps:
-                raise IndexError("Nyquist velocity list size is different from the number of radar sweeps.")
-            else:
-                nyquist_list = nyquist_velocity
+    nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
     try:
@@ -282,9 +303,9 @@ def unravel_3D_pyart_multiproc(
             alpha=alpha,
         )
 
-        # final_vel, flag_slice = continuity.box_check(
-        #     azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=40, alpha=alpha
-        # )
+        final_vel, flag_slice = continuity.box_check(
+            azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=20, alpha=alpha
+        )
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()
@@ -340,24 +361,7 @@ def unravel_3D_pyart(
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is None:
         gatefilter = filtering.do_gatefilter(radar, dbzname)
-
-    # If nyquist is not defined, then it will assume that it is the same
-    # nyquist for the whole sweep. If you want a different nyquist at each
-    # sweep then pass a list.
-    if nyquist_velocity is None:
-        nyquist_velocity = radar.instrument_parameters["nyquist_velocity"]["data"][0]
-        nyquist_list = [nyquist_velocity] * radar.nsweeps
-        if nyquist_velocity is None:
-            raise ValueError("Nyquist velocity not found.")
-    else:
-        if np.isscalar(nyquist_velocity):
-            nyquist_list = [nyquist_velocity] * radar.nsweeps
-            pass
-        else:
-            if len(nyquist_velocity) != radar.nsweeps:
-                raise IndexError("Nyquist velocity list size is different from the number of radar sweeps.")
-            else:
-                nyquist_list = nyquist_velocity
+    nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
     try:

@@ -277,12 +277,14 @@ def unravel_3D_pyart_multiproc(
             flag_slice=flag_vel,
             original_velocity=velocity[sweep],
             vnyq=nyquist_velocity,
+            window_azi=6,
+            window_range=10,
             alpha=alpha,
         )
 
-        final_vel, flag_slice = continuity.box_check(
-            azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, alpha=alpha
-        )
+        # final_vel, flag_slice = continuity.box_check(
+        #     azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=40, alpha=alpha
+        # )
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()

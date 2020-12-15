@@ -12,6 +12,8 @@ Driver script for the dealiasing module.
     unravel_3D_pyart
     unravel_3D_pyodim
 """
+import dask
+import dask.bag as db
 import numpy as np
 
 from . import continuity
@@ -168,6 +170,130 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
     return unfold_vel, dealias_2D.flag
 
 
+def unravel_3D_pyart_multiproc(
+    radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None, strategy="default", alpha=0.8,
+):
+    """
+    Process driver.
+    Full dealiasing process 2D + 3D.
+
+    Parameters:
+    ===========
+    radar: PyART Radar Object
+        Py-ART radar object.
+    gatefilter: Object GateFilter
+        GateFilter for filtering noise. If not provided it will automaticaly
+        compute it with help of the dual-polar variables.
+    velname: str
+        Name of the velocity field.
+    dbzname: str
+        Name of the reflectivity field.
+    strategy: ['default', 'long_range']
+        Using the default dealiasing strategy or the long range strategy.
+    nyquist_velocity: float or list
+        If it is a scalar, then it is assume as being the same nyquist for the
+        whole volume. If it is a list, it is expected to be the value of nyquist
+        for each sweep.
+
+    Returns:
+    ========
+    unraveled_velocity: ndarray
+        Dealised velocity field.
+    """
+    # Check arguments
+    if strategy not in ["default", "long_range"]:
+        raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
+    if gatefilter is None:
+        gatefilter = filtering.do_gatefilter(radar, dbzname)
+    unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
+
+    # If nyquist is not defined, then it will assume that it is the same
+    # nyquist for the whole sweep. If you want a different nyquist at each
+    # sweep then pass a list.
+    if nyquist_velocity is None:
+        nyquist_velocity = radar.instrument_parameters["nyquist_velocity"]["data"][0]
+        nyquist_list = [nyquist_velocity] * radar.nsweeps
+        if nyquist_velocity is None:
+            raise ValueError("Nyquist velocity not found.")
+    else:
+        if np.isscalar(nyquist_velocity):
+            nyquist_list = [nyquist_velocity] * radar.nsweeps
+            pass
+        else:
+            if len(nyquist_velocity) != radar.nsweeps:
+                raise IndexError("Nyquist velocity list size is different from the number of radar sweeps.")
+            else:
+                nyquist_list = nyquist_velocity
+
+    # Read the velocity field.
+    try:
+        velocity = radar.fields[velname]["data"].filled(np.NaN)
+    except Exception:
+        velocity = radar.fields[velname]["data"]
+    velocity[gatefilter.gate_excluded] = np.NaN
+
+    # Build argument list for multiprocessing.
+    args_list = []
+    r = radar.range["data"]
+    for slice_number in range(0, radar.nsweeps):
+        nyquist_velocity = nyquist_list[slice_number]
+        sweep = radar.get_slice(slice_number)
+        azi = radar.azimuth["data"][sweep]
+        elev = radar.elevation["data"][sweep].mean()
+        vel = np.ma.masked_where(gatefilter.gate_excluded, velocity)[sweep]
+        velocity_slice = vel.filled(np.NaN)
+        args_list.append((r, azi, elev, velocity_slice, nyquist_velocity, alpha))
+
+    # Run the 2D dealiasing using multiprocessing 1 process per sweep.
+    if strategy == "default":
+        rslt = db.from_sequence(args_list).starmap(dealiasing_process_2D)
+    else:
+        rslt = db.from_sequence(args_list).starmap(dealias_long_range)
+
+    # Run the 3D Unfolding using the first slice as reference.
+    sweep = radar.get_slice(0)
+    azimuth_reference = radar.azimuth["data"][sweep]
+    elevation_reference = radar.elevation["data"][sweep].mean()
+    velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
+    unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
+    for slice_number in range(1, radar.nsweeps):
+        nyquist_velocity = nyquist_list[slice_number]
+        sweep = radar.get_slice(slice_number)
+        azimuth_slice = radar.azimuth["data"][sweep]
+        elevation_slice = radar.elevation["data"][sweep].mean()
+        final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
+
+        final_vel, flag_slice, _, _ = continuity.unfolding_3D(
+            r_swref=r,
+            azi_swref=azimuth_reference,
+            elev_swref=elevation_reference,
+            vel_swref=velocity_reference,
+            flag_swref=flag_reference,
+            r_slice=r,
+            azi_slice=azimuth_slice,
+            elev_slice=elevation_slice,
+            velocity_slice=final_vel,
+            flag_slice=flag_vel,
+            original_velocity=velocity[sweep],
+            vnyq=nyquist_velocity,
+            alpha=alpha,
+        )
+
+        final_vel, flag_slice = continuity.box_check(
+            azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, alpha=alpha
+        )
+
+        azimuth_reference = azimuth_slice.copy()
+        velocity_reference = final_vel.copy()
+        flag_reference = flag_vel.copy()
+        elevation_reference = elevation_slice
+        unraveled_velocity[sweep] = final_vel.copy()
+
+    unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
+
+    return unraveled_velocity
+
+
 def unravel_3D_pyart(
     radar,
     velname="VEL",
@@ -205,13 +331,12 @@ def unravel_3D_pyart(
     unraveled_velocity: ndarray
         Dealised velocity field.
     """
+    pointbreak = []
     # Check arguments
     if strategy not in ["default", "long_range"]:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if gatefilter is None:
         gatefilter = filtering.do_gatefilter(radar, dbzname)
-    if debug:
-        pointbreak = []
 
     # If nyquist is not defined, then it will assume that it is the same
     # nyquist for the whole sweep. If you want a different nyquist at each

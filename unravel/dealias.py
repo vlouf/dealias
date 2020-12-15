@@ -5,7 +5,7 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 15/12/2020
+@date: 16/12/2020
 
     _check_nyquist
     dealiasing_process_2D
@@ -393,14 +393,13 @@ def unravel_3D_pyart(
             r, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, **kwargs
         )
     if debug:
-        final_vel, flag_vel, brake = outargs
+        velocity_reference, flag_reference, brake = outargs
         pointbreak.append(brake)
     else:
-        final_vel, flag_vel = outargs
-
-    velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
+        velocity_reference, flag_reference = outargs
+    
     unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
-    unraveled_velocity[sweep] = final_vel.copy()
+    unraveled_velocity[sweep] = velocity_reference.copy()
 
     for slice_number in range(1, radar.nsweeps):
         nyquist_velocity = nyquist_list[slice_number]

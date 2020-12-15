@@ -17,6 +17,7 @@ Driver script for the dealiasing module.
 import dask
 import dask.bag as db
 import numpy as np
+from numpy.lib.nanfunctions import nanargmin
 
 from . import continuity
 from . import filtering
@@ -30,7 +31,7 @@ def _check_nyquist(radar, nyquist_velocity):
     If nyquist is not defined, then it will assume that it is the same
     nyquist for the whole sweep. If you want a different nyquist at each
     sweep then pass a list.
-    
+
     Parameters:
     ===========
     radar: pyart.core.Radar
@@ -273,6 +274,7 @@ def unravel_3D_pyart_multiproc(
     rslt = bag.compute()
 
     # Run the 3D Unfolding using the first slice as reference.
+    args_list = []
     sweep = radar.get_slice(0)
     azimuth_reference = radar.azimuth["data"][sweep]
     elevation_reference = radar.elevation["data"][sweep].mean()
@@ -303,15 +305,18 @@ def unravel_3D_pyart_multiproc(
             alpha=alpha,
         )
 
-        final_vel, flag_slice = continuity.box_check(
-            azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=20, alpha=alpha
-        )
-
+        args_list.append((azimuth_slice, final_vel, flag_slice, nyquist_velocity, 20))
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()
         flag_reference = flag_vel.copy()
         elevation_reference = elevation_slice
-        unraveled_velocity[sweep] = final_vel.copy()
+
+    # Multiproc box check and saved unravel velocity
+    bag = db.from_sequence(args_list).starmap(continuity.box_check)
+    rslt = bag.compute()
+    for n in range(len(rslt)):
+        sweep = radar.get_slice(n + 1)
+        unraveled_velocity[sweep] = rslt[n][0]
 
     unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
 

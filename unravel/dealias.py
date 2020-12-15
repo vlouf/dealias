@@ -246,9 +246,10 @@ def unravel_3D_pyart_multiproc(
 
     # Run the 2D dealiasing using multiprocessing 1 process per sweep.
     if strategy == "default":
-        rslt = db.from_sequence(args_list).starmap(dealiasing_process_2D)
+        bag = db.from_sequence(args_list).starmap(dealiasing_process_2D)
     else:
-        rslt = db.from_sequence(args_list).starmap(dealias_long_range)
+        bag = db.from_sequence(args_list).starmap(dealias_long_range)
+    rslt = bag.compute()
 
     # Run the 3D Unfolding using the first slice as reference.
     sweep = radar.get_slice(0)

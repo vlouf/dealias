@@ -128,3 +128,4 @@ dmypy.json
 .vscode
 .vscode/settings.json
 *.ipynb
+*.f90

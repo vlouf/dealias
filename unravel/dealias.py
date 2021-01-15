@@ -108,7 +108,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
             break
 
     if not dealias_2D.check_completed():
-        for window in [(5, 2), (20, 10), (40, 20), (80, 40)]:
+        for window in [(5, 2), (20, 10), (40, 20)]:
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
                 brake = "box"
@@ -183,7 +183,7 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
             break
 
     if not dealias_2D.check_completed():
-        for window in [(20, 20), (40, 40), (80, 80)]:
+        for window in [(20, 20), (40, 40)]:
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
                 brake = "box"

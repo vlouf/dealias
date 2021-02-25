@@ -280,13 +280,13 @@ def unravel_3D_pyart_multiproc(
     rslt = bag.compute()
 
     # Run the 3D Unfolding using the first slice as reference.
-    args_list = []
-    sweep = radar.get_slice(0)
-    azimuth_reference = radar.azimuth["data"][sweep]
-    elevation_reference = radar.elevation["data"][sweep].mean()
-    velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
-    unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
     if do_3d:
+        args_list = []
+        sweep = radar.get_slice(0)
+        azimuth_reference = radar.azimuth["data"][sweep]
+        elevation_reference = radar.elevation["data"][sweep].mean()
+        velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
+        unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
         for slice_number in range(1, radar.nsweeps):
             nyquist_velocity = nyquist_list[slice_number]
             sweep = radar.get_slice(slice_number)
@@ -320,11 +320,15 @@ def unravel_3D_pyart_multiproc(
 
         # Multiproc box check and saved unravel velocity
         bag = db.from_sequence(args_list).starmap(continuity.box_check)
-        rslt = bag.compute()
+        nrslt = bag.compute()
 
-    for n in range(len(rslt)):
-        sweep = radar.get_slice(n + 1)
-        unraveled_velocity[sweep] = rslt[n][0]
+        for n in range(len(nrslt)):
+            sweep = radar.get_slice(n + 1)
+            unraveled_velocity[sweep] = nrslt[n][0]
+    else:
+        for n in range(len(rslt)):
+            sweep = radar.get_slice(n)
+            unraveled_velocity[sweep] = rslt[n][0]
 
     unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
 
@@ -450,15 +454,14 @@ def unravel_3D_pyart(
                 velocity[sweep],
                 nyquist_velocity,
             )
-
             final_vel, flag_slice = continuity.box_check(
                 azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, **kwargs
             )
+            azimuth_reference = azimuth_slice.copy()
+            velocity_reference = final_vel.copy()
+            flag_reference = flag_vel.copy()
+            elevation_reference = elevation_slice
 
-        azimuth_reference = azimuth_slice.copy()
-        velocity_reference = final_vel.copy()
-        flag_reference = flag_vel.copy()
-        elevation_reference = elevation_slice
         unraveled_velocity[sweep] = final_vel.copy()
 
     unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)

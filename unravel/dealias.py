@@ -5,7 +5,7 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 16/12/2020
+@date: 25/02/2021
 
     _check_nyquist
     dealiasing_process_2D
@@ -21,8 +21,6 @@ from numpy.lib.nanfunctions import nanargmin
 
 from . import continuity
 from . import filtering
-from . import initialisation
-from . import find_reference
 from .core import Dealias
 
 
@@ -210,7 +208,15 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
 
 def unravel_3D_pyart_multiproc(
-    radar, velname="VEL", dbzname="DBZ", gatefilter=None, nyquist_velocity=None, strategy="default", alpha=0.8,
+    radar,
+    velname="VEL",
+    dbzname="DBZ",
+    gatefilter=None,
+    nyquist_velocity=None,
+    strategy="default",
+    alpha=0.8,
+    do_3d=True,
+    **kwargs,
 ):
     """
     Process driver.
@@ -280,40 +286,42 @@ def unravel_3D_pyart_multiproc(
     elevation_reference = radar.elevation["data"][sweep].mean()
     velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
     unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
-    for slice_number in range(1, radar.nsweeps):
-        nyquist_velocity = nyquist_list[slice_number]
-        sweep = radar.get_slice(slice_number)
-        azimuth_slice = radar.azimuth["data"][sweep]
-        elevation_slice = radar.elevation["data"][sweep].mean()
-        final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
+    if do_3d:
+        for slice_number in range(1, radar.nsweeps):
+            nyquist_velocity = nyquist_list[slice_number]
+            sweep = radar.get_slice(slice_number)
+            azimuth_slice = radar.azimuth["data"][sweep]
+            elevation_slice = radar.elevation["data"][sweep].mean()
+            final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
 
-        final_vel, flag_slice, _, _ = continuity.unfolding_3D(
-            r_swref=r,
-            azi_swref=azimuth_reference,
-            elev_swref=elevation_reference,
-            vel_swref=velocity_reference,
-            flag_swref=flag_reference,
-            r_slice=r,
-            azi_slice=azimuth_slice,
-            elev_slice=elevation_slice,
-            velocity_slice=final_vel,
-            flag_slice=flag_vel,
-            original_velocity=velocity[sweep],
-            vnyq=nyquist_velocity,
-            window_azi=6,
-            window_range=10,
-            alpha=alpha,
-        )
+            final_vel, flag_slice, _, _ = continuity.unfolding_3D(
+                r_swref=r,
+                azi_swref=azimuth_reference,
+                elev_swref=elevation_reference,
+                vel_swref=velocity_reference,
+                flag_swref=flag_reference,
+                r_slice=r,
+                azi_slice=azimuth_slice,
+                elev_slice=elevation_slice,
+                velocity_slice=final_vel,
+                flag_slice=flag_vel,
+                original_velocity=velocity[sweep],
+                vnyq=nyquist_velocity,
+                window_azi=6,
+                window_range=10,
+                alpha=alpha,
+            )
 
-        args_list.append((azimuth_slice, final_vel, flag_slice, nyquist_velocity, 20))
-        azimuth_reference = azimuth_slice.copy()
-        velocity_reference = final_vel.copy()
-        flag_reference = flag_vel.copy()
-        elevation_reference = elevation_slice
+            args_list.append((azimuth_slice, final_vel, flag_slice, nyquist_velocity, 20))
+            azimuth_reference = azimuth_slice.copy()
+            velocity_reference = final_vel.copy()
+            flag_reference = flag_vel.copy()
+            elevation_reference = elevation_slice
 
-    # Multiproc box check and saved unravel velocity
-    bag = db.from_sequence(args_list).starmap(continuity.box_check)
-    rslt = bag.compute()
+        # Multiproc box check and saved unravel velocity
+        bag = db.from_sequence(args_list).starmap(continuity.box_check)
+        rslt = bag.compute()
+
     for n in range(len(rslt)):
         sweep = radar.get_slice(n + 1)
         unraveled_velocity[sweep] = rslt[n][0]
@@ -331,7 +339,8 @@ def unravel_3D_pyart(
     nyquist_velocity=None,
     strategy="default",
     debug=False,
-    **kwargs
+    do_3d=True,
+    **kwargs,
 ):
     """
     Process driver.
@@ -397,7 +406,7 @@ def unravel_3D_pyart(
         pointbreak.append(brake)
     else:
         velocity_reference, flag_reference = outargs
-    
+
     unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
     unraveled_velocity[sweep] = velocity_reference.copy()
 
@@ -426,24 +435,25 @@ def unravel_3D_pyart(
             final_vel, flag_vel = outargs
 
         final_vel = final_vel.filled(np.NaN)
-        final_vel, flag_slice, _, _ = continuity.unfolding_3D(
-            r,
-            azimuth_reference,
-            elevation_reference,
-            velocity_reference,
-            flag_reference,
-            r,
-            azimuth_slice,
-            elevation_slice,
-            final_vel,
-            flag_vel,
-            velocity[sweep],
-            nyquist_velocity,
-        )
+        if do_3d:
+            final_vel, flag_slice, _, _ = continuity.unfolding_3D(
+                r,
+                azimuth_reference,
+                elevation_reference,
+                velocity_reference,
+                flag_reference,
+                r,
+                azimuth_slice,
+                elevation_slice,
+                final_vel,
+                flag_vel,
+                velocity[sweep],
+                nyquist_velocity,
+            )
 
-        final_vel, flag_slice = continuity.box_check(
-            azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, **kwargs
-        )
+            final_vel, flag_slice = continuity.box_check(
+                azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, **kwargs
+            )
 
         azimuth_reference = azimuth_slice.copy()
         velocity_reference = final_vel.copy()
@@ -466,7 +476,7 @@ def unravel_3D_pyodim(
     gatefilter=None,
     strategy="long_range",
     debug=False,
-    **kwargs
+    **kwargs,
 ):
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new

@@ -1,3 +1,6 @@
+"""
+Storing old functions that I dont use anymore...
+"""
 from .continuity import *
 
 
@@ -19,9 +22,7 @@ def _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-def convolution_check(
-    azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy="surround", alpha=0.8
-):
+def convolution_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.8):
     """
     Faster version of the box_check this time using a convolution product.
 
@@ -44,7 +45,7 @@ def convolution_check(
         Flag array NEW value: 3->had to be corrected.
     """
     from astropy.convolution import convolve
-    
+
     # Odd number only
     if window_range % 2 == 0:
         window_range += 1

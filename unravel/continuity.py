@@ -10,7 +10,7 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 @title: continuity
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 08/09/2020
+@date: 15/03/2021
 
 .. autosummary::
     :toctree: generated/
@@ -28,15 +28,14 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     correct_linear_interp
     correct_closest_reference
     correct_box
-    _convolve_check
-    convolution_check
+    _vectorized_stride
+    _box_check_v2
     box_check
     radial_least_square_check
     least_square_radial_last_module
     unfolding_3D
 """
 import numpy as np
-from astropy.convolution import convolve
 from numba import jit, int64, float64
 
 
@@ -765,63 +764,24 @@ def correct_box(
 
 
 @jit(nopython=True, cache=True)
-def _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha):
-    """
-    JIT part of the convolution_check function.
-    """
+def _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha):
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
             if flag_vel[nbeam, ngate] <= 0:
                 continue
 
-            if not is_good_velocity(velref[nbeam, ngate], final_vel[nbeam, ngate], vnyq, alpha=alpha):
-                final_vel[nbeam, ngate] = velref[nbeam, ngate]
+            myvel = final_vel[nbeam, ngate]
+            myvelref = refvel[nbeam, ngate]
+
+            if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
+                final_vel[nbeam, ngate] = myvelref
                 flag_vel[nbeam, ngate] = 3
 
     return final_vel, flag_vel
 
 
-def convolution_check(
-    azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy="surround", alpha=0.8
-):
-    """
-    Faster version of the box_check this time using a convolution product.
-
-    Parameters:
-    ===========
-    azi: ndarray
-        Radar scan azimuth.
-    final_vel: ndarray <azimuth, r>
-        Dealiased Doppler velocity field.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    vnyq: float
-        Nyquist velocity.
-
-    Returns:
-    ========
-    dealias_vel: ndarray <azimuth, range>
-        Dealiased velocity slice.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array NEW value: 3->had to be corrected.
-    """
-    # Odd number only
-    if window_range % 2 == 0:
-        window_range += 1
-    if window_azimuth % 2 == 0:
-        window_azimuth += 1
-
-    kernel = np.zeros((window_azimuth, window_range)) + 1
-    kernel = kernel / kernel.sum()
-    velref = convolve(np.ma.masked_where(flag_vel < 1, final_vel), kernel, nan_treatment="interpolate")
-
-    final_vel, flag_vel = _convolve_check(azi, velref, final_vel, flag_vel, vnyq, alpha)
-    return final_vel, flag_vel
-
-
-@jit(nopython=True, cache=True)
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, strategy="surround", alpha=0.8):
+def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -830,8 +790,6 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
 
     Parameters:
     ===========
-    azi: ndarray
-        Radar scan azimuth.
     final_vel: ndarray <azimuth, r>
         Dealiased Doppler velocity field.
     flag_vel: ndarray int <azimuth, range>
@@ -846,46 +804,31 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
     """
-    if strategy == "vertex":
-        azi_window_offset = window_azimuth
-    else:
-        azi_window_offset = window_azimuth // 2
+    def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size):
+        """
+        https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
+        """
+        start = clearing_time_index + 1 - sub_window_size + 1
 
-    maxazi, maxrange = final_vel.shape
-    for nbeam in range(maxazi):
-        for ngate in np.arange(maxrange - 1, -1, -1):
-            if flag_vel[nbeam, ngate] <= 0:
-                continue
+        sub_windows = (
+            start +
+            np.expand_dims(np.arange(sub_window_size), 0) +
+            np.expand_dims(np.arange(max_time + 1, step=stride_size), 0).T
+        )
 
-            myvel = final_vel[nbeam, ngate]
+        return array[sub_windows]
 
-            npos_range = iter_range(ngate, window_range, maxrange)
+    vel_range = final_vel.copy()
+    vel_azi = vel_range.copy().T
 
-            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
-            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
+    vectorized_azi = _vectorized_stride(vel_azi, 0, vel_azi.shape[0] - 2, window_azimuth, 1)
+    vectorized_range = _vectorized_stride(vel_range, 0, vel_range.shape[0] - 2, window_range, 1)
 
-            cnt = -1
-            for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
-                for nr in npos_range:
-                    cnt += 1
-                    if (na, nr) == (nbeam, ngate):
-                        continue
-                    vel_ref_vec[cnt] = final_vel[na, nr]
-                    flag_ref_vec[cnt] = flag_vel[na, nr]
+    smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
+    smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T
+    refvel = (0.5 * smooth_azi + 0.5 * smooth_range)
 
-            if np.sum(flag_ref_vec >= 1) == 0:
-                continue
-
-            true_vel = vel_ref_vec[flag_ref_vec >= 1]
-            mvel = np.nanmean(true_vel)
-            svel = np.nanstd(true_vel)
-            myvelref = np.nanmedian(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
-
-            if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
-                final_vel[nbeam, ngate] = myvelref
-                flag_vel[nbeam, ngate] = 3
-
-    return final_vel, flag_vel
+    return _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha)
 
 
 @jit(nopython=True, cache=True)

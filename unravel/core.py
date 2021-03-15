@@ -234,8 +234,7 @@ class Dealias:
         """
         if alpha is None:
             alpha = self.alpha
-        dealias_vel, flag_vel = continuity.convolution_check(
-            self.azimuth,
+        dealias_vel, flag_vel = continuity.box_check(
             self.dealias_vel,
             self.flag,
             self.nyquist,

@@ -5,7 +5,7 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 25/02/2021
+@date: 15/03/2021
 
     _check_nyquist
     dealiasing_process_2D
@@ -454,9 +454,7 @@ def unravel_3D_pyart(
                 velocity[sweep],
                 nyquist_velocity,
             )
-            final_vel, flag_slice = continuity.box_check(
-                azimuth_slice, final_vel, flag_slice, nyquist_velocity, window_range=250, **kwargs
-            )
+            final_vel, flag_slice = continuity.box_check(final_vel, flag_slice, nyquist_velocity)
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
             flag_reference = flag_vel.copy()

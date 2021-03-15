@@ -773,6 +773,8 @@ def _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha):
 
             myvel = final_vel[nbeam, ngate]
             myvelref = refvel[nbeam, ngate]
+            if np.isnan(myvelref):
+                continue
 
             if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
                 final_vel[nbeam, ngate] = myvelref
@@ -829,7 +831,7 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T
     refvel = 0.5 * smooth_azi + 0.5 * smooth_range
 
-    return _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha)
+    return _box_check_v2(refvel, final_vel.copy(), flag_vel, vnyq, alpha)
 
 
 @jit(nopython=True, cache=True)

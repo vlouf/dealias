@@ -804,6 +804,7 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
     """
+
     def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size):
         """
         https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
@@ -811,9 +812,9 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
         start = clearing_time_index + 1 - sub_window_size + 1
 
         sub_windows = (
-            start +
-            np.expand_dims(np.arange(sub_window_size), 0) +
-            np.expand_dims(np.arange(max_time + 1, step=stride_size), 0).T
+            start
+            + np.expand_dims(np.arange(sub_window_size), 0)
+            + np.expand_dims(np.arange(max_time + 1, step=stride_size), 0).T
         )
 
         return array[sub_windows]
@@ -826,7 +827,7 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
 
     smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
     smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T
-    refvel = (0.5 * smooth_azi + 0.5 * smooth_range)
+    refvel = 0.5 * smooth_azi + 0.5 * smooth_range
 
     return _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha)
 

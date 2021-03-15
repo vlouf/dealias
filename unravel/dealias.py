@@ -14,10 +14,8 @@ Driver script for the dealiasing module.
     unravel_3D_pyart
     unravel_3D_pyodim
 """
-import dask
 import dask.bag as db
 import numpy as np
-from numpy.lib.nanfunctions import nanargmin
 
 from . import continuity
 from . import filtering

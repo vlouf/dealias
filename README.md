@@ -6,6 +6,8 @@ UNRAVEL (UNfold RAdar VELocity) is an open-source modular Doppler velocity deali
 
 ## Changelog:
 
+Version 1.2.5:
+- New box check using a fast and robust striding window algorithm, up to 10x faster for that function call.
 Version 1.2.0:
 - Multiprocessing using `unravel_3D_pyart_multiproc`
 - Various optimization and speed up.

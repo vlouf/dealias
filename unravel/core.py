@@ -4,7 +4,7 @@ The dealiasing class.
 @title: core.py
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 06/08/2020
+@date: 16/03/2021
 
 .. autosummary::
     :toctree: generated/
@@ -33,7 +33,7 @@ class Dealias:
         self.nyquist = nyquist_velocity
         self.alpha = alpha
         self.vshift = 2 * nyquist_velocity
-        self.delta_vmax = 0.5 * nyquist_velocity
+        self.delta_vmax = 4
         self.nrays = len(azimuth)
         self.ngates = len(r)
         self._check_inputs()

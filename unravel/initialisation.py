@@ -68,7 +68,7 @@ def flipud(arr):
 
 
 @jit(nopython=True, cache=True)
-def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delta_vmax, nfilter=3):
+def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, nfilter=3):
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
 
@@ -161,7 +161,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, vshift, delt
 
 
 @jit(nopython=True, cache=True)
-def initialize_unfolding(r, azi, azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
+def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     """
     Initialize the unfolding procedure and unfold the reference radials..
 

@@ -4,13 +4,15 @@ The dealiasing class.
 @title: core.py
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 16/03/2021
+@date: 25/03/2021
 
 .. autosummary::
     :toctree: generated/
 
     Dealias
 """
+import traceback
+
 import numpy as np
 
 from . import continuity
@@ -232,14 +234,20 @@ class Dealias:
         """
         if alpha is None:
             alpha = self.alpha
-        dealias_vel, flag_vel = continuity.box_check(
-            self.dealias_vel,
-            self.flag,
-            self.nyquist,
-            window_range=window_size[0],
-            window_azimuth=window_size[1],
-            alpha=alpha,
-        )
+        try:
+            dealias_vel, flag_vel = continuity.box_check(
+                self.dealias_vel,
+                self.flag,
+                self.nyquist,
+                window_range=window_size[0],
+                window_azimuth=window_size[1],
+                alpha=alpha,
+            )
+        except IndexError:
+            traceback.print_exc()
+            print("check_box not executed.")
+            return None
+
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 

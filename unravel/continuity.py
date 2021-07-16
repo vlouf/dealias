@@ -1007,7 +1007,7 @@ def _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-jit_module(nopython=True, error_model="numpy")
+jit_module(nopython=True, error_model="numpy", cache=True)
 
 
 def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8):

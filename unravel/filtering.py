@@ -43,7 +43,7 @@ def do_gatefilter(radar, dbz_name: str):
     return gf_desp
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
     """
     Unfold velocity.
@@ -73,7 +73,7 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
     return unfld
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
     """
     Filter data (despeckling) using MAD and first quick attempt at unfolding 

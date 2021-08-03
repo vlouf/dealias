@@ -661,7 +661,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
-            if decision == 1:
+            if (decision == 1) or (decision == 0):
                 final_vel[nbeam, ngate] = vel1
                 flag_vel[nbeam, ngate] = 1
                 continue

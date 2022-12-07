@@ -74,7 +74,7 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
 
 
 @jit(nopython=True)
-def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
+def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     """
     Filter data (despeckling) using MAD and first quick attempt at unfolding 
     velocity.
@@ -89,8 +89,8 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
         Nyquist velocity.
     vshift: float
         Allowed shift.
-    delta_vmax: float
-        Maximum difference allowd between vi and vr.
+    alpha: float
+        Trusted velocity difference Nyquist multiplier.
     nfilter: int
         Window size.
     
@@ -103,6 +103,8 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
     """
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
+    delta_vmax = vnyquist * alpha;
+
     for j in range(0, nrays):
         for n in range(0, ngate):
             if vflag[j, n] == -3:

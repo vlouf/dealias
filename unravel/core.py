@@ -33,8 +33,8 @@ class Dealias:
         self.velocity = self._check_velocity(velocity)
         self.nyquist = nyquist_velocity
         self.alpha = alpha
+        self.alpha_mad = 0.3 # Trusted velocity difference Nyquist multiplier (for filter_data)
         self.vshift = 2 * nyquist_velocity
-        self.delta_vmax = 4
         self.nrays = len(azimuth)
         self.ngates = len(r)
         self._check_inputs()
@@ -74,7 +74,7 @@ class Dealias:
         """Initialize the dealiasing by filtering the data, finding the radials
         of reference and executer the first pass."""
         dealias_vel, flag_vel = filtering.filter_data(
-            self.velocity, self.flag, self.nyquist, self.vshift, self.delta_vmax
+            self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
         start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
         azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))

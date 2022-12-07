@@ -142,10 +142,10 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
                 if dv1 >= delta_vmax:
                     if vmoy >= 0:
                         vk_unfld = unfold(vk, vmoy_plus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_plus)
+                        dvk = np.abs(vk_unfld - vmoy_plus)
                     else:
                         vk_unfld = unfold(vk, vmoy_minus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_minus)
+                        dvk = np.abs(vk_unfld - vmoy_minus)
 
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:

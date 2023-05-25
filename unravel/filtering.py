@@ -134,10 +134,10 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
             else:
                 vmoy_minus = np.NaN
 
-            k = 0
-            nselect = np.sum(idx_selected != -3)
-            for k in range(nselect):
-                vk = v_selected[k]
+            for k in range(n1, n2):
+                if vflag[j, k] == -3:
+                    continue
+                vk = velocity[j, k]
                 dv1 = np.abs(vk - vmoy)
                 if dv1 >= delta_vmax:
                     if vmoy >= 0:
@@ -149,6 +149,6 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
 
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:
-                        velocity[j, n + k] = vk_unfld
+                        velocity[j, k] = vk_unfld
 
     return velocity, vflag

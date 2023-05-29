@@ -104,7 +104,6 @@ def dealiasing_process_2D(
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
     """
-    brake = None
     if not np.isscalar(elevation):
         raise TypeError("Elevation should be scalar, not an array.")
     if velocity.shape != (len(azimuth), len(r)):
@@ -119,32 +118,36 @@ def dealiasing_process_2D(
     dealias_2D.initialize()
 
     # Dealiasing modules
+    completed = ""
     dealias_2D.correct_range()
     for window in [6, 12]:
         dealias_2D.correct_range(window)
         dealias_2D.correct_clock(window)
         if dealias_2D.check_completed():
-            brake = "range"
+            completed = "range"
             break
 
-    if not dealias_2D.check_completed():
+    if not completed:
         for window in [(5, 2), (20, 10), (40, 20)]:
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
-                brake = "box"
+                completed = "box"
                 break
 
-    if not dealias_2D.check_completed():
-        brake = "square"
+    if not completed:
         dealias_2D.correct_leastsquare()
+        if dealias_2D.check_completed():
+            completed = "square"
 
-    if not dealias_2D.check_completed():
-        brake = "regression"
+    if not completed:
         dealias_2D.correct_linregress()
+        if dealias_2D.check_completed():
+            completed = "regression"
 
-    if not dealias_2D.check_completed():
-        brake = "closest"
+    if not completed:
         dealias_2D.correct_closest()
+        if dealias_2D.check_completed():
+            completed = "closest"
 
     # Checking modules.
     dealias_2D.check_leastsquare()
@@ -154,7 +157,7 @@ def dealiasing_process_2D(
     unfold_vel[dealias_2D.flag < 0] = np.NaN
 
     if debug:
-        return unfold_vel, dealias_2D.flag, brake
+        return unfold_vel, dealias_2D.flag, completed
 
     return unfold_vel, dealias_2D.flag
 

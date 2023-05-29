@@ -988,7 +988,12 @@ def unfolding_3D(
     """
     vel_used_as_ref = np.zeros(velocity_slice.shape)
     processing_flag = np.zeros(velocity_slice.shape) - 3
+
     maxazi, maxrange = velocity_slice.shape
+    ref_range = vel_swref.shape[1]
+    # TODO: handle differing ranges
+    if ref_range != maxrange:
+        print(f"WARNING: unfolding_3D: range counts differ {maxrange} {ref_range}")
 
     gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
@@ -1010,7 +1015,7 @@ def unfolding_3D(
             rpos_reference = np.argmin(np.abs(gr_swref - gr_slice[ngate]))
             apos_reference = np.argmin(np.abs(azi_swref - azi_slice[nbeam]))
 
-            rpos_iter = iter_range(rpos_reference, window_range, maxrange)
+            rpos_iter = iter_range(rpos_reference, window_range, ref_range)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.NaN
             flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3

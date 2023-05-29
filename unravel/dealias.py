@@ -20,7 +20,7 @@ import numpy as np
 from . import continuity
 from . import filtering
 from .core import Dealias
-
+from .cfg import cfg
 
 def _check_nyquist(radar, nyquist_velocity):
     """
@@ -91,43 +91,53 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
     # Initialization
+    # stages 0, 1, 2, 3
     dealias_2D.initialize()
 
     # Dealiasing modules
     completed = ""
-    dealias_2D.correct_range()
+    if cfg().stage_check():
+        dealias_2D.correct_range()
     for window in [6, 12]:
-        dealias_2D.correct_range(window)
-        dealias_2D.correct_clock(window)
+        if cfg().stage_check():
+            dealias_2D.correct_range(window)
+        if cfg().stage_check():
+            dealias_2D.correct_clock(window)
         if dealias_2D.check_completed():
             completed = "range"
             break
 
     if not completed:
         for window in [(5, 2), (20, 10), (40, 20)]:
-            dealias_2D.correct_box(window)
+            if cfg().stage_check():
+                dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
                 completed = "box"
                 break
 
     if not completed:
-        dealias_2D.correct_leastsquare()
+        if cfg().stage_check():
+            dealias_2D.correct_leastsquare()
         if dealias_2D.check_completed():
             completed = "square"
 
     if not completed:
-        dealias_2D.correct_linregress()
+        if cfg().stage_check():
+            dealias_2D.correct_linregress()
         if dealias_2D.check_completed():
             completed = "regression"
 
     if not completed:
-        dealias_2D.correct_closest()
+        if cfg().stage_check():
+            dealias_2D.correct_closest()
         if dealias_2D.check_completed():
             completed = "closest"
 
     # Checking modules.
-    dealias_2D.check_leastsquare()
-    dealias_2D.check_box()
+    if cfg().stage_check():
+        dealias_2D.check_leastsquare()
+    if cfg().stage_check():
+        dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
     unfold_vel[dealias_2D.flag < 0] = np.NaN

@@ -264,7 +264,7 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
         flag_threshold = 10
 
     if cfg.SHOW_PROGRESS:
-        print("correct_clockwise alpha:{alpha} win-len:{window_len}")
+        print("correct_clockwise alpha:", alpha, f"win-len:{window_len}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -357,7 +357,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
         flag_threshold = 10
 
     if cfg.SHOW_PROGRESS:
-        print("correct_counterclockwise alpha:{alpha} win-len:{window_len}")
+        print("correct_counterclockwise alpha:", alpha, f"win-len:{window_len}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -438,7 +438,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
         flag_threshold = 10
 
     if cfg.SHOW_PROGRESS:
-        print("correct_range_onward alpha:{alpha} win-len:{window_len}")
+        print("correct_range_onward alpha:", alpha, f"win-len:{window_len}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -510,7 +510,7 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
         flag_threshold = 10
 
     if cfg.SHOW_PROGRESS:
-        print("correct_range_backward alpha:{alpha} win-len:{window_len}")
+        print("correct_range_backward alpha:", alpha, f"win-len:{window_len}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -584,7 +584,7 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
     maxazi, maxrange = final_vel.shape
 
     if cfg.SHOW_PROGRESS:
-        print("correct_linear_interp (extrapolate) alpha:{alpha} window:{r_step}")
+        print("correct_linear_interp (extrapolate) alpha:", alpha, f"window:{r_step}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -667,7 +667,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     maxazi, maxrange = final_vel.shape
 
     if cfg.SHOW_PROGRESS:
-        print("correct_closest alpha:{alpha} win-azi:{window_azi} win-bin:{window_gate}")
+        print("correct_closest alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_gate}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -748,7 +748,7 @@ def correct_box(
         azi_window_offset = window_azimuth // 2
 
     if cfg.SHOW_PROGRESS:
-        print("correct_box alpha:{alpha} win-azi:{window_azimuth} win-bin:{window_range}")
+        print("correct_box alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -830,7 +830,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     COUNT_MIN = 2
 
     if cfg.SHOW_PROGRESS:
-        print("radial_least_sq alpha:{alpha} count-min:{COUNT_MIN}")
+        print("radial_least_sq alpha:", alpha, f"count-min:{COUNT_MIN}")
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -884,7 +884,7 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     COUNT_MIN = 10
 
     if cfg.SHOW_PROGRESS:
-        print("radial_least_sq_last alpha:{alpha} count-min:{COUNT_MIN}")
+        print("radial_least_sq_last alpha:", alpha, f"count-min:{COUNT_MIN}")
     if not cfg.DO_ACT:
         return final_vel
 
@@ -999,7 +999,7 @@ def unfolding_3D(
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
 
     if cfg.SHOW_PROGRESS:
-        print("unfolding_3d alpha:{alpha} win-azi:{window_azi} win-bin:{window_range}")
+        print("unfolding_3d alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_range}")
     if not cfg.DO_ACT:
         return velocity_slice, flag_slice, None, None
 
@@ -1105,7 +1105,7 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     """
 
     if cfg.SHOW_PROGRESS:
-        print("check_box alpha:{alpha} win-azi:{window_azimuth} win-bin:{window_range}")
+        print("check_box alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
 
     def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size, positive_only=True):
         """

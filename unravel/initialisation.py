@@ -110,7 +110,7 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, 
     azipos[nazi:] = np.arange(nazi)
 
     if cfg.SHOW_PROGRESS:
-        print("init-clock alpha:{delta_vmax / vnyquist} radial:{azi_start_pos}")
+        print("init-clock alpha:", delta_vmax / vnyquist, f"radial:{azi_start_pos}")
     if not cfg.DO_ACT:
         return final_vel, vflag
 
@@ -195,7 +195,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     alpha = 0.4 # for unfolding in take_decision()
 
     if cfg.SHOW_PROGRESS:
-        print("init-unfold-radial alpha:{alpha} radials:{azi_start_pos} {azi_end_pos}")
+        print("init-unfold-radial alpha:", alpha, f"radials:{azi_start_pos} {azi_end_pos}")
     if not cfg.DO_ACT:
         return vel, flag_vel
 

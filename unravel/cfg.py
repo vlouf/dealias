@@ -1,6 +1,7 @@
 # python3
 
-# NB: labelled stages only valid for strategy "default"
+# NB: labelled stages/numbering only valid for strategy "default"
+# cf: labelled stages in cent/config/unravel-test.toml
 _STAGE_MAP = {
     1 : "unravel-0a-mad", # as 1
     #1 : "unravel-0b-find", # read-only
@@ -34,36 +35,45 @@ class cfg:
     def _init_impl(self):
         """Singleton init.
 
-        show_progress: when True, each stage, along with some of the crucial
+        (test/debug settings)
+
+        show_progress: when True, log each stage, along with some of the crucial
         settings (eg: alpha, window).
 
         do_act: when False, avoid most stages' expensive calcuations.  Use with
         `show_progess` to show which stages are run with which settings.
 
-        short_circuit: when False, do not skip stages when the check_completed()
-        test is done.
-
-        post_box_check: when True, call box_check() after unfolding_3D() (like
-        in unravel_3d_pyart_multiproc())
+        short_circuit: when False, ignore check_completed() short-circuit -- run
+        all stages.
 
         max_stage: when not 0, skip stages after max_stage is reached in
         stage_check()
 
+        (behavioural settings)
+
+        post_box_check: when True, call box_check() after unfolding_3D() (like
+        in unravel_3d_pyart_multiproc())
+
+
         """
         # cfg settings
 
+        # - test/debug -
         self.do_act = True
         self.show_progress = False
         self.short_circuit = True
-        self.post_box_check = False
         self.max_stage = 0
+
+        # - behaviour -
+        self.post_box_check = False
+
         # progress
         self.cur_stage = 0
 
     # NB: we require some global state for numba @jit(nopython=True) stages
     #
-    # NB: SHOW_PROGRESS within numba jit "format spec in f-strings not supported yet"
-    # (nor .format nor %-format)
+    # NB: SHOW_PROGRESS within numba jit: f-string floats unsupported,
+    # "format spec in f-strings not supported yet" (nor in .format nor %-format)
     def update_globals(self):
         """Write globals from singleton state."""
         global DO_ACT

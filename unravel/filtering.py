@@ -120,7 +120,7 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     delta_vmax = vnyquist * alpha;
 
     if cfg.SHOW_PROGRESS:       # nopython cfg().show_progress
-        print(f"filter_data MAD alpha:{alpha}")
+        print("filter_data MAD alpha:", alpha)
     if not cfg.DO_ACT:          # nopython cfg().do_act
         return velocity, vflag
 

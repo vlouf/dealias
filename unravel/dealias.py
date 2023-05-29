@@ -590,6 +590,10 @@ def unravel_3D_pyodim_slice(
     elevation_slice = ds_sweep["elevation"].values[0]
     nyquist_velocity = ds_sweep.attrs["NI"]
 
+    if cfg().show_progress:
+        tilt_id = ds_sweep.attrs["id"]
+        print(f"tilt (ref): {tilt_id} {elevation_slice:.1f} nv:{nyquist_velocity:.2f}")
+
     # TODO: pass alpha
     if strategy == "default":
         final_vel, flag_vel = dealiasing_process_2D(
@@ -598,7 +602,7 @@ def unravel_3D_pyodim_slice(
         final_vel, flag_vel = dealias_long_range(
             r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
 
-    if ds_ref:
+    if cfg().stage_check() and ds_ref:
 
         r_reference = ds_ref.range.values
         azimuth_reference = ds_ref.azimuth.values

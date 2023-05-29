@@ -625,6 +625,11 @@ def unravel_3D_pyodim_slice(
             nyquist_velocity,
         )
 
+    # cf unravel_3d_pyart_multiproc()
+    if cfg().stage_check() and cfg().post_box_check:
+        final_vel, flag_vel = continuity.box_check(
+            final_vel, flag_vel, nyquist_velocity, 20)
+
     # write results back to dataset
     ds_sweep = ds_sweep.merge(
         { output_vel_name: (("azimuth", "range"), final_vel) })

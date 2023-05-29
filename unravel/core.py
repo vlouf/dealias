@@ -19,7 +19,7 @@ from . import continuity
 from . import filtering
 from . import initialisation
 from . import find_reference
-
+from .cfg import cfg
 
 class Dealias:
     """
@@ -68,7 +68,15 @@ class Dealias:
 
     def check_completed(self):
         """Check if there are still gates to process"""
-        return (self.flag == 0).sum() <= 10
+        COMPLETED_THRESH = 10
+
+        if not cfg().short_circuit:
+            return False
+
+        flag_sum = (self.flag == 0).sum()
+        if cfg().show_progress:
+            print(f"to-process: {flag_sum}")
+        return flag_sum <= COMPLETED_THRESH
 
     def initialize(self):
         """Initialize the dealiasing by filtering the data, finding the radials

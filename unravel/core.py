@@ -81,20 +81,35 @@ class Dealias:
     def initialize(self):
         """Initialize the dealiasing by filtering the data, finding the radials
         of reference and executer the first pass."""
+
+        # stage 0 (MAD filter)
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
+
+        # stage 1 (find radials)
         start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
         azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))
         azi_end_pos = np.argmin(np.abs(self.azimuth - end_beam))
-        dealias_vel, flag_vel = initialisation.initialize_unfolding(
-            azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
-        )
+
+        # earlier stages are unchecked; initialise stage
+        cfg().cur_stage = 1
+
+        # stage 2 (init radial)
+        if cfg().stage_check():
+            dealias_vel, flag_vel = initialisation.initialize_unfolding(
+                azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
+            )
         vel = self.velocity.copy()
         vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
-        dealias_vel, flag_vel = initialisation.first_pass(
-            azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
-        )
+
+        # stage 3 (init clock)
+        if cfg().stage_check():
+            dealias_vel, flag_vel = initialisation.first_pass(
+                azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
+            )
+
+        # keep final values
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
         self.azi_start_pos = azi_start_pos

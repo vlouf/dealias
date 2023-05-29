@@ -20,7 +20,7 @@ import numpy as np
 from . import continuity
 from . import filtering
 from .core import Dealias
-
+from .odim import write_odim_slice
 
 def _check_nyquist(radar, nyquist_velocity):
     """
@@ -475,6 +475,7 @@ def unravel_3D_pyodim(
     gatefilter=None,
     strategy="long_range",
     debug=False,
+    readwrite=False,
     output_flag_name=None,
 ):
     """
@@ -498,6 +499,7 @@ def unravel_3D_pyodim(
         Feature not supported yet.
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
+    readwrite: write back to original file if True
 
     Returns:
     ========
@@ -518,10 +520,16 @@ def unravel_3D_pyodim(
     import pyodim
 
     if load_all_fields:
-        radar_datasets = pyodim.read_odim(odim_file)
+        (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite)
     else:
-        radar_datasets = pyodim.read_odim(odim_file, include_fields=[vel_name])
+        (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
+
+    # don't re-run on same file
+    data_count = radar_datasets[0].attrs["data_count"]
+    ld_quant = h5file[f"dataset1/data{data_count}/what"].attrs["quantity"].decode()
+    if ld_quant == output_vel_name or ld_quant == output_flag_name:
+        raise RuntimeError(f"{ld_quant} already in data")
 
     # Looking for low-elevation sweep with the highest Nyquist velocity to use
     # as reference.
@@ -558,6 +566,16 @@ def unravel_3D_pyodim(
             strategy,
             output_vel_name,
             output_flag_name)
+
+    if readwrite:
+        for sweep in range(len(radar_datasets)):
+            write_odim_slice(
+                h5file,
+                radar_datasets[sweep],
+                vel_name,
+                output_vel_name,
+                output_flag_name,
+            )
 
     return radar_datasets
 
@@ -610,6 +628,7 @@ def unravel_3D_pyodim_slice(
 
     # write results back to dataset
     ds_sweep = ds_sweep.merge(
-        { output_vel_name: (("azimuth", "range"), final_vel) })
+        { output_vel_name: (("azimuth", "range"), final_vel),
+          output_flag_name: (("azimuth", "range"), flag_vel) })
 
     return ds_sweep

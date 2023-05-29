@@ -35,6 +35,9 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     least_square_radial_last_module
     unfolding_3D
 """
+
+from . import cfg
+
 import numpy as np
 
 try:
@@ -260,6 +263,11 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     elif flag_threshold > 10:
         flag_threshold = 10
 
+    if cfg.SHOW_PROGRESS:
+        print("correct_clockwise alpha:{alpha} win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     # the number 3 is because we use the previous 3 radials as reference.
     for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
@@ -348,6 +356,11 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     elif flag_threshold > 10:
         flag_threshold = 10
 
+    if cfg.SHOW_PROGRESS:
+        print("correct_counterclockwise alpha:{alpha} win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in myquadrant:
         for ngate in range(0, maxgate):
             # Check if already unfolded
@@ -424,6 +437,11 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
     elif flag_threshold > 10:
         flag_threshold = 10
 
+    if cfg.SHOW_PROGRESS:
+        print("correct_range_onward alpha:{alpha} win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
@@ -490,6 +508,11 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
         flag_threshold = 1
     elif flag_threshold > 10:
         flag_threshold = 10
+
+    if cfg.SHOW_PROGRESS:
+        print("correct_range_backward alpha:{alpha} win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
 
     for nbeam in range(vel.shape[0]):
         start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
@@ -559,6 +582,12 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
+
+    if cfg.SHOW_PROGRESS:
+        print("correct_linear_interp (extrapolate) alpha:{alpha} window:{r_step}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in range(maxazi):
         if not np.any((flag_vel[nbeam, r_step:] == 0)):
             # There is nothing left to process for this azimuth.
@@ -637,6 +666,11 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     window_gate = 40
     maxazi, maxrange = final_vel.shape
 
+    if cfg.SHOW_PROGRESS:
+        print("correct_closest alpha:{alpha} win-azi:{window_azi} win-bin:{window_gate}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in range(maxazi):
         posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
@@ -713,6 +747,11 @@ def correct_box(
     else:
         azi_window_offset = window_azimuth // 2
 
+    if cfg.SHOW_PROGRESS:
+        print("correct_box alpha:{alpha} win-azi:{window_azimuth} win-bin:{window_range}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     maxazi, maxrange = final_vel.shape
     for nbeam in np.arange(maxazi - 1, -1, -1):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -788,10 +827,17 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     maxazi, maxrange = final_vel.shape
     velbeam_arr = np.zeros(maxrange, dtype=float64)
 
+    COUNT_MIN = 2
+
+    if cfg.SHOW_PROGRESS:
+        print("radial_least_sq alpha:{alpha} count-min:{COUNT_MIN}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
         velbeam_arr[flag_vel[nbeam, :] <= 0] = np.NaN
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < 2:
+        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
             continue
 
         slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])
@@ -835,9 +881,16 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     maxazi, maxrange = final_vel.shape
     velbeam_arr = np.zeros(maxrange, dtype=float64)
 
+    COUNT_MIN = 10
+
+    if cfg.SHOW_PROGRESS:
+        print("radial_least_sq_last alpha:{alpha} count-min:{COUNT_MIN}")
+    if not cfg.DO_ACT:
+        return final_vel
+
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < 10:
+        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
             continue
 
         slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])
@@ -940,6 +993,11 @@ def unfolding_3D(
     gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
 
+    if cfg.SHOW_PROGRESS:
+        print("unfolding_3d alpha:{alpha} win-azi:{window_azi} win-bin:{window_range}")
+    if not cfg.DO_ACT:
+        return velocity_slice, flag_slice, None, None
+
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
             if flag_slice[nbeam, ngate] == -3:
@@ -1040,6 +1098,9 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     flag_vel: ndarray int <azimuth, range>
         Flag array NEW value: 3->had to be corrected.
     """
+
+    if cfg.SHOW_PROGRESS:
+        print("check_box alpha:{alpha} win-azi:{window_azimuth} win-bin:{window_range}")
 
     def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size, positive_only=True):
         """

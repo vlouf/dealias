@@ -13,6 +13,8 @@ Module 1: Finding reference.
     get_quadrant
 """
 
+from .cfg import cfg
+
 # Other Libraries
 import numpy as np
 
@@ -69,6 +71,9 @@ def find_reference_radials(azimuth, velocity):
         opposition -= 360
 
     end_beam = nb[np.argmin(np.abs(nb - opposition))]
+
+    if cfg().show_progress:
+        print(f"find_reference_radials radials:{start_beam:.1f} {end_beam:.1f}")
 
     return start_beam, end_beam
 

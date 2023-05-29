@@ -14,6 +14,9 @@ Module initialize the unfolding.
     first_pass
     initialize_unfolding
 """
+
+from . import cfg
+
 # Other Libraries
 import numpy as np
 
@@ -106,6 +109,11 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, 
     azipos[:nazi] = np.arange(nazi)
     azipos[nazi:] = np.arange(nazi)
 
+    if cfg.SHOW_PROGRESS:
+        print("init-clock alpha:{delta_vmax / vnyquist} radial:{azi_start_pos}")
+    if not cfg.DO_ACT:
+        return final_vel, vflag
+
     for mypass in range(2):
         if mypass == 1:
             velocity = flipud(velocity)
@@ -184,6 +192,13 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     iter_radials_init = np.array([azi_start_pos - 1, azi_start_pos, azi_start_pos + 1])
     iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
 
+    alpha = 0.4 # for unfolding in take_decision()
+
+    if cfg.SHOW_PROGRESS:
+        print("init-unfold-radial alpha:{alpha} radials:{azi_start_pos} {azi_end_pos}")
+    if not cfg.DO_ACT:
+        return vel, flag_vel
+
     for iter_radials in [iter_radials_init, iter_radials_last]:
         iter_radials[iter_radials >= maxazi] -= maxazi
         iter_radials[iter_radials < 0] += maxazi
@@ -199,7 +214,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
             for ngate in range(3, len(myvel) - 3):
                 velref0 = np.nanmedian(myvel[ngate - 3 : ngate])
                 velref1 = np.nanmedian(myvel[ngate + 1 : ngate + 4])
-                decision = take_decision(velref0, velref1, vnyq, alpha=0.4)
+                decision = take_decision(velref0, velref1, vnyq, alpha=alpha)
                 if decision != 1:
                     continue
 
@@ -210,7 +225,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
                 else:
                     velref = (velref0 + velref1) / 2
 
-                decision = take_decision(velref, myvel[ngate], vnyq, alpha=0.4)
+                decision = take_decision(velref, myvel[ngate], vnyq, alpha=alpha)
                 if decision == 0:
                     continue
                 elif decision == 1:
@@ -218,7 +233,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
                     flag_vel[pos_good, ngate] = 1
                 elif decision == 2:
                     vtrue = unfold(velref, myvel[ngate], vnyq)
-                    if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+                    if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                         final_vel[pos_good, ngate] = vtrue
                         flag_vel[pos_good, ngate] = 2
 
@@ -232,7 +247,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
 
                     velref0 = np.nanmedian(myvel[ngate - 3 : ngate])
                     velref1 = np.nanmedian(myvel[ngate + 1 : ngate + 4])
-                    decision = take_decision(velref0, velref1, vnyq, alpha=0.4)
+                    decision = take_decision(velref0, velref1, vnyq, alpha=alpha)
                     if decision != 1:
                         continue
 
@@ -243,7 +258,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
                     else:
                         velref = (velref0 + velref1) / 2
 
-                    decision = take_decision(velref, myvel[ngate], vnyq, alpha=0.4)
+                    decision = take_decision(velref, myvel[ngate], vnyq, alpha=alpha)
                     if decision == 0:
                         continue
                     elif decision == 1:

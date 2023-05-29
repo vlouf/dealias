@@ -5,3 +5,4 @@ from .dealias import (
     dealiasing_process_2D,
     unravel_3D_pyart_multiproc,
 )
+from .cfg import cfg

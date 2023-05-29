@@ -13,6 +13,9 @@ Codes for creating and manipulating gate filters.
     unfold
     filter_data
 """
+
+from . import cfg
+
 # Other Libraries
 import numpy as np
 
@@ -115,6 +118,11 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
     delta_vmax = vnyquist * alpha;
+
+    if cfg.SHOW_PROGRESS:       # nopython cfg().show_progress
+        print(f"filter_data MAD alpha:{alpha}")
+    if not cfg.DO_ACT:          # nopython cfg().do_act
+        return velocity, vflag
 
     for j in range(0, nrays):
         for n in range(0, ngate):

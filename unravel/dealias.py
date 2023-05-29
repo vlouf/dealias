@@ -475,7 +475,7 @@ def unravel_3D_pyodim(
     gatefilter=None,
     strategy="long_range",
     debug=False,
-    **kwargs,
+    output_flag_name=None,
 ):
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -529,90 +529,71 @@ def unravel_3D_pyodim(
     nyquists = [r.attrs["NI"] for r in radar_datasets]
     nslice_ref = np.argmax(nyquists[: len(elev_angles) // 2])
 
-    r_reference = radar_datasets[nslice_ref].range.values
-    azimuth_reference = radar_datasets[nslice_ref].azimuth.values
-    velocity_reference = radar_datasets[nslice_ref][vel_name].values
-    elevation_reference = radar_datasets[nslice_ref]["elevation"].values[0]
-    nyquist_velocity = radar_datasets[nslice_ref].attrs["NI"]
-
     # Dealiasing first sweep.
-    if strategy == "default":
-        final_vel, flag_vel = dealiasing_process_2D(
-            r_reference, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, **kwargs
-        )
-    else:
-        final_vel, flag_vel = dealias_long_range(
-            r_reference, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, **kwargs
-        )
-    velocity_reference, flag_reference = final_vel.copy(), flag_vel.copy()
-    radar_datasets[nslice_ref] = radar_datasets[nslice_ref].merge(
-        {output_vel_name: (("azimuth", "range"), velocity_reference)}
-    )
+    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(
+        radar_datasets[nslice_ref],
+        None,                   # no reference
+        vel_name,
+        strategy,
+        output_vel_name,
+        output_flag_name)
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:
         for sweep in np.arange(nslice_ref)[::-1]:
-            r_slice = radar_datasets[sweep].range.values
-            azimuth_slice = radar_datasets[sweep].azimuth.values
-            velocity_slice = radar_datasets[sweep][vel_name].values
-            elevation_slice = radar_datasets[sweep]["elevation"].values[0]
-            nyquist_velocity = radar_datasets[sweep].attrs["NI"]
-
-            if strategy == "default":
-                final_vel, flag_vel = dealiasing_process_2D(
-                    r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs
-                )
-            else:
-                final_vel, flag_vel = dealias_long_range(
-                    r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs
-                )
-
-            final_vel, flag_slice, _, _ = continuity.unfolding_3D(
-                r_reference,
-                azimuth_reference,
-                elevation_reference,
-                velocity_reference,
-                flag_reference,
-                r_slice,
-                azimuth_slice,
-                elevation_slice,
-                final_vel,
-                flag_vel,
-                velocity_slice,
-                nyquist_velocity,
-            )
-
-            azimuth_reference = azimuth_slice.copy()
-            velocity_reference = final_vel.copy()
-            flag_reference = flag_vel.copy()
-            elevation_reference = elevation_slice
-            r_reference = r_slice
-
-            radar_datasets[sweep] = radar_datasets[sweep].merge({output_vel_name: (("azimuth", "range"), final_vel)})
-
-        r_reference = radar_datasets[nslice_ref].range.values
-        azimuth_reference = radar_datasets[nslice_ref].azimuth.values
-        velocity_reference = radar_datasets[nslice_ref][output_vel_name].values
-        elevation_reference = radar_datasets[nslice_ref]["elevation"].values[0]
+            radar_datasets[sweep] = unravel_3D_pyodim_slice(
+                radar_datasets[sweep],
+                radar_datasets[sweep + 1],
+                vel_name,
+                strategy,
+                output_vel_name,
+                output_flag_name)
 
     # Processing sweeps by increasing elevations from the nslice_ref sweeps
     for sweep in range(nslice_ref + 1, len(radar_datasets)):
-        r_slice = radar_datasets[sweep].range.values
-        azimuth_slice = radar_datasets[sweep].azimuth.values
-        velocity_slice = radar_datasets[sweep][vel_name].values
-        elevation_slice = radar_datasets[sweep]["elevation"].values[0]
-        nyquist_velocity = radar_datasets[sweep].attrs["NI"]
+        radar_datasets[sweep] = unravel_3D_pyodim_slice(
+            radar_datasets[sweep],
+            radar_datasets[sweep - 1],
+            vel_name,
+            strategy,
+            output_vel_name,
+            output_flag_name)
 
-        if strategy == "default":
-            final_vel, flag_vel = dealiasing_process_2D(
-                r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs
-            )
-        else:
-            final_vel, flag_vel = dealias_long_range(
-                r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs
-            )
+    return radar_datasets
 
-        final_vel, flag_slice, _, _ = continuity.unfolding_3D(
+
+def unravel_3D_pyodim_slice(
+        ds_sweep,
+        ds_ref,
+        vel_name,
+        strategy,
+        output_vel_name,
+        output_flag_name):
+    """Process one slice/sweep/tilt of ODIM polar radar volume."""
+
+    r_slice = ds_sweep.range.values
+    azimuth_slice = ds_sweep.azimuth.values
+    velocity_slice = ds_sweep[vel_name].values
+    elevation_slice = ds_sweep["elevation"].values[0]
+    nyquist_velocity = ds_sweep.attrs["NI"]
+
+    # TODO: pass alpha
+    if strategy == "default":
+        final_vel, flag_vel = dealiasing_process_2D(
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
+    else:
+        final_vel, flag_vel = dealias_long_range(
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
+
+    if ds_ref:
+
+        r_reference = ds_ref.range.values
+        azimuth_reference = ds_ref.azimuth.values
+        elevation_reference = ds_ref["elevation"].values[0]
+        velocity_reference = ds_ref[output_vel_name].values
+        flag_reference = ds_ref[output_flag_name].values
+
+        final_vel, flag_vel, _, _ = continuity.unfolding_3D(
             r_reference,
             azimuth_reference,
             elevation_reference,
@@ -627,12 +608,8 @@ def unravel_3D_pyodim(
             nyquist_velocity,
         )
 
-        azimuth_reference = azimuth_slice.copy()
-        velocity_reference = final_vel.copy()
-        flag_reference = flag_vel.copy()
-        elevation_reference = elevation_slice
-        r_reference = r_slice
+    # write results back to dataset
+    ds_sweep = ds_sweep.merge(
+        { output_vel_name: (("azimuth", "range"), final_vel) })
 
-        radar_datasets[sweep] = radar_datasets[sweep].merge({output_vel_name: (("azimuth", "range"), final_vel)})
-
-    return radar_datasets
+    return ds_sweep

@@ -36,8 +36,14 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     unfolding_3D
 """
 import numpy as np
-from numba import jit, jit_module, int64, float64
 
+try:
+    from numba import jit, jit_module, int64, float64
+    HAVE_NUMBA = True
+except Exception as e:
+    print("numba import failed")
+    HAVE_NUMBA = False
+    float64 = float
 
 def linregress(x, y):
     """
@@ -1007,7 +1013,8 @@ def _box_check_v2(refvel, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-jit_module(nopython=True, error_model="numpy")
+if HAVE_NUMBA:
+    jit_module(nopython=True, error_model="numpy")
 
 
 def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8):

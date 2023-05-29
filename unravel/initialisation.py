@@ -17,8 +17,14 @@ Module initialize the unfolding.
 # Other Libraries
 import numpy as np
 
-from numba import jit, jit_module
-from numba import uint32, int64, float64
+try:
+    from numba import jit, jit_module
+    from numba import uint32, int64, float64
+    HAVE_NUMBA = True
+except Exception as e:
+    HAVE_NUMBA = False
+    float64 = float
+    uint32 = int
 
 # Custom
 from .continuity import take_decision, unfold, is_good_velocity
@@ -245,10 +251,11 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
                         flag_vel[pos_good, ngate] = 1
                     elif decision == 2:
                         vtrue = unfold(velref, myvel[ngate], vnyq)
-                        if is_good_velocity(velref, vtrue, vnyq, alpha=0.4):
+                        if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                             final_vel[pos_good, ngate] = vtrue
                             flag_vel[pos_good, ngate] = 2
 
     return final_vel, flag_vel
 
-jit_module(nopython=True, error_model="numpy")
+if HAVE_NUMBA:
+    jit_module(nopython=True, error_model="numpy")

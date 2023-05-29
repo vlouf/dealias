@@ -15,8 +15,19 @@ Codes for creating and manipulating gate filters.
 """
 # Other Libraries
 import numpy as np
-from numba import jit
 
+try: # if False: # try:
+    from numba import jit
+    HAVE_NUMBA = True
+except Exception as e: # else:
+    print("numba import failed")
+    def jit(*args, **kwargs):
+        def _jit(func):
+            return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return _jit
+    HAVE_NUMBA = False
 
 def do_gatefilter(radar, dbz_name: str):
     """

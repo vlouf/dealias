@@ -190,7 +190,10 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     final_vel = np.zeros(vel.shape, dtype=float64)
 
     iter_radials_init = np.array([azi_start_pos - 1, azi_start_pos, azi_start_pos + 1])
-    iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
+    iter_radial_list = [iter_radials_init]
+    if azi_end_pos != azi_start_pos:
+        iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
+        iter_radial_list.append(iter_radials_last)
 
     alpha = 0.4 # for unfolding in take_decision()
 
@@ -199,7 +202,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     if not cfg.DO_ACT:
         return vel, flag_vel
 
-    for iter_radials in [iter_radials_init, iter_radials_last]:
+    for iter_radials in iter_radial_list:
         iter_radials[iter_radials >= maxazi] -= maxazi
         iter_radials[iter_radials < 0] += maxazi
 

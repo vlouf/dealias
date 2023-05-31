@@ -99,6 +99,7 @@ def find_reference_radials(velocity):
     if cfg().show_progress:
         print(f"find_reference_radials radials:{start_beam} {end_beam}")
 
+    # NB: maybe end_beam == start_beam
     return start_beam, end_beam
 
 

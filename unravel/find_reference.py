@@ -19,7 +19,7 @@ from .cfg import cfg
 import numpy as np
 
 
-def find_reference_radials(azimuth, velocity):
+def find_reference_radials(velocity):
     """
     A beam is valid if it contains at least 10 valid gates (not NaN).
     We seek beams that contain the most valid gate, defined by being
@@ -28,8 +28,6 @@ def find_reference_radials(azimuth, velocity):
 
     Parameters:
     ===========
-    azimuth: ndarray
-        Azimuth array.
     velocity: ndarray
         Velocity field.
 
@@ -50,7 +48,9 @@ def find_reference_radials(azimuth, velocity):
     def circular_diff(a, b, mod=360.0):
         return (mod / 2) - abs(abs(a - b) - (mod / 2))
 
-    azi2idx = lambda azi: np.argmin(np.abs(azimuth - azi))
+    # create azimuth indices
+    azi_count = velocity.shape[0]
+    azimuth = np.r_[0:azi_count]
 
     nvalid_gate = np.sum(~np.isnan(velocity), axis=1)
     nvalid_gate[nvalid_gate < 10] = 0
@@ -72,13 +72,12 @@ def find_reference_radials(azimuth, velocity):
     # find other beam
 
     SECTOR_COUNT = 4
-    SECTOR_DEGREES = 360.0 / SECTOR_COUNT
 
     # put start_beam in centre of a sector
-    azi0 = start_beam + (360.0 / (2 * SECTOR_COUNT))
-    sector_edge = lambda sector: (azi0 + (sector * SECTOR_DEGREES)) % 360.0
+    azi0 = (start_beam + (azi_count / (2 * SECTOR_COUNT))) % azi_count
+    sector_edge = lambda sector: (azi0 + (sector * azi_count) / SECTOR_COUNT) % azi_count
 
-    nb = np.zeros((SECTOR_COUNT,))
+    nb = np.zeros((SECTOR_COUNT,), int)
     for i in range(SECTOR_COUNT):
         sector_start = sector_edge(i)
         sector_end = sector_edge(i + 1)
@@ -98,9 +97,9 @@ def find_reference_radials(azimuth, velocity):
     end_beam = nb[np.argmax(start_diff_vec(nb))]
 
     if cfg().show_progress:
-        print(f"find_reference_radials radials:{radial0}({start_beam:.1f}) {radial1}({end_beam:.1f})")
+        print(f"find_reference_radials radials:{start_beam} {end_beam}")
 
-    return radial0, radial1
+    return start_beam, end_beam
 
 
 def get_quadrant(azimuth, azi_start_pos, azi_end_pos):

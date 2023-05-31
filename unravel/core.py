@@ -93,7 +93,7 @@ class Dealias:
 
         # stage 1 (find radials)
         azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
-            self.azimuth, self.velocity)
+            self.velocity)
 
         # earlier stages are unchecked; initialise stage
         cfg().cur_stage = 1

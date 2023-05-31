@@ -44,6 +44,12 @@ def find_reference_radials(azimuth, velocity):
     def find_min_quadrant(azi, vel, nvalid_gate_qd, nsum_moy):
         return azi[nvalid_gate_qd >= nsum_moy][np.argmin(np.nanmean(np.abs(vel), axis=1)[nvalid_gate_qd >= nsum_moy])]
 
+    # called as circular_diff(a, b, 360) gives the positive difference between
+    # two angles (in degrees).  cribbed from
+    # https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference
+    def circular_diff(a, b, mod=360.0):
+        return (mod / 2) - abs(abs(a - b) - (mod / 2))
+
     nvalid_gate = np.sum(~np.isnan(velocity), axis=1)
     nvalid_gate[nvalid_gate < 10] = 0
     nsum_tot = np.sum(~np.isnan(velocity[nvalid_gate > 0, :]))
@@ -83,13 +89,11 @@ def find_reference_radials(azimuth, velocity):
         try:
             nb[i] = find_min_quadrant(azimuth[pos], velocity[pos, :], nvalid_gate[pos], nsum_moy)
         except ValueError:
-            nb[i] = 9999
+            nb[i] = start_beam # the worst we can do
 
-    opposition = start_beam + 180
-    if opposition >= 360:
-        opposition -= 360
-
-    end_beam = nb[np.argmin(np.abs(nb - opposition))]
+    start_diff = lambda a: circular_diff(start_beam, a)
+    start_diff_vec = np.vectorize(start_diff)
+    end_beam = nb[np.argmax(start_diff_vec(nb))]
 
     if cfg().show_progress:
         print(f"find_reference_radials radials:{start_beam:.1f} {end_beam:.1f}")

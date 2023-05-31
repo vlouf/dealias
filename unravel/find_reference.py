@@ -50,6 +50,8 @@ def find_reference_radials(azimuth, velocity):
     def circular_diff(a, b, mod=360.0):
         return (mod / 2) - abs(abs(a - b) - (mod / 2))
 
+    azi2idx = lambda azi: np.argmin(np.abs(azimuth - azi))
+
     nvalid_gate = np.sum(~np.isnan(velocity), axis=1)
     nvalid_gate[nvalid_gate < 10] = 0
     nsum_tot = np.sum(~np.isnan(velocity[nvalid_gate > 0, :]))
@@ -96,9 +98,9 @@ def find_reference_radials(azimuth, velocity):
     end_beam = nb[np.argmax(start_diff_vec(nb))]
 
     if cfg().show_progress:
-        print(f"find_reference_radials radials:{start_beam:.1f} {end_beam:.1f}")
+        print(f"find_reference_radials radials:{radial0}({start_beam:.1f}) {radial1}({end_beam:.1f})")
 
-    return start_beam, end_beam
+    return radial0, radial1
 
 
 def get_quadrant(azimuth, azi_start_pos, azi_end_pos):

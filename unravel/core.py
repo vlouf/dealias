@@ -92,9 +92,8 @@ class Dealias:
             self.check_completed()
 
         # stage 1 (find radials)
-        start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
-        azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))
-        azi_end_pos = np.argmin(np.abs(self.azimuth - end_beam))
+        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
+            self.azimuth, self.velocity)
 
         # earlier stages are unchecked; initialise stage
         cfg().cur_stage = 1

@@ -87,6 +87,10 @@ class Dealias:
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
 
+        if cfg().show_progress: # for feedback only
+            self.flag = flag_vel
+            self.check_completed()
+
         # stage 1 (find radials)
         start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
         azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))
@@ -114,6 +118,9 @@ class Dealias:
         self.flag = flag_vel
         self.azi_start_pos = azi_start_pos
         self.azi_end_pos = azi_end_pos
+
+        if cfg().show_progress: # for feedback only
+            self.check_completed()
 
     def correct_range(self, window_length=6, alpha=None):
         """

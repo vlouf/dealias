@@ -51,10 +51,15 @@ class cfg:
 
         (behavioural settings)
 
+        init_radial_no_zero: when True, don't zero untouched velocities in
+        init_radial aka initialize_unfolding()
+
+        init_radial_use_all: when True, use all updated velocities from
+        initialize_unfolding() as reference, not just those from the primary
+        radial.
+
         post_box_check: when True, call box_check() after unfolding_3D() (like
         in unravel_3d_pyart_multiproc())
-
-
         """
         # cfg settings
 
@@ -65,6 +70,8 @@ class cfg:
         self.max_stage = 0
 
         # - behaviour -
+        self.init_radial_no_zero = False
+        self.init_radial_use_all = False
         self.post_box_check = False
 
         # progress
@@ -76,10 +83,12 @@ class cfg:
     # "format spec in f-strings not supported yet" (nor in .format nor %-format)
     def update_globals(self):
         """Write globals from singleton state."""
-        global DO_ACT
         global SHOW_PROGRESS
-        DO_ACT = self.do_act
+        global DO_ACT
         SHOW_PROGRESS = self.show_progress
+        DO_ACT = self.do_act
+        global INIT_RADIAL_NO_ZERO
+        INIT_RADIAL_NO_ZERO = self.init_radial_no_zero
 
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
@@ -108,6 +117,8 @@ class cfg:
         print(" ".join([
             f"show_progress:{self.show_progress}",
             f"do_act:{self.do_act}",
-            f"post_box_check:{self.post_box_check}",
             f"short_circuit:{self.short_circuit}",
+            f"iradial_no_zero:{self.init_radial_no_zero}",
+            f"iradial_use_all:{self.init_radial_use_all}",
+            f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

@@ -187,7 +187,10 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     """
     # Initialize stuff.
     maxazi = vel.shape[0]
-    final_vel = np.zeros(vel.shape, dtype=float64)
+    if cfg.INIT_RADIAL_NO_ZERO:
+        final_vel = vel.copy()
+    else:
+        final_vel = np.zeros_like(vel)
 
     iter_radials_init = np.array([azi_start_pos - 1, azi_start_pos, azi_start_pos + 1])
     iter_radial_list = [iter_radials_init]

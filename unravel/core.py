@@ -83,6 +83,7 @@ class Dealias:
         of reference and executer the first pass."""
 
         # stage 0 (MAD filter)
+        # NB: filter_data() alters self.velocity, returns as dealias_vel
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
@@ -99,15 +100,25 @@ class Dealias:
         cfg().cur_stage = 1
 
         # stage 2 (init radial)
+        # NB: after initialize_unfolding() dealias_vel and self.velocity differ
         if cfg().stage_check():
             dealias_vel, flag_vel = initialisation.initialize_unfolding(
                 azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
             )
-        vel = self.velocity.copy()
-        vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
 
         # stage 3 (init clock)
         if cfg().stage_check():
+            if cfg().init_radial_use_all:
+                # use all of initialize_unfolding() output as reference
+                vel = dealias_vel.copy()
+            else:
+                # use just one radial from initialize_unfolding() as reference
+                vel = self.velocity.copy()
+                # NB/TODO/FIXME as first_pass() never reads or dealiases the
+                # vel[azi_start_pos] radial I think this has no effect -- we're
+                # essentially just using read-only velocity (V_MAD)
+                vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
+
             dealias_vel, flag_vel = initialisation.first_pass(
                 azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
             )

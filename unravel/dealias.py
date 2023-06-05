@@ -112,27 +112,27 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
         for window in [(5, 2), (20, 10), (40, 20)]:
             if cfg().stage_check():
                 dealias_2D.correct_box(window)
-            if dealias_2D.check_completed():
-                completed = "box"
-                break
+                if dealias_2D.check_completed():
+                    completed = "box"
+                    break
 
     if not completed:
         if cfg().stage_check():
             dealias_2D.correct_leastsquare()
-        if dealias_2D.check_completed():
-            completed = "square"
+            if dealias_2D.check_completed():
+                completed = "square"
 
     if not completed:
         if cfg().stage_check():
             dealias_2D.correct_linregress()
-        if dealias_2D.check_completed():
-            completed = "regression"
+            if dealias_2D.check_completed():
+                completed = "regression"
 
     if not completed:
         if cfg().stage_check():
             dealias_2D.correct_closest()
-        if dealias_2D.check_completed():
-            completed = "closest"
+            if dealias_2D.check_completed():
+                completed = "closest"
 
     # Checking modules.
     if cfg().stage_check():

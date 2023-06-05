@@ -101,23 +101,23 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, 
     if not cfg.DO_ACT:
         return final_vel, vflag
 
-    nazi, ngate = velocity.shape
-    azipos = np.zeros((2 * nazi), dtype=uint32)
-    azipos[:nazi] = np.arange(nazi)
-    azipos[nazi:] = np.arange(nazi)
+    num_azi, ngate = velocity.shape
+    azipos = np.zeros((2 * num_azi), dtype=uint32)
+    azipos[:num_azi] = np.arange(num_azi)
+    azipos[num_azi:] = np.arange(num_azi)
 
     for mypass in range(2):
         if mypass == 1:
             velocity = flipud(velocity)
             final_vel = flipud(final_vel)
             vflag = flipud(vflag)
-            azi_start_pos = nazi - azi_start_pos - 1
+            azi_start_pos = num_azi - azi_start_pos - 1
 
-        for j in range(azi_start_pos, azi_start_pos + nazi // 2):
+        for j in range(azi_start_pos, azi_start_pos + num_azi // 2):
             for n in range(ngate):
                 # Build slice for comparison
                 j_idx = np.arange(j + 1, j + nfilter + 1)
-                j_idx[j_idx >= nazi] -= nazi
+                j_idx[j_idx >= num_azi] -= num_azi
 
                 idx_selected = vflag[j_idx, n]
                 if np.all((idx_selected == -3)):

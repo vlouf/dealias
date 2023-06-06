@@ -431,6 +431,7 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
                 if ngate < window_len:
                     continue
 
+                # trailing reference window does not include current value
                 velref_vec = final_vel[nbeam, (ngate - window_len) : ngate]
                 flagvelref_vec = flag_vel[nbeam, (ngate - window_len) : ngate]
                 if np.sum(flagvelref_vec > 0) < flag_threshold:
@@ -503,8 +504,9 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
                     # Out of range.
                     continue
 
-                velref_vec = final_vel[nbeam, ngate : (ngate + window_len)]
-                flagvelref_vec = flag_vel[nbeam, ngate : (ngate + window_len)]
+                # trailing reference window does not include current value
+                velref_vec = final_vel[nbeam, ngate + 1 : ngate + window_len + 1]
+                flagvelref_vec = flag_vel[nbeam, ngate + 1 : ngate + window_len + 1]
                 if np.sum(flagvelref_vec > 0) < flag_threshold:
                     continue
 

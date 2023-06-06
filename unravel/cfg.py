@@ -72,6 +72,7 @@ class cfg:
         # - behaviour -
         self.init_radial_no_zero = False
         self.init_radial_use_all = False
+        self.correct_range_consistent = False
         self.post_box_check = False
 
         # progress
@@ -84,11 +85,16 @@ class cfg:
     def update_globals(self):
         """Write globals from singleton state."""
         global SHOW_PROGRESS
-        global DO_ACT
         SHOW_PROGRESS = self.show_progress
+
+        global DO_ACT
         DO_ACT = self.do_act
+
         global INIT_RADIAL_NO_ZERO
         INIT_RADIAL_NO_ZERO = self.init_radial_no_zero
+
+        global CORRECT_RANGE_CONSISTENT
+        CORRECT_RANGE_CONSISTENT = self.correct_range_consistent
 
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
@@ -120,5 +126,6 @@ class cfg:
             f"short_circuit:{self.short_circuit}",
             f"iradial_no_zero:{self.init_radial_no_zero}",
             f"iradial_use_all:{self.init_radial_use_all}",
+            f"range_consistent:{self.correct_range_consistent}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

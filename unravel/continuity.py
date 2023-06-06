@@ -515,12 +515,18 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
         return final_vel, flag_vel
 
     for nbeam in range(vel.shape[0]):
-        start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
-        if len(start_vec) == 0:
-            continue
+        if cfg.CORRECT_RANGE_CONSISTENT:
+            gate_range = np.arange(vel.shape[1] - 2, -1, -1)
+        else:
+            start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
+            if len(start_vec) == 0:
+                continue
 
-        start_gate = start_vec[-1]
-        for ngate in np.arange(start_gate - (window_len + 1), window_len, -1):
+            start_gate = start_vec[-1]
+            gate_range = np.arange(start_gate - (window_len + 1), window_len, -1)
+
+
+        for ngate in gate_range:
             if flag_vel[nbeam, ngate] != 0:
                 continue
 

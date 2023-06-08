@@ -21,9 +21,6 @@ VEL2_ENC_NODATA = 0
 VEL2_ENC_UNDETECT = 1
 VEL2_ENC_DTYPE = 'uint16'
 
-# NB: either 0.0 (truncate) or 0.5 (round)
-ROUNDING = 0.5
-
 def odim_str_type_id(text_bytes):
     """Generate ODIM-conformant string type ID."""
     # string type (h5py default is STRPAD STR_NULLPAD, ODIM spec is STRPAD STR_NULLTERM)
@@ -81,9 +78,9 @@ def write_odim_slice(
     # encode (reverse read transformation) and replace data array
     vel2_data = ds_sweep[output_vel_name].values
 
-    # NB: matching bom-core odim write_pack()
+    # NB: round() matching bom-core odim write_pack()
     vel2_encoded = np.ma.filled(
-        ROUNDING + (vel2_data - VEL2_ENC_OFFSET) / VEL2_ENC_GAIN, VEL2_ENC_NODATA)
+        np.round((vel2_data - VEL2_ENC_OFFSET) / VEL2_ENC_GAIN), VEL2_ENC_NODATA)
     # NB: as we use a different datatype we must recreate the dataset
     # NB: conversion from floating-point to discrete levels
     del vel2_h5["data"]
@@ -110,5 +107,5 @@ def write_odim_slice(
     flag_ma = np.ma.masked_equal(flag_data, FLAG_NODATA)
     # NB: matching bom-core odim write_pack()
     flag_encoded = np.ma.filled(
-        ROUNDING + (flag_ma - FLAG_ENC_OFFSET) / FLAG_ENC_GAIN, FLAG_ENC_NODATA)
+        np.round((flag_ma - FLAG_ENC_OFFSET) / FLAG_ENC_GAIN), FLAG_ENC_NODATA)
     flag_h5["data"][...] = flag_encoded

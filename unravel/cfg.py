@@ -73,6 +73,7 @@ class cfg:
         self.init_radial_no_zero = False
         self.init_radial_use_all = False
         self.correct_range_consistent = False
+        self.correct_clock_iter = False
         self.post_box_check = False
 
         # progress
@@ -95,6 +96,9 @@ class cfg:
 
         global CORRECT_RANGE_CONSISTENT
         CORRECT_RANGE_CONSISTENT = self.correct_range_consistent
+
+        global CORRECT_CLOCK_ITER
+        CORRECT_CLOCK_ITER = self.correct_clock_iter
 
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
@@ -127,5 +131,6 @@ class cfg:
             f"iradial_no_zero:{self.init_radial_no_zero}",
             f"iradial_use_all:{self.init_radial_use_all}",
             f"range_consistent:{self.correct_range_consistent}",
+            f"clock_iter:{self.correct_clock_iter}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

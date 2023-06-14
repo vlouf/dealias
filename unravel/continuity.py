@@ -216,6 +216,8 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     elif np.isnan(velocity_reference):
         return 0
     elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
+            abs(velocity_reference) > cfg.SIGN_COMPARE_EPSILON and
+            abs(velocity_to_check) > cfg.SIGN_COMPARE_EPSILON and
         np.sign(velocity_reference) == np.sign(velocity_to_check)
     ):
         return 1

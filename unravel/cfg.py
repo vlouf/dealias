@@ -58,8 +58,16 @@ class cfg:
         initialize_unfolding() as reference, not just those from the primary
         radial.
 
+        sign_compare_epsilon: ignore close-to-zero values in take_decision().
+
+        correct_range_consistent: consistency in correct_range forwards and
+        backwards.
+
+        correct_clock_iter: consistency in correct_clock forwards and backwards.
+
         post_box_check: when True, call box_check() after unfolding_3D() (like
         in unravel_3d_pyart_multiproc())
+
         """
         # cfg settings
 
@@ -72,6 +80,7 @@ class cfg:
         # - behaviour -
         self.init_radial_no_zero = False
         self.init_radial_use_all = False
+        self.sign_compare_epsilon = 0.0
         self.correct_range_consistent = False
         self.correct_clock_iter = False
         self.post_box_check = False
@@ -93,6 +102,9 @@ class cfg:
 
         global INIT_RADIAL_NO_ZERO
         INIT_RADIAL_NO_ZERO = self.init_radial_no_zero
+
+        global SIGN_COMPARE_EPSILON
+        SIGN_COMPARE_EPSILON = self.sign_compare_epsilon
 
         global CORRECT_RANGE_CONSISTENT
         CORRECT_RANGE_CONSISTENT = self.correct_range_consistent
@@ -130,6 +142,7 @@ class cfg:
             f"short_circuit:{self.short_circuit}",
             f"iradial_no_zero:{self.init_radial_no_zero}",
             f"iradial_use_all:{self.init_radial_use_all}",
+            f"sign_compare_eps:{self.sign_compare_epsilon}",
             f"range_consistent:{self.correct_range_consistent}",
             f"clock_iter:{self.correct_clock_iter}",
             f"post_box_check:{self.post_box_check}",

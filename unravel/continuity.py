@@ -782,8 +782,6 @@ def correct_box(
             for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
                 for nr in npos_range:
                     cnt += 1
-                    if (na, nr) == (nbeam, ngate):
-                        continue
                     vel_ref_vec[cnt] = final_vel[na, nr]
                     flag_ref_vec[cnt] = flag_vel[na, nr]
 

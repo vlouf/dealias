@@ -124,6 +124,14 @@ class cfg:
                 return
         raise Exception(f"unrecognised stage {stage}")
 
+    def mark_stage_done(self, stage):
+        """Mark stage completion using string."""
+        for (key, val) in _STAGE_MAP.items():
+            if stage == val:
+                self.cur_stage = key
+                return
+        raise Exception(f"unrecognised stage {stage}")
+
     def stage_check(self):
         """Check whether to run or skip current stage."""
         self.cur_stage += 1

@@ -134,6 +134,9 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
             if dealias_2D.check_completed():
                 completed = "closest"
 
+    # needed if completed earlier
+    cfg().mark_stage_done("unravel-2c-closest")
+
     # Checking modules.
     if cfg().stage_check():
         dealias_2D.check_leastsquare()

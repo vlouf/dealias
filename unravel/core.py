@@ -96,8 +96,8 @@ class Dealias:
         azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
             self.velocity)
 
-        # earlier stages are unchecked; initialise stage
-        cfg().cur_stage = 1
+        # earlier stages are unchecked; mark stage
+        cfg().mark_stage_done("unravel-0a-mad")
 
         # stage 2 (init radial)
         # NB: after initialize_unfolding() dealias_vel and self.velocity differ

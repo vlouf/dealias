@@ -847,11 +847,16 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
 
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
-        velbeam_arr[flag_vel[nbeam, :] <= 0] = np.NaN
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
+        if cfg.LEAST_SQ_NO_NAN:
+            is_processed_cond = flag_vel[nbeam, :] > 0
+        else:
+            velbeam_arr[flag_vel[nbeam, :] <= 0] = np.NaN
+            is_processed_cond = ~np.isnan(velbeam_arr)
+
+        if len(is_processed_cond) < COUNT_MIN:
             continue
 
-        slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])
+        slope, intercept = linregress(r[is_processed_cond], velbeam_arr[is_processed_cond])
 
         fmin = intercept + slope * r - 0.4 * vnyq
         fmax = intercept + slope * r + 0.4 * vnyq
@@ -873,8 +878,11 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
                 continue
 
             if decision == 1:
-                final_vel[nbeam, ngate] = myvel
-                flag_vel[nbeam, ngate] = 1
+                # if we haven't overwritten the already-processed values above,
+                # there's no need to update/overwrite
+                if not cfg.LEAST_SQ_NO_NAN:
+                    final_vel[nbeam, ngate] = myvel
+                    flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 myvel = vel[nbeam, ngate]
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)

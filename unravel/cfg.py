@@ -65,6 +65,9 @@ class cfg:
 
         correct_clock_iter: consistency in correct_clock forwards and backwards.
 
+        least_sq_no_nan: don't set unprocessed velocities to nans in
+        unravel_least_square aka radial_least_square_check
+
         post_box_check: when True, call box_check() after unfolding_3D() (like
         in unravel_3d_pyart_multiproc())
 
@@ -83,6 +86,7 @@ class cfg:
         self.sign_compare_epsilon = 0.0
         self.correct_range_consistent = False
         self.correct_clock_iter = False
+        self.least_sq_no_nan = False
         self.post_box_check = False
 
         # progress
@@ -111,6 +115,9 @@ class cfg:
 
         global CORRECT_CLOCK_ITER
         CORRECT_CLOCK_ITER = self.correct_clock_iter
+
+        global LEAST_SQ_NO_NAN
+        LEAST_SQ_NO_NAN = self.least_sq_no_nan
 
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
@@ -153,5 +160,6 @@ class cfg:
             f"sign_compare_eps:{self.sign_compare_epsilon}",
             f"range_consistent:{self.correct_range_consistent}",
             f"clock_iter:{self.correct_clock_iter}",
+            f"lsq_no_nan:{self.least_sq_no_nan}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

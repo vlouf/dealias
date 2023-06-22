@@ -597,6 +597,9 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
 
     return final_vel, flag_vel
 
+def circle_distance(a, b, circumference):
+    """Distance between azimuths a and b on a circle."""
+    return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
@@ -637,7 +640,8 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             vel1 = vel[nbeam, ngate]
 
-            distance = (posazi_good - nbeam) ** 2 + (posgate_good - ngate) ** 2
+            distance = (circle_distance(posazi_good, nbeam, maxazi) ** 2 +
+                        (posgate_good - ngate) ** 2)
             if len(distance) == 0:
                 continue
 

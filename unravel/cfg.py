@@ -87,12 +87,13 @@ class cfg:
         self.correct_range_consistent = False
         self.correct_clock_iter = False
         self.least_sq_no_nan = False
+        self.closest_no_delay = False
         self.post_box_check = False
 
         # progress
         self.cur_stage = 0
 
-    # NB: we require some global state for numba @jit(nopython=True) stages
+    # we require some global state for numba @jit(nopython=True) stages
     #
     # NB: SHOW_PROGRESS within numba jit: f-string floats unsupported,
     # "format spec in f-strings not supported yet" (nor in .format nor %-format)
@@ -118,6 +119,9 @@ class cfg:
 
         global LEAST_SQ_NO_NAN
         LEAST_SQ_NO_NAN = self.least_sq_no_nan
+
+        global CLOSEST_NO_DELAY
+        CLOSEST_NO_DELAY = self.closest_no_delay
 
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""

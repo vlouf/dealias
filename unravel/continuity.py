@@ -719,15 +719,24 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
+            processed = False
             if (decision == 1) or (decision == 0):
                 final_vel[nbeam, ngate] = vel1
                 flag_vel[nbeam, ngate] = 1
-                continue
+                processed = True
+
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
+                    processed = True
+
+            if processed and cfg.CLOSEST_NO_DELAY:
+                # add newly processed index to pos_good arrays
+                # (nopython disallows foo.append(bar))
+                posazi_good = np.append(posazi_good, [nbeam])
+                posgate_good = np.append(posgate_good, [ngate])
 
     return final_vel, flag_vel
 

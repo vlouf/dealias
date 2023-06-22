@@ -654,10 +654,11 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             # Numba doesn't support 2D slice, that's why I loop over things.
             pos = -1
+            npos_range_end = npos_range[-1] + 1
             for na in iter_azimuth(azimuth, nbeam_close - window_azi // 2, window_azi):
                 pos += 1
                 vel_ref_vec[pos] = np.nanmean(
-                    final_vel[na, npos_range[0] : npos_range[-1]][flag_vel[na, npos_range[0] : npos_range[-1]] > 0]
+                    final_vel[na, npos_range[0] : npos_range_end][flag_vel[na, npos_range[0] : npos_range_end] > 0]
                 )
             velref = np.nanmedian(vel_ref_vec)
 

@@ -7,18 +7,22 @@ import numpy as np
 FLAG_NODATA = -3
 
 # flag encoding matching `cent_chain.xml` settings
+#
+# NB: floats not ints
 FLAG_ENC_GAIN = 0.1
 FLAG_ENC_OFFSET = 0.0
-FLAG_ENC_NODATA = 255
+FLAG_ENC_NODATA = 255.0
 
 # dealiased velocity encoding matching `cent_chain.xml` settings
 #
 # NB: we must provide a new encoding and datatype for dealiased velocity as
 # the original encoding will often max out at one nyquist interval
+#
+# NB: floats not ints
 VEL2_ENC_GAIN = 0.025
 VEL2_ENC_OFFSET = -300.0
-VEL2_ENC_NODATA = 0
-VEL2_ENC_UNDETECT = 1
+VEL2_ENC_NODATA = 0.0
+VEL2_ENC_UNDETECT = 1.0
 VEL2_ENC_DTYPE = 'uint16'
 
 def odim_str_type_id(text_bytes):

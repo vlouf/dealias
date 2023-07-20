@@ -1127,13 +1127,15 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
         Adapted from:
         https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
         """
-        start = 1 - sub_window_size + 1
+        # centre window
+        start = -(window // 2)
+
         if positive_only and start < 0:
             start = 0
 
         sub_windows = (
             start
-            + np.expand_dims(np.arange(sub_window_size), 0)
+            + np.expand_dims(np.arange(window), 0)
             + np.expand_dims(np.arange(max_time + 1), 0).T
         )
 

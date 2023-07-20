@@ -1146,8 +1146,11 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
             + np.expand_dims(np.arange(count0), 0).T
         )
 
-        if sub_windows.max() >= count0:
-            sub_windows = (sub_windows + 1) % count0
+        # handle index overruns
+        if positive_only: # eg for range indices
+            pass
+        else: # wrap (eg for azi indices)
+            sub_windows = sub_windows % count0
 
         return array[sub_windows]
 

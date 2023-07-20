@@ -1147,6 +1147,15 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     if cfg.SHOW_PROGRESS:
         print("box_check (cross) alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
 
+    def reflect_idx(i, imax):
+        """Reflect index at index bounds."""
+        if i < 0:
+            return -1 - i
+        if i >= imax:
+            # equivalently: imax - 1 - (i % imax)
+            return 2 * imax - 1 - i
+        return i
+
     def _vectorized_stride(array, window, positive_only=True):
         """
         Adapted from:
@@ -1157,9 +1166,6 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
 
         # centre window
         start = -(window // 2)
-
-        if positive_only and start < 0:
-            start = 0
 
         # create permutation matrix of window indices
         # eg (-1 + [0, 1, 2]) + [0, 1, 2].T
@@ -1173,7 +1179,11 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
 
         # handle index overruns
         if positive_only: # eg for range indices
-            pass
+            # NB: we should really truncate the window at the edges, but as a
+            # compromise we reflect (and some values double-up)
+            flat = sub_windows.reshape(-1)
+            for i in range(flat.shape[0]):
+                flat[i] = reflect_idx(flat[i], count0)
         else: # wrap (eg for azi indices)
             sub_windows = sub_windows % count0
 

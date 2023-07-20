@@ -13,10 +13,10 @@ _STAGE_MAP = {
     12 : "unravel-2a-lsq",
     13 : "unravel-2b-extra",
     14 : "unravel-2c-closest",
-    15 : "unravel-3a-lsq",
-    16 : "unravel-3b-cbox",
-    17 : "unravel-4a-3d",
-    18 : "unravel-4b-cbox",
+    15 : "unravel-2d-lsq",
+    16 : "unravel-2e-cross",
+    17 : "unravel-3a-3d",
+    18 : "unravel-3b-cross",
 }
 
 class cfg:

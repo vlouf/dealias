@@ -1145,13 +1145,14 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     """
 
     if cfg.SHOW_PROGRESS:
-        print("check_box alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
+        print("box_check (cross) alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
 
-    def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size, positive_only=True):
+    def _vectorized_stride(array, max_time, sub_window_size, stride_size, positive_only=True):
         """
+        Adapted from:
         https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
         """
-        start = clearing_time_index + 1 - sub_window_size + 1
+        start = 1 - sub_window_size + 1
         if positive_only and start < 0:
             start = 0
 
@@ -1169,8 +1170,8 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
     vel_range = final_vel.copy()
     vel_azi = vel_range.copy().T
     
-    vectorized_azi = _vectorized_stride(vel_azi, 0, vel_azi.shape[0] - 2, window_azimuth, 1, positive_only=False)
-    vectorized_range = _vectorized_stride(vel_range, 0, vel_range.shape[0] - 2, window_range, 1)    
+    vectorized_azi = _vectorized_stride(vel_azi, vel_azi.shape[0] - 2, window_azimuth, 1, positive_only=False)
+    vectorized_range = _vectorized_stride(vel_range, vel_range.shape[0] - 2, window_range, 1)
 
     smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
     smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T

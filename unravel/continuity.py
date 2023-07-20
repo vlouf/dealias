@@ -1122,11 +1122,14 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
         Flag array NEW value: 3->had to be corrected.
     """
 
-    def _vectorized_stride(array, max_time, window, positive_only=True):
+    def _vectorized_stride(array, window, positive_only=True):
         """
         Adapted from:
         https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
         """
+        # bound for windowing index
+        count0 = array.shape[0]
+
         # centre window
         start = -(window // 2)
 
@@ -1136,19 +1139,19 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
         sub_windows = (
             start
             + np.expand_dims(np.arange(window), 0)
-            + np.expand_dims(np.arange(max_time + 1), 0).T
+            + np.expand_dims(np.arange(count0), 0).T
         )
 
-        if sub_windows.max() > max_time + 1:
-            sub_windows = (sub_windows + 1) % max_time
+        if sub_windows.max() >= count0:
+            sub_windows = (sub_windows + 1) % count0
 
         return array[sub_windows]
 
     vel_range = final_vel.copy()
     vel_azi = vel_range.copy().T
 
-    vectorized_azi = _vectorized_stride(vel_azi, vel_azi.shape[0] - 2, window_azimuth, positive_only=False)
-    vectorized_range = _vectorized_stride(vel_range, vel_range.shape[0] - 2, window_range)
+    vectorized_azi = _vectorized_stride(vel_azi, window_azimuth, positive_only=False)
+    vectorized_range = _vectorized_stride(vel_range, window_range)
 
     smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
     smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T

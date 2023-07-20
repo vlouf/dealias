@@ -907,7 +907,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     return final_vel, flag_vel
 
 
-def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
+def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Similar as radial_least_square_check.
     """
@@ -920,6 +920,9 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
         print("radial_least_sq_last alpha:", alpha, f"count-min:{COUNT_MIN}")
     if not cfg.DO_ACT:
         return final_vel
+
+    # NB: if we only set values provisionally (ie !cfg.LEAST_SQ_NOT_PROVISIONAL)
+    # they will NOT be checked by the next stage (box_check)
 
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
@@ -947,11 +950,15 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
                 continue
 
             if decision == 1:
-                final_vel[nbeam, ngate] = myvel
+                # final_vel is good (unchanged)
+                if cfg.LEAST_SQ_NOT_PROVISIONAL and flag_vel[nbeam, ngate] == 0:
+                    flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
+                    if cfg.LEAST_SQ_NOT_PROVISIONAL or flag_vel[nbeam, ngate] > 0:
+                        flag_vel[nbeam, ngate] = 2
 
     return final_vel
 

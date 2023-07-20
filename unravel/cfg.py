@@ -66,10 +66,14 @@ class cfg:
         correct_clock_iter: consistency in correct_clock forwards and backwards.
 
         least_sq_no_nan: don't set unprocessed velocities to nans in
-        unravel_least_square aka radial_least_square_check
+        unravel_least_square aka radial_least_square_check.
 
-        post_box_check: when True, call box_check() after unfolding_3D() (like
-        in unravel_3d_pyart_multiproc())
+        least_sq_not_provisional: don't make values set in
+        unravel_least_square(all) aka least_square_radial_last_module
+        provisional (ie do set flag).
+
+        post_box_check: when True, call box_check() (aka unravel_cross) after
+        unfolding_3D() (as in unravel_3d_pyart_multiproc())
 
         """
         # cfg settings
@@ -87,6 +91,7 @@ class cfg:
         self.correct_range_consistent = False
         self.correct_clock_iter = False
         self.least_sq_no_nan = False
+        self.least_sq_not_provisional = False
         self.closest_no_delay = False
         self.post_box_check = False
 
@@ -119,6 +124,9 @@ class cfg:
 
         global LEAST_SQ_NO_NAN
         LEAST_SQ_NO_NAN = self.least_sq_no_nan
+
+        global LEAST_SQ_NOT_PROVISIONAL
+        LEAST_SQ_NOT_PROVISIONAL = self.least_sq_not_provisional
 
         global CLOSEST_NO_DELAY
         CLOSEST_NO_DELAY = self.closest_no_delay
@@ -165,5 +173,6 @@ class cfg:
             f"range_consistent:{self.correct_range_consistent}",
             f"clock_iter:{self.correct_clock_iter}",
             f"lsq_no_nan:{self.least_sq_no_nan}",
+            f"lsq_no_prov:{self.least_sq_not_provisional}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

@@ -1161,9 +1161,13 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
         if positive_only and start < 0:
             start = 0
 
+        # create permutation matrix of window indices
+        # eg (-1 + [0, 1, 2]) + [0, 1, 2].T
+        # ->      [-1, 0, 1]  + [0, 1, 2].T
+        # -> [    [-1, 0, 1], [0, 1, 2], [1, 2, 3]]
         sub_windows = (
-            start
-            + np.expand_dims(np.arange(window), 0)
+            (start
+            + np.expand_dims(np.arange(window), 0))
             + np.expand_dims(np.arange(count0), 0).T
         )
 
@@ -1172,14 +1176,16 @@ def box_check(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alp
 
         return array[sub_windows]
 
-    vel_range = final_vel.copy()
-    vel_azi = vel_range.copy().T
+    vel_azi = final_vel.copy()
+    vel_range = final_vel.copy().T
     
     vectorized_azi = _vectorized_stride(vel_azi, window_azimuth, positive_only=False)
     vectorized_range = _vectorized_stride(vel_range, window_range)
 
-    smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
-    smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T
+    # NB: windows will be invalidated by a single nan
+    smooth_azi = np.mean(vectorized_azi, axis=1)
+    smooth_range = np.mean(vectorized_range, axis=1).T
+
     refvel = 0.5 * smooth_azi + 0.5 * smooth_range
 
     return _box_check_v2(refvel, final_vel.copy(), flag_vel, vnyq, alpha)

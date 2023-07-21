@@ -972,12 +972,14 @@ def unfolding_3D(
                     velocity_refcomp_array[cnt] = vel_swref[na, nr]
                     flag_refcomp_array[cnt] = flag_swref[na, nr]
 
-            if np.sum(flag_refcomp_array != -3) < 1:
+            refcomp_valid = (flag_refcomp_array >= 1)
+            # TODO: surely threshold should be higher than 1? 20% of window?
+            if np.sum(refcomp_valid) < 1:
                 # No comparison possible all gates in the reference are missing.
                 processing_flag[nbeam, ngate] = -1
                 continue
 
-            compare_vel = np.nanmedian(velocity_refcomp_array[(flag_refcomp_array >= 1)])
+            compare_vel = np.nanmedian(velocity_refcomp_array[refcomp_valid])
             vel_used_as_ref[nbeam, ngate] = compare_vel
 
             if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):

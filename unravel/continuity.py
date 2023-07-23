@@ -648,7 +648,9 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
     return final_vel, flag_vel
 
 def circle_distance(a, b, circumference):
-    """Distance between azimuths a and b on a circle."""
+    """Distance between azimuths a and b on a circle.
+
+    NB: will work with numpy values or arrays."""
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
@@ -1044,6 +1046,10 @@ def unfolding_3D(
         return velocity_slice, flag_slice, None, None
 
     for nbeam in range(maxazi):
+
+        # best reference azimuth index (circle distance)
+        apos_reference = np.argmin(circle_distance(azi_swref, azi_slice[nbeam], 360.0))
+
         for ngate in range(maxrange):
             if flag_slice[nbeam, ngate] == -3:
                 # No data here.
@@ -1052,8 +1058,9 @@ def unfolding_3D(
 
             current_vel = velocity_slice[nbeam, ngate]
 
+            # best reference range index (absolute distance)
             rpos_reference = np.argmin(np.abs(gr_swref - gr_slice[ngate]))
-            apos_reference = np.argmin(np.abs(azi_swref - azi_slice[nbeam]))
+
 
             rpos_iter = iter_range(rpos_reference, window_range, ref_range)
 

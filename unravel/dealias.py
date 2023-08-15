@@ -539,6 +539,7 @@ def unravel_3D_pyodim(
 
     import pyodim
 
+    # NB: pyodim reader sorts tilts by elevation and time
     if load_all_fields:
         (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite)
     else:
@@ -616,8 +617,7 @@ def unravel_3D_pyodim_slice(
     nyquist_velocity = ds_sweep.attrs["NI"]
 
     if cfg().show_progress:
-        tilt_id = ds_sweep.attrs["id"]
-        print(f"tilt (ref): {tilt_id} {elevation_slice:.1f} nv:{nyquist_velocity:.2f}")
+        print(f"tilt:{elevation_slice:.1f} {ds_sweep.attrs['id']} nv:{nyquist_velocity:.2f}")
 
     # TODO: pass alpha
     if strategy == "default":
@@ -634,6 +634,10 @@ def unravel_3D_pyodim_slice(
         elevation_reference = ds_ref["elevation"].values[0]
         velocity_reference = ds_ref[output_vel_name].values
         flag_reference = ds_ref[output_flag_name].values
+
+        if cfg().show_progress:
+            print(f"tilt:{elevation_slice:.1f} {ds_sweep.attrs['id']} nv:{nyquist_velocity:.2f}")
+            print(f"ref:{ds_ref['elevation'].values[0]:.1f} {ds_ref.attrs['id']}  nv:{ds_ref.attrs['NI']}")
 
         final_vel, flag_vel, _, _ = continuity.unfolding_3D(
             r_reference,

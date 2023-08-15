@@ -72,6 +72,8 @@ class cfg:
         unravel_least_square(all) aka least_square_radial_last_module
         provisional (ie do set flag).
 
+        u3d_set_good: set flag to "good" when the two tilts agree.
+
         post_box_check: when True, call box_check() (aka unravel_cross) after
         unfolding_3D() (as in unravel_3d_pyart_multiproc())
 
@@ -93,6 +95,7 @@ class cfg:
         self.least_sq_no_nan = False
         self.least_sq_not_provisional = False
         self.closest_no_delay = False
+        self.u3d_set_good = False
         self.post_box_check = False
 
         # progress
@@ -131,6 +134,9 @@ class cfg:
         global CLOSEST_NO_DELAY
         CLOSEST_NO_DELAY = self.closest_no_delay
 
+        global U3D_SET_GOOD
+        U3D_SET_GOOD = self.u3d_set_good
+
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
         if isinstance(stage, int):
@@ -141,7 +147,7 @@ class cfg:
                 print(f"setting max_stage {key} {val}")
                 self.max_stage = key
                 return
-        raise Exception(f"unrecognised stage {stage}")
+        raise Exception(f"unrecognised stage '{stage}' (stages are: {' '.join(_STAGE_MAP.values())})")
 
     def mark_stage_done(self, stage):
         """Mark stage completion using string."""
@@ -174,5 +180,6 @@ class cfg:
             f"clock_iter:{self.correct_clock_iter}",
             f"lsq_no_nan:{self.least_sq_no_nan}",
             f"lsq_no_prov:{self.least_sq_not_provisional}",
+            f"u3d_set_good:{self.u3d_set_good}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))

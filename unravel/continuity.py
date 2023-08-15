@@ -1086,6 +1086,8 @@ def unfolding_3D(
             if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
                 processing_flag[nbeam, ngate] = 0
                 # The current velocity is in agreement with the lower tilt velocity.
+                if cfg.U3D_SET_GOOD and flag_slice[nbeam, ngate] == 0: # is-unprocessed
+                    flag_slice[nbeam, ngate] = 1
                 continue
 
             ogvel = original_velocity[nbeam, ngate]

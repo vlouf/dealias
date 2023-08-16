@@ -124,7 +124,9 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
 
     if not completed:
         if cfg().stage_check():
-            dealias_2D.correct_linregress()
+            # skip extrapolate aka linregress stage sometimes
+            if not cfg().skip_penultimate_stage("unravel-2b-extra"):
+                dealias_2D.correct_linregress()
             if dealias_2D.check_completed():
                 completed = "regression"
 

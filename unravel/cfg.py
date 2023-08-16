@@ -137,25 +137,31 @@ class cfg:
         global U3D_SET_GOOD
         U3D_SET_GOOD = self.u3d_set_good
 
+    def find_stage(self, stage):
+        for (key, val) in _STAGE_MAP.items():
+            if stage == val:
+                return key
+        raise Exception(f"unrecognised stage '{stage}' (stages are: {' '.join(_STAGE_MAP.values())})")
+
     def set_max_stage(self, stage):
         """Set stage limit using number or string."""
         if isinstance(stage, int):
             self.max_stage = stage
             return
-        for (key, val) in _STAGE_MAP.items():
-            if stage == val:
-                print(f"setting max_stage {key} {val}")
-                self.max_stage = key
-                return
-        raise Exception(f"unrecognised stage '{stage}' (stages are: {' '.join(_STAGE_MAP.values())})")
+        self.max_stage = self.find_stage(stage)
+        print(f"setting max_stage {self.max_stage} {stage}")
 
     def mark_stage_done(self, stage):
         """Mark stage completion using string."""
-        for (key, val) in _STAGE_MAP.items():
-            if stage == val:
-                self.cur_stage = key
-                return
-        raise Exception(f"unrecognised stage {stage}")
+        self.cur_stage = self.find_stage(stage)
+
+    def skip_penultimate_stage(self, stage):
+        """Skip stage using string."""
+        key = self.find_stage(stage)
+        if key + 1 == self.max_stage:
+            print(f"Skipping stage {key} {stage}")
+            return True
+        return False
 
     def stage_check(self):
         """Check whether to run or skip current stage."""

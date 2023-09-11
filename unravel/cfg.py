@@ -189,3 +189,34 @@ class cfg:
             f"u3d_set_good:{self.u3d_set_good}",
             f"post_box_check:{self.post_box_check}",
             f"max_stage:{self.max_stage}"]))
+
+    def apply_fixups(self):
+
+        # make init-radial sane
+        self.init_radial_no_zero = True
+        self.init_radial_use_all = False # NB: with no_zero makes no difference
+
+        # make correct-range-backward consistent with forward
+        self.correct_range_consistent = True
+
+        # TODO: set this to something large like 1e-1 as we want a significant
+        # value before marking?
+        self.sign_compare_epsilon = 1e-6
+
+        # make correct-clock-backward iteration consistent with forward
+        self.correct_clock_iter = True
+
+        # make least-square sane
+        self.least_sq_no_nan = True
+
+        # don't set values provisionally for least-square (all)
+        self.least_sq_not_provisional = True
+
+        # make correct-closest sane
+        self.closest_no_delay = True
+
+        # set good when good in 3D stage
+        self.u3d_set_good = True
+
+        # make unravel_3D_pyodim() more like unravel_3D_pyart_multiproc()
+        self.post_box_check = True

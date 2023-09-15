@@ -827,6 +827,13 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
                 flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 myvel = vel[nbeam, ngate]
+
+                # if previously unfolded, maybe the original value was good
+                if is_good_velocity(mean_vel_ref, myvel, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = myvel
+                    flag_vel[nbeam, ngate] = 1
+                    continue
+
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue

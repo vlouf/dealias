@@ -43,6 +43,24 @@ def write_odim_str_attrib(group, attrib_name: str, text: str):
     text_array = np.array(text_bytes)
     att_id.write(text_array)
 
+def h5_copy_data(h5_tilt, ds_sweep, orig_id):
+    """Add a data array to `h5_tilt` by copying `orig_id`.
+
+    @return new id
+    """
+    # increment data_count
+    data_count = ds_sweep.attrs["data_count"] + 1
+    ds_sweep.attrs["data_count"] = data_count
+
+    # use data_count for data_id
+    data_id = f"data{data_count}"
+
+    # duplicate original
+    h5_tilt.copy(orig_id, data_id)
+
+    # return id
+    return data_id
+
 def write_odim_slice(
         h5file,
         ds_sweep,
@@ -52,23 +70,17 @@ def write_odim_slice(
     """Write data for one slice back to ODIM HDF5 file."""
 
     tilt_id = ds_sweep.attrs["id"]
-    data_count = ds_sweep.attrs["data_count"]
 
     vel_meta = ds_sweep[vel_name]
     vel_id = vel_meta.attrs["id"]
 
-    # TODO: update data_count after this?
-    vel2_id = f"data{data_count + 1}"
-    flag_id = f"data{data_count + 2}"
-
     h5_tilt = h5file[tilt_id]
 
-    print(f"writing {tilt_id}/{vel2_id} {output_vel_name} corrected velocity")
-
     # duplicate velocity group for corrected velocity
-    # NB: this is expensive but easier than creating everything ourselves
-    h5_tilt.copy(vel_id, vel2_id)
+    vel2_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
     vel2_h5 = h5_tilt[vel2_id]
+
+    print(f"writing {tilt_id}/{vel2_id} {output_vel_name} corrected velocity")
 
     # update metadata for corrected velocity
     vel2_h5["what"].attrs["gain"] = VEL2_ENC_GAIN
@@ -90,11 +102,11 @@ def write_odim_slice(
     del vel2_h5["data"]
     vel2_h5.create_dataset("data", dtype=VEL2_ENC_DTYPE, data=vel2_encoded)
 
-    print(f"writing {tilt_id}/{flag_id} {output_flag_name} flags")
-
     # duplicate velocity group for unravel velocity flags
-    h5_tilt.copy(vel_id, flag_id)
+    flag_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
     flag_h5 = h5_tilt[flag_id]
+
+    print(f"writing {tilt_id}/{flag_id} {output_flag_name} flags")
 
     # update metadata for flags
     flag_h5_what = flag_h5["what"]

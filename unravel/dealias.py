@@ -145,7 +145,7 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     if cfg().stage_check():
         dealias_2D.check_box()
 
-    unfold_vel = dealias_2D.dealias_vel.copy()
+    unfold_vel = dealias_2D.dealias_vel
     if False:
         # vel should already be nan where not set
         unfold_vel[dealias_2D.flag < 0] = np.NaN
@@ -218,8 +218,11 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
     dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
+    # vel should already be nan where not set... but still we need this
     unfold_vel[dealias_2D.flag < 0] = np.NaN
-    unfold_vel = np.ma.masked_invalid(unfold_vel)
+    if False:
+        # numba does not like maskedarray
+        unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
         return unfold_vel, dealias_2D.flag, brake

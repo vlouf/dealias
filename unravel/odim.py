@@ -1,5 +1,6 @@
 # python3
 
+import itertools
 import h5py
 import numpy as np
 
@@ -61,6 +62,20 @@ def h5_copy_data(h5_tilt, ds_sweep, orig_id):
     # return id
     return data_id
 
+def rename_old_data(
+        h5_tilt,
+        # ds_sweep,
+        data_name):
+    """Rename old data to avoid name clashes."""
+    for d_idx in itertools.count(1):
+        if not f"data{d_idx}" in h5_tilt:
+            break
+        d_what = h5_tilt[f"data{d_idx}/what"]
+        if d_what.attrs["quantity"].decode() == data_name:
+            print(f"renaming {data_name} -> {data_name}_{d_idx}")
+            del d_what.attrs["quantity"]
+            write_odim_str_attrib(d_what, "quantity", f"{data_name}_{d_idx}")
+
 def write_odim_slice(
         h5file,
         ds_sweep,
@@ -79,6 +94,7 @@ def write_odim_slice(
     # duplicate velocity group for corrected velocity
     vel2_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
     vel2_h5 = h5_tilt[vel2_id]
+    rename_old_data(h5_tilt, output_vel_name)
 
     print(f"writing {tilt_id}/{vel2_id} {output_vel_name} corrected velocity")
 
@@ -105,6 +121,7 @@ def write_odim_slice(
     # duplicate velocity group for unravel velocity flags
     flag_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
     flag_h5 = h5_tilt[flag_id]
+    rename_old_data(ds_sweep, output_flag_name)
 
     print(f"writing {tilt_id}/{flag_id} {output_flag_name} flags")
 

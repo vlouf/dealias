@@ -550,12 +550,7 @@ def unravel_3D_pyodim(
     else:
         (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
-
-    # don't re-run on same file
-    data_count = radar_datasets[0].attrs["data_count"]
-    ld_quant = h5file[f"dataset1/data{data_count}/what"].attrs["quantity"].decode()
-    if ld_quant == output_vel_name or ld_quant == output_flag_name:
-        raise RuntimeError(f"{ld_quant} already in data")
+    # data_count = radar_datasets[0].attrs["data_count"]
 
     # Looking for low-elevation sweep with the highest Nyquist velocity to use
     # as reference.

@@ -546,9 +546,9 @@ def unravel_3D_pyodim(
 
     # NB: pyodim reader sorts tilts by elevation and time
     if load_all_fields:
-        (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite)
+        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, readwrite=readwrite)
     else:
-        (radar_datasets, h5file) = pyodim.read_odim(odim_file, readwrite=readwrite, include_fields=[vel_name])
+        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, readwrite=readwrite, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
     # data_count = radar_datasets[0].attrs["data_count"]
 

@@ -475,7 +475,7 @@ def unravel_3D_pyodim(
     gatefilter=None,
     strategy="long_range",
     debug=False,
-    readwrite=False,
+    read_write=False,
     output_flag_name=None,
 ):
     """
@@ -499,7 +499,7 @@ def unravel_3D_pyodim(
         Feature not supported yet.
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
-    readwrite: write back to original file if True
+    read_write: write back to original file if True
 
     Returns:
     ========
@@ -520,9 +520,9 @@ def unravel_3D_pyodim(
     import pyodim
 
     if load_all_fields:
-        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, readwrite=readwrite)
+        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write)
     else:
-        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, readwrite=readwrite, include_fields=[vel_name])
+        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write, include_fields=[vel_name])
     radar_datasets = [r.compute() for r in radar_datasets]
     # data_count = radar_datasets[0].attrs["data_count"]
 
@@ -562,7 +562,7 @@ def unravel_3D_pyodim(
             output_vel_name,
             output_flag_name)
 
-    if readwrite:
+    if read_write:
         for sweep in range(len(radar_datasets)):
             write_odim_slice(
                 h5file,

@@ -1,8 +1,11 @@
 # python3
 
 import itertools
+
 import h5py
 import numpy as np
+
+import pyodim
 
 # this is used throughout UNRAVEL
 FLAG_NODATA = -3
@@ -26,45 +29,8 @@ VEL2_ENC_NODATA = 0.0
 VEL2_ENC_UNDETECT = 1.0
 VEL2_ENC_DTYPE = 'uint16'
 
-def odim_str_type_id(text_bytes):
-    """Generate ODIM-conformant string type ID."""
-    # string type (h5py default is STRPAD STR_NULLPAD, ODIM spec is STRPAD STR_NULLTERM)
-    type_id = h5py.h5t.TypeID.copy(h5py.h5t.C_S1)
-    type_id.set_strpad(h5py.h5t.STR_NULLTERM)
-    type_id.set_size(len(text_bytes) + 1)
-    return type_id
-
-def write_odim_str_attrib(group, attrib_name: str, text: str):
-    """Write ODIM-conformant string attribute."""
-    group_id = group.id
-    text_bytes = text.encode('utf-8')
-    type_id = odim_str_type_id(text_bytes)
-    space = h5py.h5s.create(h5py.h5s.SCALAR)
-    att_id = h5py.h5a.create(group_id, attrib_name.encode('utf-8'), type_id, space)
-    text_array = np.array(text_bytes)
-    att_id.write(text_array)
-
-def h5_copy_data(h5_tilt, ds_sweep, orig_id):
-    """Add a data array to `h5_tilt` by copying `orig_id`.
-
-    @return new id
-    """
-    # increment data_count
-    data_count = ds_sweep.attrs["data_count"] + 1
-    ds_sweep.attrs["data_count"] = data_count
-
-    # use data_count for data_id
-    data_id = f"data{data_count}"
-
-    # duplicate original
-    h5_tilt.copy(orig_id, data_id)
-
-    # return id
-    return data_id
-
 def rename_old_data(
         h5_tilt,
-        # ds_sweep,
         data_name):
     """Rename old data to avoid name clashes."""
     for d_idx in itertools.count(1):
@@ -73,16 +39,22 @@ def rename_old_data(
         d_what = h5_tilt[f"data{d_idx}/what"]
         if d_what.attrs["quantity"].decode() == data_name:
             print(f"renaming {data_name} -> {data_name}_{d_idx}")
-            del d_what.attrs["quantity"]
             write_odim_str_attrib(d_what, "quantity", f"{data_name}_{d_idx}")
 
 def write_odim_slice(
         h5file,
         ds_sweep,
-        vel_name,
-        output_vel_name,
-        output_flag_name):
-    """Write data for one slice back to ODIM HDF5 file."""
+        vel_name: str,
+        output_vel_name: str,
+        output_flag_name: str):
+    """Write one slice of corrected velocity data back to ODIM HDF5 file.
+
+    @param h5file: h5py file handle
+    @param ds_sweep: dataset for slice/tilt/sweep
+    @param vel_name: name of original velocity data
+    @param output_vel_name: name for updated velocity data
+    @param output_flag_name: name for generated velocity flag data
+    """
 
     tilt_id = ds_sweep.attrs["id"]
 
@@ -92,7 +64,7 @@ def write_odim_slice(
     h5_tilt = h5file[tilt_id]
 
     # duplicate velocity group for corrected velocity
-    vel2_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
+    vel2_id = pyodim.copy_h5_data(h5_tilt, vel_id)
     vel2_h5 = h5_tilt[vel2_id]
     rename_old_data(h5_tilt, output_vel_name)
 
@@ -104,8 +76,7 @@ def write_odim_slice(
     vel2_h5["what"].attrs["nodata"] = VEL2_ENC_NODATA
     vel2_h5["what"].attrs["undetect"] = VEL2_ENC_UNDETECT
     # set quantity
-    del vel2_h5["what"].attrs["quantity"]
-    write_odim_str_attrib(vel2_h5["what"], "quantity", output_vel_name)
+    pyodim.write_odim_str_attrib(vel2_h5["what"], "quantity", output_vel_name)
 
     # encode (reverse read transformation) and replace data array
     vel2_data = ds_sweep[output_vel_name].values
@@ -119,7 +90,7 @@ def write_odim_slice(
     vel2_h5.create_dataset("data", dtype=VEL2_ENC_DTYPE, data=vel2_encoded)
 
     # duplicate velocity group for unravel velocity flags
-    flag_id = h5_copy_data(h5_tilt, ds_sweep, vel_id)
+    flag_id = pyodim.copy_h5_data(h5_tilt, vel_id)
     flag_h5 = h5_tilt[flag_id]
     rename_old_data(ds_sweep, output_flag_name)
 
@@ -132,8 +103,7 @@ def write_odim_slice(
     flag_h5_what.attrs["nodata"]   = FLAG_ENC_NODATA
     flag_h5_what.attrs["undetect"] = FLAG_ENC_NODATA
     # set quantity
-    del flag_h5_what.attrs["quantity"]
-    write_odim_str_attrib(flag_h5_what, "quantity", output_flag_name)
+    pyodim.write_odim_str_attrib(flag_h5_what, "quantity", output_flag_name)
 
     # encode and overwrite data array in-place
     flag_data = ds_sweep[output_flag_name].values

@@ -76,7 +76,7 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
 @jit(nopython=True)
 def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
     """
-    Filter data (despeckling) using MAD and first quick attempt at unfolding 
+    Filter data (despeckling) using MAD and first quick attempt at unfolding
     velocity.
 
     Parameters:
@@ -93,7 +93,7 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
         Maximum difference allowd between vi and vr.
     nfilter: int
         Window size.
-    
+
     Returns:
     ========
     dealias_vel: ndarray <azimuth, range>

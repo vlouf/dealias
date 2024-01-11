@@ -252,4 +252,4 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     return final_vel, flag_vel
 
 
-jit_module(nopython=True, error_model="numpy")
+jit_module(nopython=True, error_model="numpy", cache=True)

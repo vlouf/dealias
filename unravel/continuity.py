@@ -1053,4 +1053,4 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
     return final_vel, flag_vel
 
 
-jit_module(nopython=True, error_model="numpy")
+jit_module(nopython=True, error_model="numpy", cache=True)

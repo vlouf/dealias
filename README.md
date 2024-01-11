@@ -18,17 +18,12 @@ The easiest method for installing UNRAVEL is to use pip:
 
 ```pip install unravel```
 
-If you want to package UNRAVEL in an application (using for example cx_Freeze), make sure to remove this line from `setup.py`:
-
-```zip_safe=False```
-
 ## Dependencies
 
 Mandatory dependencies:
 - [numpy][1]
 - [numba][2]
-
-Even thought it does not directly requires [Py-ART][3] to run, UNRAVEL can use [Py-ART][3] data class as input.
+- [Py-ART][3] 
 
 [1]: http://www.scipy.org/
 [2]: http://numba.pydata.org

@@ -236,6 +236,7 @@ class Dealias:
             alpha = self.alpha
         try:
             dealias_vel, flag_vel = continuity.box_check(
+                self.azimuth,
                 self.dealias_vel,
                 self.flag,
                 self.nyquist,
@@ -250,42 +251,3 @@ class Dealias:
 
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
-
-    def check_box_median(self, alpha=None):
-        """
-        Checking function using a 2D plane of surrounding velocities.
-        """
-        if alpha is None:
-            alpha = self.alpha
-        dealias_vel, flag_vel = continuity.box_check(
-            self.azimuth, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
-        )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
-
-    def plot(self):
-        """
-        Plot the original and the dealiased velocity fields.
-        """
-        import matplotlib.pyplot as pl
-
-        [R, A] = np.meshgrid(self.r, self.azimuth)
-        TH = (450 - A) % 360
-        x = R * np.cos(np.deg2rad(TH))
-        y = R * np.sin(np.deg2rad(TH))
-        phi = np.linspace(0, np.pi * 2)
-        maxrange = np.max(self.r)
-
-        _, ax = pl.subplots(1, 2, figsize=(9.5, 4.5), sharex=True, sharey=True)
-        ax = ax.ravel()
-        ax[0].pcolormesh(x, y, self.velocity, vmin=-self.nyquist, vmax=self.nyquist, cmap="bwr")
-        ax[1].pcolormesh(x, y, self.dealias_vel, vmin=-self.nyquist, vmax=self.nyquist, cmap="bwr")
-        for a in ax:
-            a.set_xlim(-maxrange, maxrange)
-            a.set_ylim(-maxrange, maxrange)
-            a.set_aspect(1)
-            a.axis("off")
-            for rho in np.arange(50e3, maxrange + 1, 50e3):
-                a.plot(rho * np.cos(phi), rho * np.sin(phi), "k", linewidth=0.5)
-        pl.show()
-        return None

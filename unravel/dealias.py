@@ -5,24 +5,28 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 15/03/2021
+@date: 11/01/2024
 
     _check_nyquist
+    unmask_array
     dealiasing_process_2D
     dealias_long_range
     unravel_3D_pyart_multiproc
     unravel_3D_pyart
     unravel_3D_pyodim
 """
-import dask.bag as db
+from typing import Union, Tuple
+
+import pyart
 import numpy as np
+import dask.bag as db
 
 from . import continuity
 from . import filtering
 from .core import Dealias
 
 
-def _check_nyquist(radar, nyquist_velocity):
+def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: float) -> np.ndarray:
     """
     If nyquist is not defined, then it will assume that it is the same
     nyquist for the whole sweep. If you want a different nyquist at each
@@ -55,10 +59,26 @@ def _check_nyquist(radar, nyquist_velocity):
             else:
                 nyquist_list = nyquist_velocity
 
-    return nyquist_list
+    return np.array(nyquist_list)
 
 
-def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
+def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.NaN) -> np.ndarray:
+    try:
+        x = x.filled(fill_value)
+    except AttributeError:
+        pass
+    return x
+
+
+def dealiasing_process_2D(
+    r: np.ndarray,
+    azimuth: np.ndarray,
+    elevation: float,
+    velocity: np.ndarray,
+    nyquist_velocity: float,
+    alpha: float = 0.6,
+    debug: bool = False,
+):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -88,6 +108,9 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
         raise TypeError("Elevation should be scalar, not an array.")
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError("The dimensions of the velocity field should be <azimuth, range>.")
+    r = unmask_array(r)
+    azimuth = unmask_array(azimuth)
+    velocity = unmask_array(velocity)
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
@@ -128,7 +151,6 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
 
     unfold_vel = dealias_2D.dealias_vel.copy()
     unfold_vel[dealias_2D.flag < 0] = np.NaN
-    unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
         return unfold_vel, dealias_2D.flag, brake
@@ -136,7 +158,15 @@ def dealiasing_process_2D(r, azimuth, elevation, velocity, nyquist_velocity, alp
     return unfold_vel, dealias_2D.flag
 
 
-def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6, debug=False):
+def dealias_long_range(
+    r: np.ndarray,
+    azimuth: np.ndarray,
+    elevation: float,
+    velocity: np.ndarray,
+    nyquist_velocity: float,
+    alpha: float = 0.6,
+    debug: bool = False,
+):
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -166,6 +196,9 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
         raise TypeError("Elevation should be scalar, not an array.")
     if velocity.shape != (len(azimuth), len(r)):
         raise ValueError("The dimensions of the velocity field should be <azimuth, range>.")
+    r = unmask_array(r)
+    azimuth = unmask_array(azimuth)
+    velocity = unmask_array(velocity)
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
@@ -197,7 +230,6 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
     unfold_vel = dealias_2D.dealias_vel.copy()
     unfold_vel[dealias_2D.flag < 0] = np.NaN
-    unfold_vel = np.ma.masked_invalid(unfold_vel)
 
     if debug:
         return unfold_vel, dealias_2D.flag, brake
@@ -206,16 +238,16 @@ def dealias_long_range(r, azimuth, elevation, velocity, nyquist_velocity, alpha=
 
 
 def unravel_3D_pyart_multiproc(
-    radar,
-    velname="VEL",
-    dbzname="DBZ",
-    gatefilter=None,
-    nyquist_velocity=None,
-    strategy="default",
-    alpha=0.8,
-    do_3d=True,
+    radar: pyart.core.Radar,
+    velname: str = "VEL",
+    dbzname: str = "DBZ",
+    gatefilter: pyart.filters.GateFilter = None,
+    nyquist_velocity: float = None,
+    strategy: str = "default",
+    alpha: float = 0.8,
+    do_3d: bool = True,
     **kwargs,
-):
+) -> np.ndarray:
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -252,22 +284,18 @@ def unravel_3D_pyart_multiproc(
     nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
-    try:
-        velocity = radar.fields[velname]["data"].filled(np.NaN)
-    except Exception:
-        velocity = radar.fields[velname]["data"]
+    velocity = unmask_array(radar.fields[velname]["data"])
     velocity[gatefilter.gate_excluded] = np.NaN
 
     # Build argument list for multiprocessing.
     args_list = []
-    r = radar.range["data"]
+    r = unmask_array(radar.range["data"])
     for slice_number in range(0, radar.nsweeps):
         nyquist_velocity = nyquist_list[slice_number]
         sweep = radar.get_slice(slice_number)
         azi = radar.azimuth["data"][sweep]
         elev = radar.elevation["data"][sweep].mean()
-        vel = np.ma.masked_where(gatefilter.gate_excluded, velocity)[sweep]
-        velocity_slice = vel.filled(np.NaN)
+        velocity_slice = velocity[sweep]
         args_list.append((r, azi, elev, velocity_slice, nyquist_velocity, alpha))
 
     # Run the 2D dealiasing using multiprocessing 1 process per sweep.
@@ -281,15 +309,15 @@ def unravel_3D_pyart_multiproc(
     if do_3d:
         args_list = []
         sweep = radar.get_slice(0)
-        azimuth_reference = radar.azimuth["data"][sweep]
-        elevation_reference = radar.elevation["data"][sweep].mean()
+        azimuth_reference = unmask_array(radar.azimuth["data"][sweep])
+        elevation_reference = unmask_array(radar.elevation["data"][sweep].mean())
         velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
         unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
         for slice_number in range(1, radar.nsweeps):
             nyquist_velocity = nyquist_list[slice_number]
             sweep = radar.get_slice(slice_number)
-            azimuth_slice = radar.azimuth["data"][sweep]
-            elevation_slice = radar.elevation["data"][sweep].mean()
+            azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
+            elevation_slice = unmask_array(radar.elevation["data"][sweep].mean())
             final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
 
             final_vel, flag_slice, _, _ = continuity.unfolding_3D(
@@ -328,22 +356,21 @@ def unravel_3D_pyart_multiproc(
             sweep = radar.get_slice(n)
             unraveled_velocity[sweep] = rslt[n][0]
 
-    unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
-
     return unraveled_velocity
 
 
 def unravel_3D_pyart(
-    radar,
-    velname="VEL",
-    dbzname="DBZ",
-    gatefilter=None,
-    nyquist_velocity=None,
-    strategy="default",
-    debug=False,
-    do_3d=True,
+    radar: pyart.core.Radar,
+    velname: str = "VEL",
+    dbzname: str = "DBZ",
+    gatefilter: pyart.filters.GateFilter = None,
+    nyquist_velocity: float = None,
+    strategy: str = "default",
+    alpha: float = 0.8,
+    do_3d: bool = True,
+    debug: bool = False,
     **kwargs,
-):
+) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -380,17 +407,14 @@ def unravel_3D_pyart(
     nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
-    try:
-        velocity = radar.fields[velname]["data"].filled(np.NaN)
-    except Exception:
-        velocity = radar.fields[velname]["data"]
+    velocity = unmask_array(radar.fields[velname]["data"])
     velocity[gatefilter.gate_excluded] = np.NaN
 
     # Read coordinates and start with the first sweep.
     sweep = radar.get_slice(0)
-    r = radar.range["data"]
-    azimuth_reference = radar.azimuth["data"][sweep]
-    elevation_reference = radar.elevation["data"][sweep].mean()
+    r = unmask_array(radar.range["data"])
+    azimuth_reference = unmask_array(radar.azimuth["data"][sweep])
+    elevation_reference = unmask_array(radar.elevation["data"][sweep].mean())
     velocity_reference = velocity[sweep]
 
     # Dealiasing first sweep.
@@ -415,11 +439,9 @@ def unravel_3D_pyart(
     for slice_number in range(1, radar.nsweeps):
         nyquist_velocity = nyquist_list[slice_number]
         sweep = radar.get_slice(slice_number)
-        azimuth_slice = radar.azimuth["data"][sweep]
-        elevation_slice = radar.elevation["data"][sweep].mean()
-
-        vel = np.ma.masked_where(gatefilter.gate_excluded, velocity)[sweep]
-        velocity_slice = vel.filled(np.NaN)
+        azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
+        elevation_slice = unmask_array(radar.elevation["data"][sweep].mean())
+        velocity_slice = velocity[sweep]
 
         flag_slice = np.zeros_like(velocity_slice) + 1
         flag_slice[np.isnan(velocity_slice)] = -3
@@ -436,7 +458,7 @@ def unravel_3D_pyart(
         else:
             final_vel, flag_vel = outargs
 
-        final_vel = final_vel.filled(np.NaN)
+        final_vel = unmask_array(final_vel)
         if do_3d:
             final_vel, flag_slice, _, _ = continuity.unfolding_3D(
                 r,
@@ -451,8 +473,10 @@ def unravel_3D_pyart(
                 flag_vel,
                 velocity[sweep],
                 nyquist_velocity,
+                alpha=alpha,
             )
-            final_vel, flag_slice = continuity.box_check(final_vel, flag_slice, nyquist_velocity)
+
+            final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity)
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
             flag_reference = flag_vel.copy()
@@ -460,7 +484,6 @@ def unravel_3D_pyart(
 
         unraveled_velocity[sweep] = final_vel.copy()
 
-    unraveled_velocity = np.ma.masked_invalid(unraveled_velocity)
     if debug:
         return unraveled_velocity, pointbreak
 

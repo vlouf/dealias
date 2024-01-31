@@ -76,9 +76,11 @@ class Dealias:
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.delta_vmax
         )
-        start_beam, end_beam = find_reference.find_reference_radials(self.azimuth, self.velocity)
-        azi_start_pos = np.argmin(np.abs(self.azimuth - start_beam))
-        azi_end_pos = np.argmin(np.abs(self.azimuth - end_beam))
+        # stage 1 (find radials)
+        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
+            self.velocity)
+
+        # stage 2 (init radial)
         dealias_vel, flag_vel = initialisation.initialize_unfolding(
             azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
         )

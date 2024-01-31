@@ -17,7 +17,7 @@ Module 1: Finding reference.
 import numpy as np
 
 
-def find_reference_radials(azimuth, velocity):
+def find_reference_radials(velocity):
     """
     A beam is valid if it contains at least 10 valid gates (not NaN).
     We seek beams that contain the most valid gate, defined by being
@@ -26,8 +26,6 @@ def find_reference_radials(azimuth, velocity):
 
     Parameters:
     ===========
-    azimuth: ndarray
-        Azimuth array.
     velocity: ndarray
         Velocity field.
 
@@ -42,34 +40,58 @@ def find_reference_radials(azimuth, velocity):
     def find_min_quadrant(azi, vel, nvalid_gate_qd, nsum_moy):
         return azi[nvalid_gate_qd >= nsum_moy][np.argmin(np.nanmean(np.abs(vel), axis=1)[nvalid_gate_qd >= nsum_moy])]
 
+    # called as circular_diff(a, b, 360) gives the positive difference between
+    # two angles (in degrees).  cribbed from
+    # https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference
+    def circular_diff(a, b, mod=360.0):
+        return (mod / 2) - abs(abs(a - b) - (mod / 2))
+
+    # create azimuth indices
+    azi_count = velocity.shape[0]
+    azimuth = np.r_[0:azi_count]
+
     nvalid_gate = np.sum(~np.isnan(velocity), axis=1)
     nvalid_gate[nvalid_gate < 10] = 0
     nsum_tot = np.sum(~np.isnan(velocity[nvalid_gate > 0, :]))
     nvalid_beam = len(azimuth[nvalid_gate > 0])
 
-    nsum_moy = nsum_tot / nvalid_beam
+    nsum_moy = nsum_tot // nvalid_beam
     if nsum_moy > 0.7 * velocity.shape[1]:
-        nsum_moy = 0.7 * velocity.shape[1]
+        nsum_moy = int(0.7 * velocity.shape[1])
 
     try:
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
     except ValueError:
         start_beam = azimuth[np.argmin(np.nanmean(np.abs(velocity), axis=1))]
 
-    nb = np.zeros((4,))
-    for i in range(4):
-        pos = (azimuth >= i * 90) & (azimuth < (i + 1) * 90)
+    # find other beam
+
+    SECTOR_COUNT = 4
+
+    # put start_beam in centre of a sector
+    azi0 = (start_beam + (azi_count / (2 * SECTOR_COUNT))) % azi_count
+    sector_edge = lambda sector: (azi0 + (sector * azi_count) / SECTOR_COUNT) % azi_count
+
+    nb = np.zeros((SECTOR_COUNT,), int)
+    for i in range(SECTOR_COUNT):
+        sector_start = sector_edge(i)
+        sector_end = sector_edge(i + 1)
+
+        if sector_start <= sector_end:
+            pos = (azimuth >= sector_start) & (azimuth < sector_end)
+        else:
+            pos = (azimuth >= sector_start) | (azimuth < sector_end)
+
         try:
             nb[i] = find_min_quadrant(azimuth[pos], velocity[pos, :], nvalid_gate[pos], nsum_moy)
         except ValueError:
-            nb[i] = 9999
+            nb[i] = start_beam # the worst we can do
 
-    opposition = start_beam + 180
-    if opposition >= 360:
-        opposition -= 360
+    start_diff = lambda a: circular_diff(start_beam, a)
+    start_diff_vec = np.vectorize(start_diff)
+    end_beam = nb[np.argmax(start_diff_vec(nb))]
 
-    end_beam = nb[np.argmin(np.abs(nb - opposition))]
-
+    # NB: maybe end_beam == start_beam
     return start_beam, end_beam
 
 

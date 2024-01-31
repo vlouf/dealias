@@ -74,7 +74,7 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
 
 
 @jit(nopython=True)
-def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
+def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     """
     Filter data (despeckling) using MAD and first quick attempt at unfolding
     velocity.
@@ -89,8 +89,8 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
         Nyquist velocity.
     vshift: float
         Allowed shift.
-    delta_vmax: float
-        Maximum difference allowd between vi and vr.
+    alpha: float
+        Trusted velocity difference Nyquist multiplier.
     nfilter: int
         Window size.
 
@@ -103,6 +103,8 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
     """
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
+    delta_vmax = vnyquist * alpha;
+
     for j in range(0, nrays):
         for n in range(0, ngate):
             if vflag[j, n] == -3:
@@ -132,21 +134,21 @@ def filter_data(velocity, vflag, vnyquist, vshift, delta_vmax, nfilter=10):
             else:
                 vmoy_minus = np.NaN
 
-            k = 0
-            nselect = np.sum(idx_selected != -3)
-            for k in range(nselect):
-                vk = v_selected[k]
+            for k in range(n1, n2):
+                if vflag[j, k] == -3:
+                    continue
+                vk = velocity[j, k]
                 dv1 = np.abs(vk - vmoy)
                 if dv1 >= delta_vmax:
                     if vmoy >= 0:
                         vk_unfld = unfold(vk, vmoy_plus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_plus)
+                        dvk = np.abs(vk_unfld - vmoy_plus)
                     else:
                         vk_unfld = unfold(vk, vmoy_minus, vnyquist, vshift)
-                        dvk = np.abs(vk - vmoy_minus)
+                        dvk = np.abs(vk_unfld - vmoy_minus)
 
                     dvkm = np.abs(vk_unfld - vmoy)
                     if dvkm < delta_vmax or dvk < delta_vmax:
-                        velocity[j, n + k] = vk_unfld
+                        velocity[j, k] = vk_unfld
 
     return velocity, vflag

@@ -780,10 +780,12 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     maxazi, maxrange = final_vel.shape
     velbeam_arr = np.zeros(maxrange, dtype=float64)
 
+    COUNT_MIN = 2
+
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
         velbeam_arr[flag_vel[nbeam, :] <= 0] = np.NaN
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < 2:
+        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
             continue
 
         slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])
@@ -827,9 +829,11 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
     maxazi, maxrange = final_vel.shape
     velbeam_arr = np.zeros(maxrange, dtype=float64)
 
+    COUNT_MIN = 10
+
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < 10:
+        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
             continue
 
         slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])

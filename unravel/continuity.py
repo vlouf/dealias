@@ -597,6 +597,9 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
 
     return final_vel, flag_vel
 
+def circle_distance(a, b, circumference):
+    """Distance between azimuths a and b on a circle."""
+    return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
@@ -637,7 +640,8 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             vel1 = vel[nbeam, ngate]
 
-            distance = (posazi_good - nbeam) ** 2 + (posgate_good - ngate) ** 2
+            distance = (circle_distance(posazi_good, nbeam, maxazi) ** 2 +
+                        (posgate_good - ngate) ** 2)
             if len(distance) == 0:
                 continue
 
@@ -646,14 +650,15 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
             ngate_close = posgate_good[closest]
 
             npos_range = iter_range(ngate_close, window_gate, maxrange)
-            vel_ref_vec = np.zeros((window_azi * maxrange)) + np.NaN
+            vel_ref_vec = np.zeros(window_azi) + np.NaN
 
             # Numba doesn't support 2D slice, that's why I loop over things.
             pos = -1
+            npos_range_end = npos_range[-1] + 1
             for na in iter_azimuth(azimuth, nbeam_close - window_azi // 2, window_azi):
                 pos += 1
                 vel_ref_vec[pos] = np.nanmean(
-                    final_vel[na, npos_range[0] : npos_range[-1]][flag_vel[na, npos_range[0] : npos_range[-1]] > 0]
+                    final_vel[na, npos_range[0] : npos_range_end][flag_vel[na, npos_range[0] : npos_range_end] > 0]
                 )
             velref = np.nanmedian(vel_ref_vec)
 

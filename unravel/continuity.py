@@ -995,7 +995,7 @@ def unfolding_3D(
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag
 
 
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.8, strategy="surround"):
+def box_check_v2(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.8, strategy="surround"):
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -1063,3 +1063,92 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20
 
 
 jit_module(nopython=True, error_model="numpy", cache=True)
+
+
+def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8):
+    """Call either box_check_v1 (cross filter) or box_check_v2 (box filter)."""
+    USE_BOX_CHECK_V1 = False
+
+    if USE_BOX_CHECK_V1:
+        if not window_azimuth:
+            window_azimuth = 40 # v1 default
+        return box_check_v1(final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
+
+    if not window_azimuth:
+        window_azimuth = 20 # v2 default
+    return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
+
+
+def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha):
+    maxazi, maxrange = final_vel.shape
+    for nbeam in range(maxazi):
+        for ngate in range(maxrange):
+            if flag_vel[nbeam, ngate] <= 0:
+                continue
+
+            myvel = final_vel[nbeam, ngate]
+            myvelref = refvel[nbeam, ngate]
+            if np.isnan(myvelref):
+                continue
+
+            if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
+                final_vel[nbeam, ngate] = myvelref
+                flag_vel[nbeam, ngate] = 3
+
+    return final_vel, flag_vel
+
+
+def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8):
+    """
+    Check if all individual points are consistent with their surrounding
+    velocities based on the median of an area of corrected velocities preceding
+    the gate being processed. This module is similar to the dealiasing technique
+    from Bergen et al. (1988). This function will look at ALL points.
+
+    Parameters:
+    ===========
+    final_vel: ndarray <azimuth, r>
+        Dealiased Doppler velocity field.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
+    vnyq: float
+        Nyquist velocity.
+
+    Returns:
+    ========
+    dealias_vel: ndarray <azimuth, range>
+        Dealiased velocity slice.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array NEW value: 3->had to be corrected.
+    """
+
+    def _vectorized_stride(array, clearing_time_index, max_time, sub_window_size, stride_size, positive_only=True):
+        """
+        https://towardsdatascience.com/fast-and-robust-sliding-window-vectorization-with-numpy-3ad950ed62f5
+        """
+        start = clearing_time_index + 1 - sub_window_size + 1
+        if positive_only and start < 0:
+            start = 0
+
+        sub_windows = (
+            start
+            + np.expand_dims(np.arange(sub_window_size), 0)
+            + np.expand_dims(np.arange(max_time + 1, step=stride_size), 0).T
+        )
+
+        if sub_windows.max() > max_time + 1:
+            sub_windows = (sub_windows + 1) % max_time
+
+        return array[sub_windows]
+
+    vel_range = final_vel.copy()
+    vel_azi = vel_range.copy().T
+
+    vectorized_azi = _vectorized_stride(vel_azi, 0, vel_azi.shape[0] - 2, window_azimuth, 1, positive_only=False)
+    vectorized_range = _vectorized_stride(vel_range, 0, vel_range.shape[0] - 2, window_range, 1)
+
+    smooth_azi = np.c_[np.mean(vectorized_azi, axis=1).T, np.zeros(vel_azi.shape[1])]
+    smooth_range = np.c_[np.mean(vectorized_range, axis=1).T, np.zeros(vel_range.shape[1])].T
+    refvel = 0.5 * smooth_azi + 0.5 * smooth_range
+
+    return _box_check_impl(refvel, final_vel.copy(), flag_vel, vnyq, alpha)

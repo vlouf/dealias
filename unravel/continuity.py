@@ -590,7 +590,13 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
                 decision = take_decision(vmoy_minus, current_vel, vnyq, alpha=alpha)
                 vtrue = unfold(vmoy_minus, current_vel, vnyq)
 
-            if decision == 1:
+            # NB/TODO: no test/take_decision of unfolded velocity!
+
+            # for mark-good (1):
+            # - we mark as good if not actually unfolded
+            # - 1e-2: VRAD typically encoded using gain of around 0.1, so smaller differences should be ignored
+            if decision == 1 or (
+                    decision == 2 and np.isclose(current_vel, vtrue, atol=1e-2)):
                 final_vel[nbeam, ngate] = current_vel
                 flag_vel[nbeam, ngate] = 1
             elif decision == 2:
@@ -821,6 +827,13 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
                 flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 myvel = vel[nbeam, ngate]
+
+                # if previously unfolded, maybe the original value was good
+                if is_good_velocity(mean_vel_ref, myvel, vnyq, alpha=alpha):
+                    final_vel[nbeam, ngate] = myvel
+                    flag_vel[nbeam, ngate] = 1
+                    continue
+
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue

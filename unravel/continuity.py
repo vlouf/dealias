@@ -1020,6 +1020,8 @@ def unfolding_3D(
             if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
                 processing_flag[nbeam, ngate] = 0
                 # The current velocity is in agreement with the lower tilt velocity.
+                if flag_slice[nbeam, ngate] == 0:
+                    flag_slice[nbeam, ngate] = 1
                 continue
 
             ogvel = original_velocity[nbeam, ngate]

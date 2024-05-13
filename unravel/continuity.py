@@ -345,7 +345,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     elif flag_threshold > 10:
         flag_threshold = 10
 
-    for nbeam in myquadrant:
+    for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
             # Check if already unfolded
             if flag_vel[nbeam, ngate] != 0:

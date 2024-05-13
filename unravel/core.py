@@ -137,6 +137,8 @@ class Dealias:
             window_len=window_length,
             alpha=alpha,
         )
+
+        azimuth_iteration = np.arange(self.azi_start_pos, self.azi_start_pos - self.nrays, -1) % self.nrays
         dealias_vel, flag_vel = continuity.correct_counterclockwise(
             self.r,
             self.azimuth,
@@ -148,6 +150,7 @@ class Dealias:
             window_len=window_length,
             alpha=alpha,
         )
+
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 

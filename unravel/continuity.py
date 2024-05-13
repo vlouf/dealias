@@ -200,11 +200,16 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     1: velocity is perfectly fine.
     2: velocity is folded.
     """
+    # don't sign-match with near-zero values.  we could probably make this larger
+    SIGN_COMPARE_EPSILON = 1e-6
+
     if np.isnan(velocity_to_check):
         return -3
     elif np.isnan(velocity_reference):
         return 0
     elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
+        abs(velocity_reference) > SIGN_COMPARE_EPSILON and
+        abs(velocity_to_check) > SIGN_COMPARE_EPSILON and
         np.sign(velocity_reference) == np.sign(velocity_to_check)
     ):
         return 1

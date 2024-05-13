@@ -228,7 +228,7 @@ class Dealias:
 
         # Least squares error check in the radial direction
         dealias_vel = continuity.least_square_radial_last_module(
-            self.r, self.azimuth, self.dealias_vel, self.nyquist, alpha=alpha
+            self.r, self.azimuth, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
         )
         self.dealias_vel = dealias_vel
 

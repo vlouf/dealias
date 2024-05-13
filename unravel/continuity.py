@@ -856,7 +856,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     return final_vel, flag_vel
 
 
-def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
+def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Similar as radial_least_square_check.
     """
@@ -891,11 +891,14 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
                 continue
 
             if decision == 1:
-                final_vel[nbeam, ngate] = myvel
+                # final_vel is good (unchanged): update flag if needed
+                if flag_vel[nbeam, ngate] == 0:
+                    flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel
 

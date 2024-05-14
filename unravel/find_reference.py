@@ -16,6 +16,8 @@ Module 1: Finding reference.
 # Other Libraries
 import numpy as np
 
+from .cfg import log
+
 
 def find_reference_radials(velocity):
     """
@@ -59,6 +61,8 @@ def find_reference_radials(velocity):
     if nsum_moy > 0.7 * velocity.shape[1]:
         nsum_moy = int(0.7 * velocity.shape[1])
 
+    log(f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}")
+
     try:
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
     except ValueError:
@@ -90,6 +94,8 @@ def find_reference_radials(velocity):
     start_diff = lambda a: circular_diff(start_beam, a)
     start_diff_vec = np.vectorize(start_diff)
     end_beam = nb[np.argmax(start_diff_vec(nb))]
+
+    log(f"find_reference_radials radials:{start_beam} {end_beam}")
 
     # NB: maybe end_beam == start_beam
     return start_beam, end_beam

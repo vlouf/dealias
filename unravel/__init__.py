@@ -1,3 +1,4 @@
+from .cfg import Cfg
 from .dealias import (
     unravel_3D_pyart,
     unravel_3D_pyodim,

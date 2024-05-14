@@ -17,6 +17,8 @@ Codes for creating and manipulating gate filters.
 import numpy as np
 from numba import jit
 
+from . import cfg
+from .cfg import log
 
 def do_gatefilter(radar, dbz_name: str):
     """
@@ -104,6 +106,10 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
     delta_vmax = vnyquist * alpha;
+
+    log("filter_data MAD alpha:", alpha)
+    if not cfg.DO_ACT:
+        return velocity, vflag
 
     for j in range(0, nrays):
         for n in range(0, ngate):

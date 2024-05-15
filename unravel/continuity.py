@@ -202,11 +202,16 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     1: velocity is perfectly fine.
     2: velocity is folded.
     """
+    # don't sign-match with near-zero values.  we could probably make this larger
+    SIGN_COMPARE_EPSILON = 1e-6
+
     if np.isnan(velocity_to_check):
         return -3
     elif np.isnan(velocity_reference):
         return 0
     elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
+        abs(velocity_reference) > SIGN_COMPARE_EPSILON and
+        abs(velocity_to_check) > SIGN_COMPARE_EPSILON and
         np.sign(velocity_reference) == np.sign(velocity_to_check)
     ):
         return 1
@@ -670,7 +675,6 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
         return final_vel, flag_vel
 
     for nbeam in range(maxazi):
-        posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
             if flag_vel[nbeam, ngate] != 0:
                 continue
@@ -701,15 +705,24 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             decision = take_decision(velref, vel1, vnyq, alpha=alpha)
 
+            processed = False
             if (decision == 1) or (decision == 0):
                 final_vel[nbeam, ngate] = vel1
                 flag_vel[nbeam, ngate] = 1
-                continue
+                processed = True
+
             elif decision == 2:
                 vtrue = unfold(velref, vel1, vnyq)
                 if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
                     flag_vel[nbeam, ngate] = 2
+                    processed = True
+
+            if processed:
+                # add newly processed index to pos_good arrays
+                # (nopython disallows foo.append(bar))
+                posazi_good = np.append(posazi_good, [nbeam])
+                posgate_good = np.append(posgate_good, [ngate])
 
     return final_vel, flag_vel
 
@@ -834,11 +847,11 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
 
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
-        velbeam_arr[flag_vel[nbeam, :] <= 0] = np.NaN
-        if len(velbeam_arr[~np.isnan(velbeam_arr)]) < COUNT_MIN:
+        is_processed_cond = flag_vel[nbeam, :] > 0
+        if len(is_processed_cond) < COUNT_MIN:
             continue
 
-        slope, intercept = linregress(r[~np.isnan(velbeam_arr)], velbeam_arr[~np.isnan(velbeam_arr)])
+        slope, intercept = linregress(r[is_processed_cond], velbeam_arr[is_processed_cond])
 
         fmin = intercept + slope * r - 0.4 * vnyq
         fmax = intercept + slope * r + 0.4 * vnyq
@@ -860,9 +873,10 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
                 continue
 
             if decision == 1:
-                final_vel[nbeam, ngate] = myvel
-                flag_vel[nbeam, ngate] = 1
-            elif decision == 2:
+                # if check is good, keep existing value and flag
+                continue
+
+            if decision == 2:
                 myvel = vel[nbeam, ngate]
 
                 # if previously unfolded, maybe the original value was good
@@ -879,7 +893,7 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     return final_vel, flag_vel
 
 
-def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
+def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8):
     """
     Similar as radial_least_square_check.
     """
@@ -918,11 +932,14 @@ def least_square_radial_last_module(r, azi, final_vel, vnyq, alpha=0.8):
                 continue
 
             if decision == 1:
-                final_vel[nbeam, ngate] = myvel
+                # final_vel is good (unchanged): update flag if needed
+                if flag_vel[nbeam, ngate] == 0:
+                    flag_vel[nbeam, ngate] = 1
             elif decision == 2:
                 vtrue = unfold(mean_vel_ref, myvel, vnyq)
                 if is_good_velocity(mean_vel_ref, vtrue, vnyq, alpha=alpha):
                     final_vel[nbeam, ngate] = vtrue
+                    flag_vel[nbeam, ngate] = 2
 
     return final_vel
 
@@ -1048,6 +1065,8 @@ def unfolding_3D(
             if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
                 processing_flag[nbeam, ngate] = 0
                 # The current velocity is in agreement with the lower tilt velocity.
+                if flag_slice[nbeam, ngate] == 0:
+                    flag_slice[nbeam, ngate] = 1
                 continue
 
             ogvel = original_velocity[nbeam, ngate]

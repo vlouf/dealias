@@ -18,9 +18,11 @@ Module initialize the unfolding.
 import numpy as np
 
 from numba import jit, jit_module
-from numba import uint32, int64, float64
+from numba import uint32
 
 # Custom
+from . import cfg
+from .cfg import log
 from .continuity import take_decision, unfold, is_good_velocity
 
 
@@ -95,6 +97,10 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, 
     flag_vel: array <azimuth, range>
         Flag array for velocity processing (0: unprocessed, 1:processed, 2:unfolded, -3: missing)
     """
+    log("init-clock alpha:", delta_vmax / vnyquist, f"radial:{azi_start_pos}")
+    if not cfg.DO_ACT:
+        return final_vel, vflag
+
     nazi, ngate = velocity.shape
     azipos = np.zeros((2 * nazi), dtype=uint32)
     azipos[:nazi] = np.arange(nazi)
@@ -173,7 +179,6 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     """
     # Initialize stuff.
     maxazi = vel.shape[0]
-    # the status of each `final_vel` bin is tracked through `flag_vel`
     final_vel = vel.copy()
 
     iter_radials_init = np.array([azi_start_pos - 1, azi_start_pos, azi_start_pos + 1])
@@ -183,6 +188,10 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
         iter_radial_list.append(iter_radials_last)
 
     alpha = 0.4 # for unfolding in take_decision()
+
+    log("init-unfold-radial alpha:", alpha, f"radials:{azi_start_pos} {azi_end_pos}")
+    if not cfg.DO_ACT:
+        return vel, flag_vel
 
     for iter_radials in iter_radial_list:
         iter_radials[iter_radials >= maxazi] -= maxazi

@@ -23,6 +23,7 @@ import dask.bag as db
 
 from . import continuity
 from . import filtering
+from .cfg import log
 from .core import Dealias
 from .odim import write_odim_slice
 
@@ -613,6 +614,8 @@ def unravel_3D_pyodim_slice(
     elevation_slice = ds_sweep["elevation"].values[0]
     nyquist_velocity = ds_sweep.attrs["NI"]
 
+    log(f"tilt:{elevation_slice:.1f} {ds_sweep.attrs['id']} nv:{nyquist_velocity:.2f}")
+
     # TODO: pass alpha
     if strategy == "default":
         final_vel, flag_vel = dealiasing_process_2D(
@@ -628,6 +631,9 @@ def unravel_3D_pyodim_slice(
         elevation_reference = ds_ref["elevation"].values[0]
         velocity_reference = ds_ref[output_vel_name].values
         flag_reference = ds_ref[output_flag_name].values
+
+        log(f"tilt:{elevation_slice:.1f} {ds_sweep.attrs['id']} nv:{nyquist_velocity:.2f}")
+        log(f"ref:{ds_ref['elevation'].values[0]:.1f} {ds_ref.attrs['id']}  nv:{ds_ref.attrs['NI']}")
 
         final_vel, flag_vel, _, _ = continuity.unfolding_3D(
             r_reference,

@@ -27,7 +27,7 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     correct_range_backward
     correct_linear_interp
     correct_closest_reference
-    correct_box    
+    correct_box
     box_check
     radial_least_square_check
     least_square_radial_last_module
@@ -36,6 +36,8 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
 import numpy as np
 from numba import jit, jit_module, int64, float64
 
+from . import cfg
+from .cfg import log
 
 def linregress(x, y):
     """
@@ -257,6 +259,10 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     elif flag_threshold > 10:
         flag_threshold = 10
 
+    log("correct_clockwise alpha:", alpha, f"win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     # the number 3 is because we use the previous 3 radials as reference.
     for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
@@ -345,7 +351,11 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     elif flag_threshold > 10:
         flag_threshold = 10
 
-    for nbeam in myquadrant[window_len:]:
+    log("correct_counterclockwise alpha:", alpha, f"win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
+    for nbeam in myquadrant:
         for ngate in range(0, maxgate):
             # Check if already unfolded
             if flag_vel[nbeam, ngate] != 0:
@@ -421,6 +431,10 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
     elif flag_threshold > 10:
         flag_threshold = 10
 
+    log("correct_range_onward alpha:", alpha, f"win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(1, maxrange):
@@ -489,9 +503,17 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     elif flag_threshold > 10:
         flag_threshold = 10
 
-    maxazi, maxrange = final_vel.shape
-    for nbeam in range(maxazi):
-        for ngate in range(maxrange - 2, -1, -1):
+    log("correct_range_backward alpha:", alpha, f"win-len:{window_len}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
+    for nbeam in range(vel.shape[0]):
+        start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
+        if len(start_vec) == 0:
+            continue
+
+        start_gate = start_vec[-1]
+        for ngate in np.arange(start_gate - (window_len + 1), window_len, -1):
             if flag_vel[nbeam, ngate] != 0:
                 continue
 
@@ -554,6 +576,11 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
         Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
     """
     maxazi, maxrange = final_vel.shape
+
+    log("correct_linear_interp (extrapolate) alpha:", alpha, f"window:{r_step}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in range(maxazi):
         if not np.any((flag_vel[nbeam, r_step:] == 0)):
             # There is nothing left to process for this azimuth.
@@ -643,7 +670,9 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     window_gate = 40
     maxazi, maxrange = final_vel.shape
 
-    posazi_good, posgate_good = np.where(flag_vel > 0)
+    log("correct_closest alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_gate}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
 
     for nbeam in range(maxazi):
         for ngate in range(0, maxrange):
@@ -731,6 +760,10 @@ def correct_box(
     else:
         azi_window_offset = window_azimuth // 2
 
+    log("correct_box alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     maxazi, maxrange = final_vel.shape
     for nbeam in np.arange(maxazi - 1, -1, -1):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -808,6 +841,10 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
 
     COUNT_MIN = 2
 
+    log("radial_least_sq alpha:", alpha, f"count-min:{COUNT_MIN}")
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
         is_processed_cond = flag_vel[nbeam, :] > 0
@@ -864,6 +901,10 @@ def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8
     velbeam_arr = np.zeros(maxrange, dtype=float64)
 
     COUNT_MIN = 10
+
+    log("radial_least_sq_last alpha:", alpha, f"count-min:{COUNT_MIN}")
+    if not cfg.DO_ACT:
+        return final_vel
 
     for nbeam in range(maxazi):
         velbeam_arr = final_vel[nbeam, :]
@@ -978,6 +1019,10 @@ def unfolding_3D(
     gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
 
+    log("unfolding_3d alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_range}")
+    if not cfg.DO_ACT:
+        return velocity_slice, flag_slice, None, None
+
     for nbeam in range(maxazi):
 
         # best reference azimuth index (circle distance)
@@ -1071,6 +1116,8 @@ def box_check_v2(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth
     else:
         azi_window_offset = window_azimuth // 2
 
+    log("box_check (box) alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
+
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in np.arange(maxrange - 1, -1, -1):
@@ -1113,9 +1160,8 @@ jit_module(nopython=True, error_model="numpy", cache=True)
 
 def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8):
     """Call either box_check_v1 (cross filter) or box_check_v2 (box filter)."""
-    USE_BOX_CHECK_V1 = False
 
-    if USE_BOX_CHECK_V1:
+    if cfg.USE_BOX_CHECK_V1:
         if not window_azimuth:
             window_azimuth = 40 # v1 default
         return box_check_v1(final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
@@ -1209,6 +1255,8 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
             sub_windows = sub_windows % count0
 
         return array[sub_windows]
+
+    log("box_check (cross) alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
 
     vel_azi = final_vel.copy()
     vel_range = final_vel.copy().T

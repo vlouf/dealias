@@ -19,6 +19,7 @@ from . import continuity
 from . import filtering
 from . import initialisation
 from . import find_reference
+from .cfg import stage_check
 
 
 class Dealias:
@@ -73,22 +74,35 @@ class Dealias:
     def initialize(self):
         """Initialize the dealiasing by filtering the data, finding the radials
         of reference and executer the first pass."""
+
+        # stage 0 (MAD filter)
+        # NB: filter_data() alters self.velocity, returns as dealias_vel
+        stage_check(stage=0) # set stage, don't skip (we need this stage)
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
+
         # stage 1 (find radials)
+        stage_check() # increment, don't skip (we need this stage)
         azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
             self.velocity)
 
         # stage 2 (init radial)
-        dealias_vel, flag_vel = initialisation.initialize_unfolding(
-            azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
-        )
-        vel = self.velocity.copy()
-        vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
-        dealias_vel, flag_vel = initialisation.first_pass(
-            azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
-        )
+        # NB: after initialize_unfolding() dealias_vel and self.velocity differ
+        if stage_check():
+            dealias_vel, flag_vel = initialisation.initialize_unfolding(
+                azi_start_pos, azi_end_pos, self.velocity, flag_vel, vnyq=self.nyquist
+            )
+
+        # stage 3 (init clock)
+        if stage_check():
+            vel = self.velocity.copy()
+            vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
+            dealias_vel, flag_vel = initialisation.first_pass(
+                azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
+            )
+
+        # keep final values
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
         self.azi_start_pos = azi_start_pos

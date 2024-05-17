@@ -17,6 +17,14 @@ Use with `SHOW_PROGESS` to show which stages are run with which settings.
 """
 DO_ACT = True
 
+"""MAX_STAGE: When non-zero, skip stages after CUR_STAGE==MAX_STAGE in
+stage_check()."""
+MAX_STAGE = 0
+
+"""CUR_STAGE: Tracks current stage."""
+CUR_STAGE = 0
+
+
 """USE_BOX_CHECK_V1: Choose between box_check V1 (cross window) and box_check V2 (box window).
 """
 USE_BOX_CHECK_V1 = False
@@ -26,6 +34,19 @@ USE_BOX_CHECK_V1 = False
 def log(*args) -> None:
     if SHOW_PROGRESS:
         print(*args)
+
+
+def stage_check(stage = None):
+    """Check whether to run or to skip current stage."""
+    global CUR_STAGE
+    if stage is not None:
+        CUR_STAGE = stage
+    else:
+        CUR_STAGE += 1
+    if not MAX_STAGE or CUR_STAGE <= MAX_STAGE:
+        return True
+    log(f"Skipping stage {CUR_STAGE}")
+    return False
 
 
 class Cfg:
@@ -38,6 +59,10 @@ class Cfg:
     def set_do_act(self, val):
         global DO_ACT
         DO_ACT = val
+
+    def set_max_stage(self, val):
+        global MAX_STAGE
+        MAX_STAGE = val
 
     def set_use_v1_box_check(self, val):
         global USE_BOX_CHECK_V1

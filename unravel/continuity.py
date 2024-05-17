@@ -671,6 +671,8 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
         return final_vel, flag_vel
 
     for nbeam in range(maxazi):
+        # NB: reset pos_good every radial to maintain good sorting
+        posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
             if flag_vel[nbeam, ngate] != 0:
                 continue

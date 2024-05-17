@@ -666,7 +666,7 @@ def unravel_3D_pyodim_slice(
 
     if stage_check():
         final_vel, flag_vel = continuity.box_check(
-            final_vel, flag_vel, nyquist_velocity, 20)
+            azimuth_slice, final_vel, flag_vel, nyquist_velocity, 20)
 
     # write results back to dataset
     ds_sweep = ds_sweep.merge(

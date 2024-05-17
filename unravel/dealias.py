@@ -115,53 +115,47 @@ def dealiasing_process_2D(
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
-    # Initialization
+    # Initialisation
     # stages 0, 1, 2, 3
     dealias_2D.initialize()
 
     # Dealiasing modules
     completed = ""
-    if stage_check():
+    if stage_check("range"):
         dealias_2D.correct_range()
     for window in [6, 12]:
-        if stage_check():
+        if stage_check("range", completed):
             dealias_2D.correct_range(window)
-        if stage_check():
+        if stage_check("clock", completed):
             dealias_2D.correct_clock(window)
-        if dealias_2D.check_completed():
+        if not completed and dealias_2D.check_completed():
             completed = "range"
-            break
 
-    if not completed:
-        for window in [(5, 2), (20, 10), (40, 20)]:
-            if stage_check():
-                dealias_2D.correct_box(window)
-                if dealias_2D.check_completed():
-                    completed = "box"
-                    break
-
-    if not completed:
-        if stage_check():
-            dealias_2D.correct_leastsquare()
+    for window in [(5, 2), (20, 10), (40, 20)]:
+        if stage_check("box", completed):
+            dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
-                completed = "square"
+                completed = "box"
 
-    if not completed:
-        if stage_check():
-            dealias_2D.correct_linregress()
-            if dealias_2D.check_completed():
-                completed = "regression"
+    if stage_check("lsquare", completed):
+        dealias_2D.correct_leastsquare()
+        if dealias_2D.check_completed():
+            completed = "lsquare"
 
-    if not completed:
-        if stage_check():
-            dealias_2D.correct_closest()
-            if dealias_2D.check_completed():
-                completed = "closest"
+    if stage_check("regression", completed):
+        dealias_2D.correct_linregress()
+        if dealias_2D.check_completed():
+            completed = "regression"
+
+    if stage_check("closest", completed):
+        dealias_2D.correct_closest()
+        if dealias_2D.check_completed():
+            completed = "closest"
 
     # Checking modules.
-    if stage_check():
+    if stage_check("check-lsquare"):
         dealias_2D.check_leastsquare()
-    if stage_check():
+    if stage_check("check-box"):
         dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
@@ -206,7 +200,6 @@ def dealias_long_range(
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
     """
-    brake = None
     if not np.isscalar(elevation):
         raise TypeError("Elevation should be scalar, not an array.")
     if velocity.shape != (len(azimuth), len(r)):
@@ -217,37 +210,47 @@ def dealias_long_range(
 
     dealias_2D = Dealias(r, azimuth, elevation, velocity, nyquist_velocity, alpha)
 
+    # Initialisation
+    # stages 0, 1, 2, 3
     dealias_2D.initialize()
-    dealias_2D.correct_range()
-    for window in [6, 12, 24, 48, 96]:
-        dealias_2D.correct_range(window)
-        dealias_2D.correct_clock(window)
-        if dealias_2D.check_completed():
-            brake = "range"
-            break
 
-    if not dealias_2D.check_completed():
-        for window in [(20, 20), (40, 40)]:
+    # Dealiasing modules
+    completed = ""
+    if stage_check("range"):
+        dealias_2D.correct_range()
+    for window in [6, 12, 24, 48, 96]:
+        if stage_check("range", completed):
+            dealias_2D.correct_range(window)
+        if stage_check("clock", completed):
+            dealias_2D.correct_clock(window)
+        if not completed and dealias_2D.check_completed():
+            completed = "range"
+
+    for window in [(20, 20), (40, 40)]:
+        if stage_check("box", completed):
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
-                brake = "box"
-                break
+                completed = "box"
 
-    if not dealias_2D.check_completed():
-        brake = "regression"
+    if stage_check("regression", completed):
         dealias_2D.correct_linregress()
+        if dealias_2D.check_completed():
+            completed = "regression"
 
-    if not dealias_2D.check_completed():
-        brake = "closest"
+    if stage_check("closest", completed):
         dealias_2D.correct_closest()
+        if not dealias_2D.check_completed():
+            completed = "closest"
 
-    dealias_2D.check_box()
+    # Checking modules
+    if stage_check("check-box"):
+        dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
     unfold_vel[dealias_2D.flag < 0] = np.NaN
 
     if debug:
-        return unfold_vel, dealias_2D.flag, brake
+        return unfold_vel, dealias_2D.flag, completed
 
     return unfold_vel, dealias_2D.flag
 
@@ -314,6 +317,8 @@ def unravel_3D_pyart_multiproc(
         args_list.append((r, azi, elev, velocity_slice, nyquist_velocity, alpha))
 
     # Run the 2D dealiasing using multiprocessing 1 process per sweep.
+    #
+    # NB: parallel stage_check() for max stage will fail due to global state
     if strategy == "default":
         bag = db.from_sequence(args_list).starmap(dealiasing_process_2D)
     else:
@@ -474,7 +479,7 @@ def unravel_3D_pyart(
             final_vel, flag_vel = outargs
 
         final_vel = unmask_array(final_vel)
-        if do_3d:
+        if stage_check("3d") and do_3d:
             final_vel, flag_slice, _, _ = continuity.unfolding_3D(
                 r,
                 azimuth_reference,
@@ -491,7 +496,8 @@ def unravel_3D_pyart(
                 alpha=alpha,
             )
 
-            final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity)
+            if stage_check("check-box"):
+                final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity)
             azimuth_reference = azimuth_slice.copy()
             velocity_reference = final_vel.copy()
             flag_reference = flag_vel.copy()
@@ -638,7 +644,7 @@ def unravel_3D_pyodim_slice(
         final_vel, flag_vel = dealias_long_range(
             r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
 
-    if stage_check() and ds_ref:
+    if stage_check("3d") and ds_ref:
 
         r_reference = ds_ref.range.values
         azimuth_reference = ds_ref.azimuth.values
@@ -664,7 +670,7 @@ def unravel_3D_pyodim_slice(
             nyquist_velocity,
         )
 
-    if stage_check():
+    if stage_check("check-box"):
         final_vel, flag_vel = continuity.box_check(
             azimuth_slice, final_vel, flag_vel, nyquist_velocity, 20)
 

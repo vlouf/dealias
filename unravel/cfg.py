@@ -36,16 +36,21 @@ def log(*args) -> None:
         print(*args)
 
 
-def stage_check(stage = None):
+def stage_check(name, completed = None, stage = None):
     """Check whether to run or to skip current stage."""
     global CUR_STAGE
     if stage is not None:
         CUR_STAGE = stage
     else:
         CUR_STAGE += 1
-    if not MAX_STAGE or CUR_STAGE <= MAX_STAGE:
+    skip = None
+    if completed:
+        skip = f"completed in {completed}"
+    elif MAX_STAGE and CUR_STAGE > MAX_STAGE:
+        skip = "max reached"
+    if not skip:
         return True
-    log(f"Skipping stage {CUR_STAGE}")
+    log(f"Skipping stage {CUR_STAGE} {name}: {skip}")
     return False
 
 

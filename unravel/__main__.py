@@ -1,17 +1,14 @@
 #!/usr/bin/python3
-"""Run UNRAVEL on ODIM HDF5 file.
-
-USAGE:  PATH.pvol.h5
+"""Run UNRAVEL velocity dealiasing on ODIM HDF5 file.
 
 example usage:
  $ python3 -m unravel path/to/odim-file.pvol.h5
 
 NOTE: we don't even use `pyart` in `unravel_3D_pyodim` however it's still
 imported and it's noisy, so we recommend calling unravel with PYART_QUIET=1 in
-the environment, eg:
- $ PYART_QUIET=1 python3 -m unravel path/to/odim-file.pvol.h5
+the environment.
 """
-
+import argparse
 import os
 import re
 import shutil
@@ -41,15 +38,17 @@ def usage():
     print(__doc__)
     sys.exit(1)
 
-def main():
+def main(args):
     """Run UNRAVEL."""
 
-    if len(sys.argv) < 2:
-        usage()
-    in_path = sys.argv[1]
+    cfg = Cfg()
+
+    in_path = args.odim_file
+    if args.max_stage:
+        print(f"setting max stage: {args.max_stage}")
+        cfg.set_max_stage(args.max_stage)
 
     print(f"Processing {in_path}")
-    cfg = Cfg()
     configure(cfg)
 
     out_path = in_path
@@ -70,14 +69,18 @@ def main():
             os.chmod(out_path, out_mode | want_mode)
 
     # TODO: support other unravel entry points...
-
-    # use "default" not "long_range" for testing as default uses all filters
     unravel_3D_pyodim(
         out_path,
-        strategy="default",
+        strategy=args.strategy,
         output_vel_name="VRADDH",
         output_flag_name="V_FLG",
         read_write=cfg.do_act())
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser("\n" + __doc__ + "\nunravel")
+    parser.add_argument("odim_file")
+    parser.add_argument("--strategy", default="default")
+    parser.add_argument("--max-stage", type=int)
+    args = parser.parse_args()
+
+    main(args)

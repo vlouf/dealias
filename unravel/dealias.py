@@ -638,7 +638,7 @@ def unravel_3D_pyodim_slice(
         final_vel, flag_vel = dealias_long_range(
             r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
 
-    if ds_ref:
+    if stage_check() and ds_ref:
 
         r_reference = ds_ref.range.values
         azimuth_reference = ds_ref.azimuth.values
@@ -664,8 +664,9 @@ def unravel_3D_pyodim_slice(
             nyquist_velocity,
         )
 
-    final_vel, flag_vel = continuity.box_check(
-        final_vel, flag_vel, nyquist_velocity, 20)
+    if stage_check():
+        final_vel, flag_vel = continuity.box_check(
+            final_vel, flag_vel, nyquist_velocity, 20)
 
     # write results back to dataset
     ds_sweep = ds_sweep.merge(

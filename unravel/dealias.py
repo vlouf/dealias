@@ -318,7 +318,7 @@ def unravel_3D_pyart_multiproc(
 
     # Run the 2D dealiasing using multiprocessing 1 process per sweep.
     #
-    # NB: parallel stage_check() for max stage will fail due to global state
+    # NB: parallel stage counting in stage_check() won't work due to global state
     if strategy == "default":
         bag = db.from_sequence(args_list).starmap(dealiasing_process_2D)
     else:

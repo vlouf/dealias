@@ -21,6 +21,9 @@ DO_ACT = True
 stage_check()."""
 MAX_STAGE = 0
 
+"""SKIP_STAGE: When non-zero, skip given stage in stage_check()."""
+SKIP_STAGE = 0
+
 """CUR_STAGE: Tracks current stage."""
 CUR_STAGE = 0
 
@@ -48,6 +51,8 @@ def stage_check(name, completed = None, stage = None):
         skip = f"completed in {completed}"
     elif MAX_STAGE and CUR_STAGE > MAX_STAGE:
         skip = "max reached"
+    elif SKIP_STAGE and CUR_STAGE == SKIP_STAGE:
+        skip = "skip current"
     if not skip:
         return True
     log(f"Skipping stage {CUR_STAGE} {name}: {skip}")
@@ -68,6 +73,10 @@ class Cfg:
     def set_max_stage(self, val):
         global MAX_STAGE
         MAX_STAGE = val
+
+    def set_skip_stage(self, val):
+        global SKIP_STAGE
+        SKIP_STAGE = val
 
     def set_use_v1_box_check(self, val):
         global USE_BOX_CHECK_V1

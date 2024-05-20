@@ -18,21 +18,6 @@ import sys
 from .cfg import Cfg
 from .dealias import unravel_3D_pyodim
 
-def configure(c):
-
-    ## run logic ##
-
-    # do we actually want to run / change things?
-    c.set_do_act(True)
-
-    # show progress?
-    c.set_show_progress(True)
-
-    ## variations ##
-
-    # choose between box_check v1(cross window) and v2(box window)
-    c.set_use_v1_box_check(True)
-
 def usage():
     """Print usage and exit."""
     print(__doc__)
@@ -43,14 +28,34 @@ def main(args):
 
     cfg = Cfg()
 
+    ## input ##
     in_path = args.odim_file
+    print(f"Processing {in_path}")
+
+    ## run logic ##
+
+    # do we actually want to run / change things?
+    cfg.set_do_act(args.act)
+
+    # max_stage
     if args.max_stage:
         print(f"setting max stage: {args.max_stage}")
         cfg.set_max_stage(args.max_stage)
 
-    print(f"Processing {in_path}")
-    configure(cfg)
+    # skip_stage
+    if args.skip_stage:
+        print(f"setting skip stage: {args.skip_stage}")
+        cfg.set_skip_stage(args.skip_stage)
 
+    # show progress?
+    cfg.set_show_progress(True)
+
+    ## variations ##
+
+    # choose between box_check v1(cross window) and v2(box window)
+    cfg.set_use_v1_box_check(True)
+
+    ## output ##
     out_path = in_path
     if cfg.do_act():
         out_path = re.sub(".pvol.h5", ".unravel.h5", out_path)
@@ -79,8 +84,10 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("\n" + __doc__ + "\nunravel")
     parser.add_argument("odim_file")
+    parser.add_argument("--act", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--strategy", default="default")
     parser.add_argument("--max-stage", type=int)
+    parser.add_argument("--skip-stage", type=int)
     args = parser.parse_args()
 
     main(args)

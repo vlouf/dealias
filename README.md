@@ -2,7 +2,7 @@
 
 # UNRAVEL
 
-UNRAVEL (UNfold RAdar VELocity) is an open-source modular Doppler velocity dealiasing algorithm for weather radars. UNRAVEL is an algorithm that does not need external reference velocity data, making it easily applicable. The proposed algorithm includes eleven core modules and two dealiasing strategies. UNRAVEL is an iterative algorithm. The goal is to build the dealiasing results starting with the strictest possible continuity tests in azimuth and range and, after each step, relaxing the parameters to include more results from a progressively growing number of reference points. UNRAVEL also has modules that perform 3D continuity checks. Thanks to this modular design, the number of dealiasing strategies can be expanded in order to optimise the dealiasing results.
+UNRAVEL (UNfold RAdar VELocity) is an open-source modular Doppler velocity dealiasing algorithm for weather radars. This algorithm does not require external reference velocity data, making it highly versatile and easily applicable across various contexts. UNRAVEL consists of eleven core modules and two dealiasing strategies, enabling iterative processing. It starts with the strictest continuity tests in azimuth and range, progressively relaxing the parameters to include more results from a growing number of reference points. Additionally, UNRAVEL includes modules for performing 3D continuity checks. This modular design allows for the expansion of dealiasing strategies to optimize results further.
 
 ## Changelog:
 
@@ -14,7 +14,7 @@ Version 1.2.0:
 
 ## Installation
 
-The easiest method for installing UNRAVEL is to use pip:
+UNRAVEL is available on [PyPI](https://pypi.org/project/unravel/). The easiest method for installing UNRAVEL is to use pip:
 
 ```pip install unravel```
 

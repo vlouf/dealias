@@ -674,6 +674,9 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
+    posazi, posgate = np.where(flag_vel > 0)
+    posazi_good = np.array([posazi[0]])
+    posgate_good = np.array([posgate[0]])
     for nbeam in range(maxazi):
         for ngate in range(0, maxrange):
             if flag_vel[nbeam, ngate] != 0:

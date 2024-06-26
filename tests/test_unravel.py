@@ -1,14 +1,13 @@
-# STD lib
 import os
 import datetime
-import requests
-
-# Unravel Lib
-import pyart
-import unravel
-
-# Unit-test lib
 import pytest
+import requests
+import warnings
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import pyart
+import unravel
 
 
 def download_cpol_data(date: datetime.datetime) -> str:
@@ -49,9 +48,11 @@ def download_cpol_data(date: datetime.datetime) -> str:
     return outfilename
 
 
-def test_dealias():
+def test_pyart():
     date = datetime.datetime(2014, 2, 18, 20, 0)
+    print("Downloading data")
     filename = download_cpol_data(date)
+    print("Starting test")
 
     try:
         radar = pyart.io.read(filename)

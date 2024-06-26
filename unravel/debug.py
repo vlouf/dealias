@@ -111,7 +111,7 @@ def debug_dealiasing(
             continue
 
         vel = np.ma.masked_where(gatefilter.gate_excluded, velocity)[myslice]
-        velocity_slice = vel.filled(np.NaN)
+        velocity_slice = vel.filled(np.nan)
 
         flag_slice = np.zeros_like(velocity_slice) + 1
         flag_slice[np.isnan(velocity_slice)] = -3
@@ -125,7 +125,7 @@ def debug_dealiasing(
                 r, azimuth_slice, velocity_slice, elevation_slice, nyquist_velocity, debug=debug, alpha=alpha
             )
 
-        final_vel[flag_vel == -3] = np.NaN
+        final_vel[flag_vel == -3] = np.nan
         unraveled_velocity_2D[myslice] = final_vel.copy()
 
         final_vel, flag_slice, vel_as_ref, proc_flag = continuity.unfolding_3D(

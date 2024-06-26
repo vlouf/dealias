@@ -44,7 +44,7 @@ class Dealias:
     def _gen_empty_velocity(self):
         """Initialiaze empty dealiased velocity field"""
         vel = np.zeros_like(self.velocity, dtype=self.velocity.dtype)
-        vel[np.isnan(self.velocity)] = np.NaN
+        vel[np.isnan(self.velocity)] = np.nan
         return vel
 
     def _gen_flag_array(self):
@@ -56,7 +56,7 @@ class Dealias:
     def _check_velocity(self, velocity):
         """FillValue should be NaN"""
         try:
-            velocity = velocity.filled(np.NaN)
+            velocity = velocity.filled(np.nan)
         except AttributeError:
             pass
         return velocity

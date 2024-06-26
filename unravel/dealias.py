@@ -63,7 +63,7 @@ def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: float) -> np.ndarr
     return np.array(nyquist_list)
 
 
-def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.NaN) -> np.ndarray:
+def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.nan) -> np.ndarray:
     try:
         x = x.filled(fill_value)
     except AttributeError:
@@ -151,7 +151,7 @@ def dealiasing_process_2D(
     dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
-    unfold_vel[dealias_2D.flag < 0] = np.NaN
+    unfold_vel[dealias_2D.flag < 0] = np.nan
 
     if debug:
         return unfold_vel, dealias_2D.flag, brake
@@ -230,7 +230,7 @@ def dealias_long_range(
     dealias_2D.check_box()
 
     unfold_vel = dealias_2D.dealias_vel.copy()
-    unfold_vel[dealias_2D.flag < 0] = np.NaN
+    unfold_vel[dealias_2D.flag < 0] = np.nan
 
     if debug:
         return unfold_vel, dealias_2D.flag, brake
@@ -286,7 +286,7 @@ def unravel_3D_pyart_multiproc(
 
     # Read the velocity field.
     velocity = unmask_array(radar.fields[velname]["data"])
-    velocity[gatefilter.gate_excluded] = np.NaN
+    velocity[gatefilter.gate_excluded] = np.nan
 
     # Build argument list for multiprocessing.
     args_list = []
@@ -409,7 +409,7 @@ def unravel_3D_pyart(
 
     # Read the velocity field.
     velocity = unmask_array(radar.fields[velname]["data"])
-    velocity[gatefilter.gate_excluded] = np.NaN
+    velocity[gatefilter.gate_excluded] = np.nan
 
     # Read coordinates and start with the first sweep.
     sweep = radar.get_slice(0)

@@ -597,11 +597,11 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
         if np.any((v_selected > 0)):
             vmoy_plus = np.nanmean(v_selected[v_selected > 0])
         else:
-            vmoy_plus = np.NaN
+            vmoy_plus = np.nan
         if np.any((v_selected < 0)):
             vmoy_minus = np.nanmean(v_selected[v_selected < 0])
         else:
-            vmoy_minus = np.NaN
+            vmoy_minus = np.nan
 
         if np.isnan(vmoy_plus) and np.isnan(vmoy_minus):
             continue
@@ -694,7 +694,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
             ngate_close = posgate_good[closest]
 
             npos_range = iter_range(ngate_close, window_gate, maxrange)
-            vel_ref_vec = np.zeros(window_azi) + np.NaN
+            vel_ref_vec = np.zeros(window_azi) + np.nan
 
             # Numba doesn't support 2D slice, that's why I loop over things.
             pos = -1
@@ -776,8 +776,8 @@ def correct_box(
             myvel = vel[nbeam, ngate]
             npos_range = iter_range(ngate, window_range, maxrange)
 
-            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
-            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
+            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
+            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
 
             # I know a slice would be better, but this is for jit to work.
             cnt = -1
@@ -1045,7 +1045,7 @@ def unfolding_3D(
 
             rpos_iter = iter_range(rpos_reference, window_range, ref_range)
 
-            velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.NaN
+            velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.nan
             flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3
 
             cnt = -1
@@ -1131,8 +1131,8 @@ def box_check_v2(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth
 
             npos_range = iter_range(ngate, window_range, maxrange)
 
-            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
-            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.NaN
+            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
+            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
 
             cnt = -1
             for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):

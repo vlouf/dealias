@@ -134,11 +134,11 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
             if np.any((v_selected > 0)):
                 vmoy_plus = np.median(v_selected[v_selected > 0])
             else:
-                vmoy_plus = np.NaN
+                vmoy_plus = np.nan
             if np.any((v_selected < 0)):
                 vmoy_minus = np.median(v_selected[v_selected < 0])
             else:
-                vmoy_minus = np.NaN
+                vmoy_minus = np.nan
 
             for k in range(n1, n2):
                 if vflag[j, k] == -3:

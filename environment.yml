@@ -6,5 +6,6 @@ dependencies:
   - python>3.6
   - numpy
   - numba
-  - dask
+  - dask  
+  - arm_pyart
   - pytest

@@ -355,7 +355,7 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
-    for nbeam in myquadrant:
+    for nbeam in myquadrant[window_len:]:
         for ngate in range(0, maxgate):
             # Check if already unfolded
             if flag_vel[nbeam, ngate] != 0:
@@ -507,13 +507,9 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
-    for nbeam in range(vel.shape[0]):
-        start_vec = np.where(flag_vel[nbeam, :] == 1)[0]
-        if len(start_vec) == 0:
-            continue
-
-        start_gate = start_vec[-1]
-        for ngate in np.arange(start_gate - (window_len + 1), window_len, -1):
+    maxazi, maxrange = vel.shape
+    for nbeam in range(maxazi):
+        for ngate in range(maxrange - 2, -1, -1):
             if flag_vel[nbeam, ngate] != 0:
                 continue
 
@@ -678,6 +674,8 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
     posazi_good = np.array([posazi[0]])
     posgate_good = np.array([posgate[0]])
     for nbeam in range(maxazi):
+        # NB: reset pos_good every radial to maintain good sorting
+        posazi_good, posgate_good = np.where(flag_vel > 0)
         for ngate in range(0, maxrange):
             if flag_vel[nbeam, ngate] != 0:
                 continue
@@ -784,8 +782,6 @@ def correct_box(
             for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
                 for nr in npos_range:
                     cnt += 1
-                    if (na, nr) == (nbeam, ngate):
-                        continue
                     vel_ref_vec[cnt] = final_vel[na, nr]
                     flag_ref_vec[cnt] = flag_vel[na, nr]
 
@@ -1014,10 +1010,8 @@ def unfolding_3D(
     processing_flag = np.zeros(velocity_slice.shape) - 3
 
     maxazi, maxrange = velocity_slice.shape
+    # NB: ref_range and maxrange may differ
     ref_range = vel_swref.shape[1]
-    # TODO: handle differing ranges
-    if ref_range != maxrange:
-        print(f"WARNING: unfolding_3D: range counts differ {maxrange} {ref_range}")
 
     gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
@@ -1031,6 +1025,9 @@ def unfolding_3D(
         # best reference azimuth index (circle distance)
         apos_reference = np.argmin(circle_distance(azi_swref, azi_slice[nbeam], 360.0))
 
+        # reference azimuth window
+        apos_iter = iter_azimuth(azi_swref, apos_reference - window_azi // 2, window_azi)
+
         for ngate in range(maxrange):
             if flag_slice[nbeam, ngate] == -3:
                 # No data here.
@@ -1042,14 +1039,14 @@ def unfolding_3D(
             # best reference range index (absolute distance)
             rpos_reference = np.argmin(np.abs(gr_swref - gr_slice[ngate]))
 
-
+            # reference range window
             rpos_iter = iter_range(rpos_reference, window_range, ref_range)
 
             velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.nan
             flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3
 
             cnt = -1
-            for na in iter_azimuth(azi_swref, apos_reference - window_azi // 2, window_azi):
+            for na in apos_iter:
                 for nr in rpos_iter:
                     cnt += 1
                     velocity_refcomp_array[cnt] = vel_swref[na, nr]

@@ -1,17 +1,14 @@
 #!/usr/bin/python3
-"""Run UNRAVEL on ODIM HDF5 file.
-
-USAGE:  PATH.pvol.h5
+"""Run UNRAVEL velocity dealiasing on ODIM HDF5 file.
 
 example usage:
  $ python3 -m unravel path/to/odim-file.pvol.h5
 
 NOTE: we don't even use `pyart` in `unravel_3D_pyodim` however it's still
 imported and it's noisy, so we recommend calling unravel with PYART_QUIET=1 in
-the environment, eg:
- $ PYART_QUIET=1 python3 -m unravel path/to/odim-file.pvol.h5
+the environment.
 """
-
+import argparse
 import os
 import re
 import shutil
@@ -21,37 +18,44 @@ import sys
 from .cfg import Cfg
 from .dealias import unravel_3D_pyodim
 
-def configure(c):
-
-    ## run logic ##
-
-    # do we actually want to run / change things?
-    c.set_do_act(True)
-
-    # show progress?
-    c.set_show_progress(True)
-
-    ## variations ##
-
-    # choose between box_check v1(cross window) and v2(box window)
-    c.set_use_v1_box_check(True)
-
 def usage():
     """Print usage and exit."""
     print(__doc__)
     sys.exit(1)
 
-def main():
+def main(args):
     """Run UNRAVEL."""
 
-    if len(sys.argv) < 2:
-        usage()
-    in_path = sys.argv[1]
-
-    print(f"Processing {in_path}")
     cfg = Cfg()
-    configure(cfg)
 
+    ## input ##
+    in_path = args.odim_file
+    print(f"Processing {in_path}")
+
+    ## run logic ##
+
+    # do we actually want to run / change things?
+    cfg.set_do_act(args.act)
+
+    # max_stage
+    if args.max_stage:
+        print(f"setting max stage: {args.max_stage}")
+        cfg.set_max_stage(args.max_stage)
+
+    # skip_stage
+    if args.skip_stage:
+        print(f"setting skip stage: {args.skip_stage}")
+        cfg.set_skip_stage(args.skip_stage)
+
+    # show progress?
+    cfg.set_show_progress(True)
+
+    ## variations ##
+
+    # choose between box_check v1(cross window) and v2(box window)
+    cfg.set_use_v1_box_check(True)
+
+    ## output ##
     out_path = in_path
     if cfg.do_act():
         out_path = re.sub(".pvol.h5", ".unravel.h5", out_path)
@@ -70,14 +74,20 @@ def main():
             os.chmod(out_path, out_mode | want_mode)
 
     # TODO: support other unravel entry points...
-
-    # use "default" not "long_range" for testing as default uses all filters
     unravel_3D_pyodim(
         out_path,
-        strategy="default",
+        strategy=args.strategy,
         output_vel_name="VRADDH",
         output_flag_name="V_FLG",
         read_write=cfg.do_act())
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser("\n" + __doc__ + "\nunravel")
+    parser.add_argument("odim_file")
+    parser.add_argument("--act", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--strategy", default="default")
+    parser.add_argument("--max-stage", type=int)
+    parser.add_argument("--skip-stage", type=int)
+    args = parser.parse_args()
+
+    main(args)

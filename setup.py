@@ -20,16 +20,15 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Atmospheric Science",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "License :: OSI Approved :: MIT License",        
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
     keywords="radar weather meteorology dealiasing Doppler",  # Optional
     packages=find_packages(exclude=["contrib", "docs", "tests"]),  # Required
-    install_requires=["numpy", "numba", "arm_pyart"],  # Optional
+    install_requires=["numpy", "numba", "arm_pyart", "pyodim"],  # Optional
     project_urls={  # Optional
         "Bug Reports": "https://github.com/vlouf/dealias/issues",
         "Source": "https://github.com/vlouf/dealias/",

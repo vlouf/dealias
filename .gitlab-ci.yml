@@ -1,0 +1,26 @@
+image: "fedora:latest"
+
+stages:
+  - test
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.9"      
+      - PYTHON_VERSION: "3.11"
+
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install -e .
+    - pytest
+  tags:
+    - docker

@@ -1,4 +1,4 @@
-name: Publish suncal to PyPI / GitHub
+name: Publish UNRAVEL to PyPI / GitHub
 
 on:
   release:

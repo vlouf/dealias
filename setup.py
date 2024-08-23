@@ -9,7 +9,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="unravel",  # Required    
-    version="1.3.2",  # Required
+    version="1.3.3",  # Required
     description="A dealiasing technique for Doppler radar velocity.",  # Optional
     long_description=long_description,  # Optional
     long_description_content_type="text/markdown",  # Optional (see note above)

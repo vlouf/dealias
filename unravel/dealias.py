@@ -516,7 +516,7 @@ def unravel_3D_pyodim(
     vel_name="VRADH",
     output_vel_name="unraveled_velocity",
     load_all_fields=False,
-    gatefilter=None,
+    condition=None,
     strategy="long_range",
     debug=False,
     read_write=False,
@@ -538,9 +538,8 @@ def unravel_3D_pyodim(
     load_all_fields: bool
         Load all fields in the ODIM H5 files (for writing the H5 file on disk)
         or just the velocity field.
-    gatefilter: NoneType
-        Placeholder for the GateFilter argument like in unravel_3D_pyart.
-        Feature not supported yet.
+    condition: (tuple)
+        (variable_name, "lower"/"above", threshold_value)
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
     read_write: write back to original file if True
@@ -556,19 +555,30 @@ def unravel_3D_pyodim(
     # sweep.
     if strategy not in ["default", "long_range"]:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
-    if gatefilter is not None:
-        raise ValueError("gatefilter not supported with pyodim structure. Please use Py-ART instead.")
     if debug:
         print("Argument debug=True is not yet supported with ODIM files.")
 
     import pyodim
 
-    if load_all_fields:
-        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write)
+    if load_all_fields or condition is not None:
+        (rsets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write)
     else:
-        (radar_datasets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write, include_fields=[vel_name])
-    radar_datasets = [r.compute() for r in radar_datasets]
-    # data_count = radar_datasets[0].attrs["data_count"]
+        (rsets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write, include_fields=[vel_name])
+    rsets = [r.compute() for r in rsets]
+
+    # Filtering data with provided gatefilter.
+    if condition is None:
+#        vel_name = file_vel_name
+        radar_datasets = rsets
+    else:
+        var, op, threshold = condition
+        radar_datasets = [None] * len(rsets)
+        for idx, radar in enumerate(rsets):
+            mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
+            radar_datasets[idx] = radar.merge({
+                f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name]))
+            })
+        vel_name = f"{vel_name}_clean"
 
     # Looking for low-elevation sweep with the highest Nyquist velocity to use
     # as reference.
@@ -680,3 +690,4 @@ def unravel_3D_pyodim_slice(
           output_flag_name: (("azimuth", "range"), flag_vel) })
 
     return ds_sweep
+

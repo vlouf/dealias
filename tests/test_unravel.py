@@ -24,7 +24,7 @@ def download_cpol_data(date: datetime.datetime) -> str:
     year = date.year
     datestr = date.strftime("%Y%m%d")
     datetimestr = date.strftime("%Y%m%d.%H%M")
-    url = f"http://dapds00.nci.org.au/thredds/fileServer/hj10/cpol/cpol_level_1b/v2020/ppi/{year}/{datestr}/twp10cpolppi.b1.{datetimestr}00.nc"
+    url = f"https://dapds00.nci.org.au/thredds/fileServer/hj10/cpol/cpol_level_1b/v2020/ppi/{year}/{datestr}/twp10cpolppi.b1.{datetimestr}00.nc"
     fname = os.path.basename(url)
     try:
         os.mkdir("dwl")

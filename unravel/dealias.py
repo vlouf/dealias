@@ -545,15 +545,15 @@ def unravel_3D_pyart(
 
 def unravel_3D_pyodim(
     odim_file: str,
-    vel_name: str="VRADH",
-    output_vel_name: str="unraveled_velocity",
-    load_all_fields: bool=False,
-    condition: Union[None, Tuple[str, str, float]]=None,
-    strategy: str="long_range",
-    alpha: float=0.6,
-    debug: bool=False,
-    read_write: bool=False,
-    output_flag_name: Union[str, None]=None,
+    vel_name: str = "VRADH",
+    output_vel_name: str = "unraveled_velocity",
+    load_all_fields: bool = False,
+    condition: Union[None, Tuple[str, str, float]] = None,
+    strategy: str = "long_range",
+    alpha: float = 0.6,
+    debug: bool = False,
+    read_write: bool = False,
+    output_flag_name: Union[str, None] = None,
 ) -> List[xr.Dataset]:
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -623,19 +623,35 @@ def unravel_3D_pyodim(
     nslice_ref = np.argmax(nyquists[: len(elev_angles) // 2])
 
     # Dealiasing first sweep.
-    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name, alpha, debug)
+    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(
+        radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
+    )
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:
         for sweep in np.arange(nslice_ref)[::-1]:
             radar_datasets[sweep] = unravel_3D_pyodim_slice(
-                radar_datasets[sweep], radar_datasets[sweep + 1], vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
+                radar_datasets[sweep],
+                radar_datasets[sweep + 1],
+                vel_name,
+                strategy,
+                output_vel_name,
+                output_flag_name,
+                alpha,
+                debug,
             )
 
     # Processing sweeps by increasing elevations from the nslice_ref sweeps
     for sweep in range(nslice_ref + 1, len(radar_datasets)):
         radar_datasets[sweep] = unravel_3D_pyodim_slice(
-            radar_datasets[sweep], radar_datasets[sweep - 1], vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
+            radar_datasets[sweep],
+            radar_datasets[sweep - 1],
+            vel_name,
+            strategy,
+            output_vel_name,
+            output_flag_name,
+            alpha,
+            debug,
         )
 
     if read_write:
@@ -651,7 +667,16 @@ def unravel_3D_pyodim(
     return radar_datasets
 
 
-def unravel_3D_pyodim_slice(ds_sweep: xr.Dataset, ds_ref: Union[None, xr.Dataset], vel_name: str, strategy: str, output_vel_name: str, output_flag_name: str, alpha: float, debug: bool) -> xr.Dataset:
+def unravel_3D_pyodim_slice(
+    ds_sweep: xr.Dataset,
+    ds_ref: Union[None, xr.Dataset],
+    vel_name: str,
+    strategy: str,
+    output_vel_name: str,
+    output_flag_name: str,
+    alpha: float,
+    debug: bool,
+) -> xr.Dataset:
     """
     Process one slice/sweep/tilt of ODIM polar radar volume.
     This function performs the dealiasing process on a single slice of the
@@ -703,7 +728,7 @@ def unravel_3D_pyodim_slice(ds_sweep: xr.Dataset, ds_ref: Union[None, xr.Dataset
         final_vel, flag_vel, completed = outputs
         log(f"Completed stage: {completed}")
     else:
-        final_vel, flag_vel = outputs        
+        final_vel, flag_vel = outputs
 
     if stage_check("3d") and ds_ref:
         r_reference = ds_ref.range.values

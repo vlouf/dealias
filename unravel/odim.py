@@ -28,7 +28,7 @@ VEL2_ENC_GAIN = 0.025
 VEL2_ENC_OFFSET = -300.0
 VEL2_ENC_NODATA = 0.0
 VEL2_ENC_UNDETECT = 1.0
-VEL2_ENC_DTYPE = 'uint16'
+VEL2_ENC_DTYPE = "uint16"
 
 # flag encoding (matching CENT UNRAVEL)
 #
@@ -37,9 +37,8 @@ FLAG_ENC_GAIN = 0.1
 FLAG_ENC_OFFSET = 0.0
 FLAG_ENC_NODATA = 255.0
 
-def rename_old_data(
-        h5_tilt,
-        data_name):
+
+def rename_old_data(h5_tilt, data_name):
     """Rename old data to avoid name clashes."""
     for d_idx in itertools.count(1):
         if not f"data{d_idx}" in h5_tilt:
@@ -49,12 +48,8 @@ def rename_old_data(
             print(f"renaming {data_name} -> {data_name}_{d_idx}")
             write_odim_str_attrib(d_what, "quantity", f"{data_name}_{d_idx}")
 
-def write_odim_slice(
-        h5file,
-        ds_sweep,
-        vel_name: str,
-        output_vel_name: str,
-        output_flag_name: str):
+
+def write_odim_slice(h5file, ds_sweep, vel_name: str, output_vel_name: str, output_flag_name: str):
     """Write one slice of corrected velocity data back to ODIM HDF5 file.
 
     @param h5file: h5py file handle
@@ -90,8 +85,7 @@ def write_odim_slice(
     vel2_data = ds_sweep[output_vel_name].values
 
     # NB: round() matching bom-core odim write_pack()
-    vel2_encoded = np.ma.filled(
-        np.round((vel2_data - VEL2_ENC_OFFSET) / VEL2_ENC_GAIN), VEL2_ENC_NODATA)
+    vel2_encoded = np.ma.filled(np.round((vel2_data - VEL2_ENC_OFFSET) / VEL2_ENC_GAIN), VEL2_ENC_NODATA)
     # NB: as we use a different datatype we must recreate the dataset
     # NB: conversion from floating-point to discrete levels
     del vel2_h5["data"]
@@ -108,7 +102,7 @@ def write_odim_slice(
     flag_h5_what = flag_h5["what"]
     flag_h5_what.attrs["gain"] = FLAG_ENC_GAIN
     flag_h5_what.attrs["offset"] = FLAG_ENC_OFFSET
-    flag_h5_what.attrs["nodata"]   = FLAG_ENC_NODATA
+    flag_h5_what.attrs["nodata"] = FLAG_ENC_NODATA
     flag_h5_what.attrs["undetect"] = FLAG_ENC_NODATA
     # set quantity
     pyodim.write_odim_str_attrib(flag_h5_what, "quantity", output_flag_name)
@@ -117,6 +111,5 @@ def write_odim_slice(
     flag_data = ds_sweep[output_flag_name].values
     flag_ma = np.ma.masked_equal(flag_data, FLAG_NODATA)
     # NB: matching bom-core odim write_pack()
-    flag_encoded = np.ma.filled(
-        np.round((flag_ma - FLAG_ENC_OFFSET) / FLAG_ENC_GAIN), FLAG_ENC_NODATA)
+    flag_encoded = np.ma.filled(np.round((flag_ma - FLAG_ENC_OFFSET) / FLAG_ENC_GAIN), FLAG_ENC_NODATA)
     flag_h5["data"][...] = flag_encoded

@@ -61,7 +61,9 @@ def find_reference_radials(velocity):
     if nsum_moy > 0.7 * velocity.shape[1]:
         nsum_moy = int(0.7 * velocity.shape[1])
 
-    log(f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}")
+    log(
+        f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}"
+    )
 
     try:
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
@@ -89,7 +91,7 @@ def find_reference_radials(velocity):
         try:
             nb[i] = find_min_quadrant(azimuth[pos], velocity[pos, :], nvalid_gate[pos], nsum_moy)
         except ValueError:
-            nb[i] = start_beam # the worst we can do
+            nb[i] = start_beam  # the worst we can do
 
     start_diff = lambda a: circular_diff(start_beam, a)
     start_diff_vec = np.vectorize(start_diff)

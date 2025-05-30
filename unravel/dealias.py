@@ -15,6 +15,7 @@ Driver script for the dealiasing module.
     unravel_3D_pyart
     unravel_3D_pyodim
 """
+
 from typing import Union, Tuple
 
 import pyart
@@ -568,16 +569,16 @@ def unravel_3D_pyodim(
 
     # Filtering data with provided gatefilter.
     if condition is None:
-#        vel_name = file_vel_name
+        #        vel_name = file_vel_name
         radar_datasets = rsets
     else:
         var, op, threshold = condition
         radar_datasets = [None] * len(rsets)
         for idx, radar in enumerate(rsets):
             mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
-            radar_datasets[idx] = radar.merge({
-                f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name]))
-            })
+            radar_datasets[idx] = radar.merge(
+                {f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name]))}
+            )
         vel_name = f"{vel_name}_clean"
 
     # Looking for low-elevation sweep with the highest Nyquist velocity to use
@@ -588,33 +589,21 @@ def unravel_3D_pyodim(
 
     # Dealiasing first sweep.
     radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(
-        radar_datasets[nslice_ref],
-        None,                   # no reference
-        vel_name,
-        strategy,
-        output_vel_name,
-        output_flag_name)
+        radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name  # no reference
+    )
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:
         for sweep in np.arange(nslice_ref)[::-1]:
             radar_datasets[sweep] = unravel_3D_pyodim_slice(
-                radar_datasets[sweep],
-                radar_datasets[sweep + 1],
-                vel_name,
-                strategy,
-                output_vel_name,
-                output_flag_name)
+                radar_datasets[sweep], radar_datasets[sweep + 1], vel_name, strategy, output_vel_name, output_flag_name
+            )
 
     # Processing sweeps by increasing elevations from the nslice_ref sweeps
     for sweep in range(nslice_ref + 1, len(radar_datasets)):
         radar_datasets[sweep] = unravel_3D_pyodim_slice(
-            radar_datasets[sweep],
-            radar_datasets[sweep - 1],
-            vel_name,
-            strategy,
-            output_vel_name,
-            output_flag_name)
+            radar_datasets[sweep], radar_datasets[sweep - 1], vel_name, strategy, output_vel_name, output_flag_name
+        )
 
     if read_write:
         for sweep in range(len(radar_datasets)):
@@ -629,13 +618,7 @@ def unravel_3D_pyodim(
     return radar_datasets
 
 
-def unravel_3D_pyodim_slice(
-        ds_sweep,
-        ds_ref,
-        vel_name,
-        strategy,
-        output_vel_name,
-        output_flag_name):
+def unravel_3D_pyodim_slice(ds_sweep, ds_ref, vel_name, strategy, output_vel_name, output_flag_name):
     """Process one slice/sweep/tilt of ODIM polar radar volume."""
 
     r_slice = ds_sweep.range.values
@@ -649,10 +632,12 @@ def unravel_3D_pyodim_slice(
     # TODO: pass alpha
     if strategy == "default":
         final_vel, flag_vel = dealiasing_process_2D(
-            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity
+        )
     else:
         final_vel, flag_vel = dealias_long_range(
-            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity)
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity
+        )
 
     if stage_check("3d") and ds_ref:
 
@@ -681,13 +666,11 @@ def unravel_3D_pyodim_slice(
         )
 
     if stage_check("check-box"):
-        final_vel, flag_vel = continuity.box_check(
-            azimuth_slice, final_vel, flag_vel, nyquist_velocity, 20)
+        final_vel, flag_vel = continuity.box_check(azimuth_slice, final_vel, flag_vel, nyquist_velocity, 20)
 
     # write results back to dataset
     ds_sweep = ds_sweep.merge(
-        { output_vel_name: (("azimuth", "range"), final_vel),
-          output_flag_name: (("azimuth", "range"), flag_vel) })
+        {output_vel_name: (("azimuth", "range"), final_vel), output_flag_name: (("azimuth", "range"), flag_vel)}
+    )
 
     return ds_sweep
-

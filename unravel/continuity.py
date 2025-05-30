@@ -33,11 +33,13 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     least_square_radial_last_module
     unfolding_3D
 """
+
 import numpy as np
 from numba import jit, jit_module, int64, float64
 
 from . import cfg
 from .cfg import log
+
 
 def linregress(x, y):
     """
@@ -210,9 +212,9 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
     elif np.isnan(velocity_reference):
         return 0
     elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
-        abs(velocity_reference) > SIGN_COMPARE_EPSILON and
-        abs(velocity_to_check) > SIGN_COMPARE_EPSILON and
-        np.sign(velocity_reference) == np.sign(velocity_to_check)
+        abs(velocity_reference) > SIGN_COMPARE_EPSILON
+        and abs(velocity_to_check) > SIGN_COMPARE_EPSILON
+        and np.sign(velocity_reference) == np.sign(velocity_to_check)
     ):
         return 1
     else:
@@ -619,8 +621,7 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
             # for mark-good (1):
             # - we mark as good if not actually unfolded
             # - 1e-2: VRAD typically encoded using gain of around 0.1, so smaller differences should be ignored
-            if decision == 1 or (
-                    decision == 2 and np.isclose(current_vel, vtrue, atol=1e-2)):
+            if decision == 1 or (decision == 2 and np.isclose(current_vel, vtrue, atol=1e-2)):
                 final_vel[nbeam, ngate] = current_vel
                 flag_vel[nbeam, ngate] = 1
             elif decision == 2:
@@ -629,11 +630,13 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
 
     return final_vel, flag_vel
 
+
 def circle_distance(a, b, circumference):
     """Distance between azimuths a and b on a circle.
 
     NB: will work with numpy values or arrays."""
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
+
 
 def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
     """
@@ -682,8 +685,7 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
             vel1 = vel[nbeam, ngate]
 
-            distance = (circle_distance(posazi_good, nbeam, maxazi) ** 2 +
-                        (posgate_good - ngate) ** 2)
+            distance = circle_distance(posazi_good, nbeam, maxazi) ** 2 + (posgate_good - ngate) ** 2
             if len(distance) == 0:
                 continue
 
@@ -1052,7 +1054,7 @@ def unfolding_3D(
                     velocity_refcomp_array[cnt] = vel_swref[na, nr]
                     flag_refcomp_array[cnt] = flag_swref[na, nr]
 
-            refcomp_valid = (flag_refcomp_array >= 1)
+            refcomp_valid = flag_refcomp_array >= 1
             # TODO: surely threshold should be higher than 1? 20% of window?
             if np.sum(refcomp_valid) < 1:
                 # No comparison possible all gates in the reference are missing.
@@ -1163,11 +1165,11 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=No
 
     if cfg.USE_BOX_CHECK_V1:
         if not window_azimuth:
-            window_azimuth = 40 # v1 default
+            window_azimuth = 40  # v1 default
         return box_check_v1(final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
     if not window_azimuth:
-        window_azimuth = 20 # v2 default
+        window_azimuth = 20  # v2 default
     return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
 
@@ -1238,20 +1240,16 @@ def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, 
         # eg (-1 + [0, 1, 2]) + [0, 1, 2].T
         # ->      [-1, 0, 1]  + [0, 1, 2].T
         # -> [    [-1, 0, 1], [0, 1, 2], [1, 2, 3]]
-        sub_windows = (
-            (start
-            + np.expand_dims(np.arange(window), 0))
-            + np.expand_dims(np.arange(count0), 0).T
-        )
+        sub_windows = (start + np.expand_dims(np.arange(window), 0)) + np.expand_dims(np.arange(count0), 0).T
 
         # handle index overruns
-        if positive_only: # eg for range indices
+        if positive_only:  # eg for range indices
             # NB: we should really truncate the window at the edges, but as a
             # compromise we reflect (and some values double-up)
             flat = sub_windows.reshape(-1)
             for i in range(flat.shape[0]):
                 flat[i] = reflect_idx(flat[i], count0)
-        else: # wrap (eg for azi indices)
+        else:  # wrap (eg for azi indices)
             sub_windows = sub_windows % count0
 
         return array[sub_windows]

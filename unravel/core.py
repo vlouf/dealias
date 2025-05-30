@@ -11,6 +11,7 @@ The dealiasing class.
 
     Dealias
 """
+
 import traceback
 
 import numpy as np
@@ -34,7 +35,7 @@ class Dealias:
         self.velocity = self._check_velocity(velocity)
         self.nyquist = nyquist_velocity
         self.alpha = alpha
-        self.alpha_mad = 0.3 # Trusted velocity difference Nyquist multiplier (for filter_data)
+        self.alpha_mad = 0.3  # Trusted velocity difference Nyquist multiplier (for filter_data)
         self.vshift = 2 * nyquist_velocity
         self.nrays = len(azimuth)
         self.ngates = len(r)
@@ -77,15 +78,14 @@ class Dealias:
 
         # stage 0 (MAD filter)
         # NB: filter_data() alters self.velocity, returns as dealias_vel
-        stage_check("filter", stage=0) # set stage, don't skip (we need this stage)
+        stage_check("filter", stage=0)  # set stage, don't skip (we need this stage)
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
 
         # stage 1 (find radials)
-        stage_check("find") # increment, don't skip (we need this stage)
-        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
-            self.velocity)
+        stage_check("find")  # increment, don't skip (we need this stage)
+        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(self.velocity)
 
         # stage 2 (init radial)
         # NB: after initialize_unfolding() dealias_vel and self.velocity differ

@@ -14,6 +14,7 @@ Module initialize the unfolding.
     first_pass
     initialize_unfolding
 """
+
 # Other Libraries
 import numpy as np
 
@@ -187,7 +188,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
         iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
         iter_radial_list.append(iter_radials_last)
 
-    alpha = 0.4 # for unfolding in take_decision()
+    alpha = 0.4  # for unfolding in take_decision()
 
     log("init-unfold-radial alpha:", alpha, f"radials:{azi_start_pos} {azi_end_pos}")
     if not cfg.DO_ACT:

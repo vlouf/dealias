@@ -5,7 +5,7 @@ Driver script for the dealiasing module.
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
 @creation: 05/04/2018
-@date: 11/01/2024
+@date: 30/05/2025
 
     _check_nyquist
     unmask_array
@@ -16,11 +16,13 @@ Driver script for the dealiasing module.
     unravel_3D_pyodim
 """
 
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 import pyart
 import numpy as np
+import xarray as xr
 import dask.bag as db
+from numpy.typing import NDArray
 
 from . import continuity
 from . import filtering
@@ -29,7 +31,7 @@ from .core import Dealias
 from .odim import write_odim_slice
 
 
-def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: float) -> np.ndarray:
+def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Union[None, List[float], float]) -> NDArray:
     """
     If nyquist is not defined, then it will assume that it is the same
     nyquist for the whole sweep. If you want a different nyquist at each
@@ -81,7 +83,7 @@ def dealiasing_process_2D(
     nyquist_velocity: float,
     alpha: float = 0.6,
     debug: bool = False,
-):
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, str]]:
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -97,6 +99,10 @@ def dealiasing_process_2D(
         Aliased Doppler velocity field.
     nyquist_velocity: float
         Nyquist velocity.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.6.
+    debug: bool
+        If True, returns additional information about the processing stages.
 
     Returns:
     ========
@@ -105,6 +111,9 @@ def dealiasing_process_2D(
     flag_vel: ndarray int <azimuth, range>
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
+    completed: str
+        Name of the last completed stage in the dealiasing process.
+        Only returned if debug is True.
     """
     if not np.isscalar(elevation):
         raise TypeError("Elevation should be scalar, not an array.")
@@ -176,7 +185,7 @@ def dealias_long_range(
     nyquist_velocity: float,
     alpha: float = 0.6,
     debug: bool = False,
-):
+) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, str]]:
     """
     Dealiasing processing for 2D slice of the Doppler radar velocity field.
 
@@ -192,6 +201,10 @@ def dealias_long_range(
         Aliased Doppler velocity field.
     nyquist_velocity: float
         Nyquist velocity.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.6.
+    debug: bool
+        If True, returns additional information about the processing stages.
 
     Returns:
     ========
@@ -200,6 +213,9 @@ def dealias_long_range(
     flag_vel: ndarray int <azimuth, range>
         Flag array (-3: No data, 0: Unprocessed, 1: Processed - no change -,
                     2: Processed - dealiased.)
+    completed: str
+        Name of the last completed stage in the dealiasing process.
+        Only returned if debug is True.
     """
     if not np.isscalar(elevation):
         raise TypeError("Elevation should be scalar, not an array.")
@@ -260,8 +276,8 @@ def unravel_3D_pyart_multiproc(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: pyart.filters.GateFilter = None,
-    nyquist_velocity: float = None,
+    gatefilter: Union[pyart.filters.GateFilter, None] = None,
+    nyquist_velocity: Union[float, None] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
@@ -285,9 +301,11 @@ def unravel_3D_pyart_multiproc(
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
     nyquist_velocity: float or list
-        If it is a scalar, then it is assume as being the same nyquist for the
-        whole volume. If it is a list, it is expected to be the value of nyquist
-        for each sweep.
+        Nyquist velocity.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.8.
+    do_3d: bool
+        If True, run the 3D unfolding process after the 2D dealiasing.
 
     Returns:
     ========
@@ -384,14 +402,14 @@ def unravel_3D_pyart(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: pyart.filters.GateFilter = None,
-    nyquist_velocity: float = None,
+    gatefilter: Union[pyart.filters.GateFilter, None] = None,
+    nyquist_velocity: Union[float, None] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
     debug: bool = False,
     **kwargs,
-) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+) -> Union[np.ndarray, Tuple[np.ndarray, List]]:
     """
     Process driver.
     Full dealiasing process 2D + 3D.
@@ -413,11 +431,19 @@ def unravel_3D_pyart(
         If it is a scalar, then it is assume as being the same nyquist for the
         whole volume. If it is a list, it is expected to be the value of nyquist
         for each sweep.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.8.
+    do_3d: bool
+        If True, run the 3D unfolding process after the 2D dealiasing.
+    debug: bool
+        If True, returns additional information about the processing stages.
 
     Returns:
     ========
     unraveled_velocity: ndarray
         Dealised velocity field.
+    pointbreak: List[str]
+        List of pointbreaks if debug is True, otherwise not returned.
     """
     pointbreak = []
     # Check arguments
@@ -435,11 +461,13 @@ def unravel_3D_pyart(
     sweep = radar.get_slice(0)
     r = unmask_array(radar.range["data"])
     azimuth_reference = unmask_array(radar.azimuth["data"][sweep])
-    elevation_reference = unmask_array(radar.elevation["data"][sweep].mean())
+    elevation_reference = unmask_array(radar.elevation["data"][sweep]).mean()
     velocity_reference = velocity[sweep]
 
     # Dealiasing first sweep.
     nyquist_velocity = nyquist_list[0]
+    if nyquist_velocity is None:
+        raise ValueError("Nyquist velocity must not be None for dealiasing_process_2D.")
     if strategy == "default":
         outargs = dealiasing_process_2D(
             r, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, debug=debug, **kwargs
@@ -448,20 +476,22 @@ def unravel_3D_pyart(
         outargs = dealias_long_range(
             r, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, **kwargs
         )
-    if debug:
+    if len(outargs) == 3:
         velocity_reference, flag_reference, brake = outargs
-        pointbreak.append(brake)
     else:
         velocity_reference, flag_reference = outargs
+        brake = None
+    pointbreak.append(brake)
 
     unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
     unraveled_velocity[sweep] = velocity_reference.copy()
-
     for slice_number in range(1, radar.nsweeps):
         nyquist_velocity = nyquist_list[slice_number]
+        if nyquist_velocity is None:
+            raise ValueError("Nyquist velocity must not be None for dealiasing_process_2D.")
         sweep = radar.get_slice(slice_number)
         azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
-        elevation_slice = unmask_array(radar.elevation["data"][sweep].mean())
+        elevation_slice = unmask_array(radar.elevation["data"][sweep]).mean()
         velocity_slice = velocity[sweep]
 
         flag_slice = np.zeros_like(velocity_slice) + 1
@@ -473,11 +503,12 @@ def unravel_3D_pyart(
             )
         else:
             outargs = dealias_long_range(r, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs)
-        if debug:
+        if len(outargs) == 3:
             final_vel, flag_vel, brake = outargs
-            pointbreak.append(brake)
         else:
             final_vel, flag_vel = outargs
+            brake = None
+        pointbreak.append(brake)
 
         final_vel = unmask_array(final_vel)
         if stage_check("3d") and do_3d:
@@ -513,16 +544,17 @@ def unravel_3D_pyart(
 
 
 def unravel_3D_pyodim(
-    odim_file,
-    vel_name="VRADH",
-    output_vel_name="unraveled_velocity",
-    load_all_fields=False,
-    condition=None,
-    strategy="long_range",
-    debug=False,
-    read_write=False,
-    output_flag_name=None,
-):
+    odim_file: str,
+    vel_name: str="VRADH",
+    output_vel_name: str="unraveled_velocity",
+    load_all_fields: bool=False,
+    condition: Union[None, Tuple[str, str, float]]=None,
+    strategy: str="long_range",
+    alpha: float=0.6,
+    debug: bool=False,
+    read_write: bool=False,
+    output_flag_name: Union[str, None]=None,
+) -> List[xr.Dataset]:
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
     scan strategy is using single-PRF, to avoid dual-PRF artifacts, but with
@@ -543,6 +575,10 @@ def unravel_3D_pyodim(
         (variable_name, "lower"/"above", threshold_value)
     strategy: ['default', 'long_range']
         Using the default dealiasing strategy or the long range strategy.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.6.
+    debug: bool
+        If True, returns additional information about the processing stages.
     read_write: write back to original file if True
 
     Returns:
@@ -558,6 +594,8 @@ def unravel_3D_pyodim(
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
     if debug:
         print("Argument debug=True is not yet supported with ODIM files.")
+    if output_flag_name is None:
+        output_flag_name = f"{output_vel_name}_flag"
 
     import pyodim
 
@@ -568,12 +606,9 @@ def unravel_3D_pyodim(
     rsets = [r.compute() for r in rsets]
 
     # Filtering data with provided gatefilter.
-    if condition is None:
-        #        vel_name = file_vel_name
-        radar_datasets = rsets
-    else:
+    radar_datasets = rsets
+    if condition:
         var, op, threshold = condition
-        radar_datasets = [None] * len(rsets)
         for idx, radar in enumerate(rsets):
             mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
             radar_datasets[idx] = radar.merge(
@@ -588,21 +623,19 @@ def unravel_3D_pyodim(
     nslice_ref = np.argmax(nyquists[: len(elev_angles) // 2])
 
     # Dealiasing first sweep.
-    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(
-        radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name  # no reference
-    )
+    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name, alpha, debug)
 
     # Processing sweeps by decreasing elevations from the nslice_ref sweeps
     if nslice_ref != 0:
         for sweep in np.arange(nslice_ref)[::-1]:
             radar_datasets[sweep] = unravel_3D_pyodim_slice(
-                radar_datasets[sweep], radar_datasets[sweep + 1], vel_name, strategy, output_vel_name, output_flag_name
+                radar_datasets[sweep], radar_datasets[sweep + 1], vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
             )
 
     # Processing sweeps by increasing elevations from the nslice_ref sweeps
     for sweep in range(nslice_ref + 1, len(radar_datasets)):
         radar_datasets[sweep] = unravel_3D_pyodim_slice(
-            radar_datasets[sweep], radar_datasets[sweep - 1], vel_name, strategy, output_vel_name, output_flag_name
+            radar_datasets[sweep], radar_datasets[sweep - 1], vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
         )
 
     if read_write:
@@ -618,8 +651,35 @@ def unravel_3D_pyodim(
     return radar_datasets
 
 
-def unravel_3D_pyodim_slice(ds_sweep, ds_ref, vel_name, strategy, output_vel_name, output_flag_name):
-    """Process one slice/sweep/tilt of ODIM polar radar volume."""
+def unravel_3D_pyodim_slice(ds_sweep: xr.Dataset, ds_ref: Union[None, xr.Dataset], vel_name: str, strategy: str, output_vel_name: str, output_flag_name: str, alpha: float, debug: bool) -> xr.Dataset:
+    """
+    Process one slice/sweep/tilt of ODIM polar radar volume.
+    This function performs the dealiasing process on a single slice of the
+    radar volume, using the provided strategy and reference dataset if available.
+    Parameters:
+    ===========
+    ds_sweep: xr.Dataset
+        Dataset for the current slice/sweep/tilt.
+    ds_ref: xr.Dataset
+        Reference sweep dataset for 3D unfolding, if available.
+    vel_name: str
+        Name of the velocity field in the dataset.
+    strategy: str
+        Dealiasing strategy to use, either 'default' or 'long_range'.
+    output_vel_name: str
+        Name for the output dealiased velocity field.
+    output_flag_name: str
+        Name for the output flag field indicating dealiasing status.
+    alpha: float
+        Threshold for the dealiased velocity. Default is 0.8.
+    debug: bool
+        If True, returns additional information about the processing stages.
+
+    Returns:
+    ========
+    ds_sweep: xr.Dataset
+        Updated dataset sweep with dealiased velocity and flag fields added.
+    """
 
     r_slice = ds_sweep.range.values
     azimuth_slice = ds_sweep.azimuth.values
@@ -631,16 +691,21 @@ def unravel_3D_pyodim_slice(ds_sweep, ds_ref, vel_name, strategy, output_vel_nam
 
     # TODO: pass alpha
     if strategy == "default":
-        final_vel, flag_vel = dealiasing_process_2D(
-            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity
+        outputs = dealiasing_process_2D(
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, alpha, debug
         )
     else:
-        final_vel, flag_vel = dealias_long_range(
-            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity
+        outputs = dealias_long_range(
+            r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, alpha, debug
         )
 
-    if stage_check("3d") and ds_ref:
+    if len(outputs) == 3:
+        final_vel, flag_vel, completed = outputs
+        log(f"Completed stage: {completed}")
+    else:
+        final_vel, flag_vel = outputs        
 
+    if stage_check("3d") and ds_ref:
         r_reference = ds_ref.range.values
         azimuth_reference = ds_ref.azimuth.values
         elevation_reference = ds_ref["elevation"].values[0]

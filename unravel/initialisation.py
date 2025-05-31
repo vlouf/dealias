@@ -4,7 +4,7 @@ Module initialize the unfolding.
 @title: initialisation
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 16/03/2021
+@date: 31/05/2025
 
 .. autosummary::
     :toctree: generated/
@@ -14,10 +14,11 @@ Module initialize the unfolding.
     first_pass
     initialize_unfolding
 """
-# Other Libraries
-import numpy as np
 
-from numba import jit, jit_module
+from typing import Tuple
+
+import numpy as np
+from numba import jit_module
 from numba import uint32
 
 # Custom
@@ -26,7 +27,7 @@ from .cfg import log
 from .continuity import take_decision, unfold, is_good_velocity
 
 
-def find_last_good_vel(j, n, azipos, vflag, nfilter):
+def find_last_good_vel(j: int, n: int, azipos: np.ndarray, vflag: np.ndarray, nfilter: int) -> int:
     """
     Looking for the last good (i.e. processed) velocity in a slice.
 
@@ -46,7 +47,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
     Returns:
     ========
         idx_ref: int
-            Last valid value in slice.
+            Last valid value in slice. Returns -999 if no valid velocity is found.
     """
     i = 0
     while i < nfilter:
@@ -59,7 +60,7 @@ def find_last_good_vel(j, n, azipos, vflag, nfilter):
     return -999
 
 
-def flipud(arr):
+def flipud(arr: np.ndarray) -> np.ndarray:
     """
     Numpy's flipud function is not supported by numba for some reasons...
     So here it is.
@@ -67,7 +68,15 @@ def flipud(arr):
     return arr[::-1, :]  # Soooo complex!
 
 
-def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, nfilter=3):
+def first_pass(
+    azi_start_pos: int,
+    velocity: np.ndarray,
+    final_vel: np.ndarray,
+    vflag: np.ndarray,
+    vnyquist: float,
+    delta_vmax: float,
+    nfilter: int = 3,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     First pass: continuity check along the azimuth, starting at azi_start_pos.
 
@@ -163,7 +172,9 @@ def first_pass(azi_start_pos, velocity, final_vel, vflag, vnyquist, delta_vmax, 
     return final_vel, vflag
 
 
-def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
+def initialize_unfolding(
+    azi_start_pos: int, azi_end_pos: int, vel: np.ndarray, flag_vel: np.ndarray, vnyq: float = 13.3
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Initialize the unfolding procedure and unfold the reference radials..
 
@@ -187,11 +198,13 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
         iter_radials_last = np.array([azi_end_pos - 1, azi_end_pos, azi_end_pos + 1])
         iter_radial_list.append(iter_radials_last)
 
-    alpha = 0.4 # for unfolding in take_decision()
+    alpha = 0.4  # for unfolding in take_decision()
 
     log("init-unfold-radial alpha:", alpha, f"radials:{azi_start_pos} {azi_end_pos}")
     if not cfg.DO_ACT:
         return vel, flag_vel
+
+    thresholded_vel = np.abs(vel) >= 0.6 * vnyq  # Precompute the thresholded array
 
     for iter_radials in iter_radial_list:
         iter_radials[iter_radials >= maxazi] -= maxazi
@@ -201,7 +214,7 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
         is_bad = 0
         for pos_good in iter_radials:
             myvel = vel[pos_good, :]
-            if np.sum(np.abs(myvel) >= 0.6 * vnyq) > 3:
+            if np.sum(thresholded_vel[pos_good, :]) > 3:  # Use precomputed array
                 is_bad += 1
                 continue
 
@@ -267,4 +280,5 @@ def initialize_unfolding(azi_start_pos, azi_end_pos, vel, flag_vel, vnyq=13.3):
     return final_vel, flag_vel
 
 
+# Compiles all functions in the module using Numba's JIT for performance optimization.
 jit_module(nopython=True, error_model="numpy", cache=True)

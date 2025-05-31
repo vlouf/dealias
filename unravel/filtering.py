@@ -13,12 +13,15 @@ Codes for creating and manipulating gate filters.
     unfold
     filter_data
 """
+
 # Other Libraries
+from typing import Tuple
 import numpy as np
 from numba import jit
 
 from . import cfg
 from .cfg import log
+
 
 def do_gatefilter(radar, dbz_name: str):
     """
@@ -76,7 +79,9 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
 
 
 @jit(nopython=True)
-def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
+def filter_data(
+    velocity: np.ndarray, vflag: np.ndarray, vnyquist: float, vshift: float, alpha: float, nfilter: int = 10
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Filter data (despeckling) using MAD and first quick attempt at unfolding
     velocity.
@@ -105,7 +110,7 @@ def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
     """
     nrays = velocity.shape[0]
     ngate = velocity.shape[1]
-    delta_vmax = vnyquist * alpha;
+    delta_vmax = vnyquist * alpha
 
     log("filter_data MAD alpha:", alpha)
     if not cfg.DO_ACT:

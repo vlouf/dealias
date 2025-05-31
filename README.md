@@ -2,15 +2,19 @@
 
 # UNRAVEL
 
-UNRAVEL (UNfold RAdar VELocity) is an open-source modular Doppler velocity dealiasing algorithm for weather radars. This algorithm does not require external reference velocity data, making it highly versatile and easily applicable across various contexts. UNRAVEL consists of eleven core modules and two dealiasing strategies, enabling iterative processing. It starts with the strictest continuity tests in azimuth and range, progressively relaxing the parameters to include more results from a growing number of reference points. Additionally, UNRAVEL includes modules for performing 3D continuity checks. This modular design allows for the expansion of dealiasing strategies to optimize results further.
+**UNfold RAdar VELocity (UNRAVEL)** is an open-source modular Doppler velocity dealiasing algorithm for weather radars. Designed for flexibility, UNRAVEL does not require external reference velocity data, making it highly adaptable across various contexts.
 
-## Changelog:
+## Features
+- **Modular Design:** Consists of **eleven core modules** and **two dealiasing strategies** for iterative processing.
+- **Adaptive Dealiasing:** Starts with strict continuity tests in azimuth and range, then progressively relaxes parameters to include more reference points.
+- **3D Continuity Checks:** Modules for multi-dimensional dealiasing enhance accuracy.
+- **Expandable Framework:** Allows for additional strategies to optimize results further.
 
-Version 1.2.5:
-- New box check using a fast and robust striding window algorithm, up to 10x faster for that function call.
-Version 1.2.0:
-- Multiprocessing using `unravel_3D_pyart_multiproc`
-- Various optimization and speed up.
+## Requirements
+To use UNRAVEL, install the following dependencies:
+```sh
+pip install h5py numba numpy xarray pyodim dask pyart
+```
 
 ## Installation
 
@@ -20,15 +24,23 @@ UNRAVEL is available on [PyPI](https://pypi.org/project/unravel/). The easiest m
 
 ## Dependencies
 
-Mandatory dependencies:
-- [numpy][1]
-- [numba][2]
-- [Py-ART][3] 
+## References
 
-[1]: http://www.scipy.org/
-[2]: http://numba.pydata.org
-[3]: https://github.com/ARM-DOE/pyart
+If you use `UNRAVEL` in your research, please cite the following paper:
 
-# References:
+**Louf, V., Protat, A., Jackson, R. C., Collis, S. M., & Helmus, J.** (2020). *UNRAVEL: A Robust Modular Velocity Dealiasing Technique For Doppler Radar*. Journal of Atmospheric and Oceanic Technology, 4(1), 741–758. (10.1175/jtech-d-19-0020.1)[https://doi.org/10.1175/jtech-d-19-0020.1]
 
-Louf, V., Protat, A., Jackson, R. C., Collis, S. M., & Helmus, J. (2020). UNRAVEL: A Robust Modular Velocity Dealiasing Technique For Doppler Radar. Journal of Atmospheric and Oceanic Technology, 4(1), 741–758. [https://doi.org/10.1175/jtech-d-19-0020.1]
+```bibtex
+@article {Louf2020,
+      author = "Valentin Louf and Alain Protat and Robert C. Jackson and Scott M. Collis and Jonathan Helmus",
+      title = "UNRAVEL: A Robust Modular Velocity Dealiasing Technique for Doppler Radar",
+      journal = "Journal of Atmospheric and Oceanic Technology",
+      year = "2020",
+      publisher = "American Meteorological Society",      
+      volume = "37",
+      number = "5",
+      doi = "10.1175/JTECH-D-19-0020.1",
+      pages= "741 - 758",
+      url = "https://journals.ametsoc.org/view/journals/atot/37/5/jtech-d-19-0020.1.xml"
+}
+```

@@ -18,10 +18,12 @@ import sys
 from .cfg import Cfg
 from .dealias import unravel_3D_pyodim
 
+
 def usage():
     """Print usage and exit."""
     print(__doc__)
     sys.exit(1)
+
 
 def main(args):
     """Run UNRAVEL."""
@@ -75,11 +77,9 @@ def main(args):
 
     # TODO: support other unravel entry points...
     unravel_3D_pyodim(
-        out_path,
-        strategy=args.strategy,
-        output_vel_name="VRADDH",
-        output_flag_name="V_FLG",
-        read_write=cfg.do_act())
+        out_path, strategy=args.strategy, output_vel_name="VRADDH", output_flag_name="V_FLG", read_write=cfg.do_act()
+    )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("\n" + __doc__ + "\nunravel")

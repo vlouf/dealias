@@ -13,13 +13,15 @@ Module 1: Finding reference.
     get_quadrant
 """
 
+from typing import List, Tuple
+
 # Other Libraries
 import numpy as np
 
 from .cfg import log
 
 
-def find_reference_radials(velocity):
+def find_reference_radials(velocity: np.ndarray) -> Tuple[int, int]:
     """
     A beam is valid if it contains at least 10 valid gates (not NaN).
     We seek beams that contain the most valid gate, defined by being
@@ -39,13 +41,15 @@ def find_reference_radials(velocity):
         Index of end reference
     """
 
-    def find_min_quadrant(azi, vel, nvalid_gate_qd, nsum_moy):
+    def find_min_quadrant(azi: np.ndarray, vel: np.ndarray, nvalid_gate_qd: float, nsum_moy: float) -> int:
         return azi[nvalid_gate_qd >= nsum_moy][np.argmin(np.nanmean(np.abs(vel), axis=1)[nvalid_gate_qd >= nsum_moy])]
 
-    # called as circular_diff(a, b, 360) gives the positive difference between
-    # two angles (in degrees).  cribbed from
-    # https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference
-    def circular_diff(a, b, mod=360.0):
+    def circular_diff(a: float, b: float, mod=360.0) -> float:
+        """
+        called as circular_diff(a, b, 360) gives the positive difference between
+        two angles (in degrees).  cribbed from
+        https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference
+        """
         return (mod / 2) - abs(abs(a - b) - (mod / 2))
 
     # create azimuth indices
@@ -61,7 +65,9 @@ def find_reference_radials(velocity):
     if nsum_moy > 0.7 * velocity.shape[1]:
         nsum_moy = int(0.7 * velocity.shape[1])
 
-    log(f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}")
+    log(
+        f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}"
+    )
 
     try:
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
@@ -89,7 +95,7 @@ def find_reference_radials(velocity):
         try:
             nb[i] = find_min_quadrant(azimuth[pos], velocity[pos, :], nvalid_gate[pos], nsum_moy)
         except ValueError:
-            nb[i] = start_beam # the worst we can do
+            nb[i] = start_beam  # the worst we can do
 
     start_diff = lambda a: circular_diff(start_beam, a)
     start_diff_vec = np.vectorize(start_diff)
@@ -101,7 +107,7 @@ def find_reference_radials(velocity):
     return start_beam, end_beam
 
 
-def get_quadrant(azimuth, azi_start_pos, azi_end_pos):
+def get_quadrant(azimuth: np.ndarray, azi_start_pos: int, azi_end_pos: int) -> List[np.ndarray]:
     """
     Get the 2 mid-points to end the unfolding azimuthal continuity and divide
     the scan in 4 pieces.
@@ -128,10 +134,10 @@ def get_quadrant(azimuth, azi_start_pos, azi_end_pos):
         iter_plus = np.arange(azi_start_pos, azi_end_pos)
         iter_minus = np.append(np.arange(azi_end_pos, nbeam), np.arange(0, azi_start_pos + 1))[::-1]
 
-    quad = [None] * 4
-    quad[0] = iter_plus[: len(iter_plus) // 2]
-    quad[1] = iter_minus[: len(iter_minus) // 2]
-    quad[2] = iter_plus[len(iter_plus) // 2 :][::-1]
-    quad[3] = iter_minus[len(iter_minus) // 2 :][::-1]
+    quad = []
+    quad.append(iter_plus[: len(iter_plus) // 2])
+    quad.append(iter_minus[: len(iter_minus) // 2])
+    quad.append(iter_plus[len(iter_plus) // 2 :][::-1])
+    quad.append(iter_minus[len(iter_minus) // 2 :][::-1])
 
     return quad

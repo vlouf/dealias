@@ -39,7 +39,7 @@ def log(*args) -> None:
         print(*args)
 
 
-def stage_check(name, completed = None, stage = None):
+def stage_check(name, completed=None, stage=None):
     """Check whether to run or to skip current stage."""
     global CUR_STAGE
     if stage is not None:

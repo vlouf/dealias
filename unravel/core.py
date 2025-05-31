@@ -11,7 +11,9 @@ The dealiasing class.
 
     Dealias
 """
+
 import traceback
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -24,17 +26,40 @@ from .cfg import stage_check
 
 class Dealias:
     """
-    A class to store the velocity field and its coordinates for dealiasing.
+    Dealiasing class to perform the dealiasing of a velocity field.
+
+    Parameters:
+    ===========
+    r: np.ndarray
+        Range coordinates of the radar.
+    azimuth: np.ndarray
+        Azimuth coordinates of the radar.
+    elevation: float
+        Elevation angle of the radar.
+    velocity: np.ndarray
+        Velocity field to dealias.
+    nyquist_velocity: float
+        Nyquist velocity of the radar.
+    alpha: float
+        Alpha parameter for the dealiasing. Default is 0.6.
     """
 
-    def __init__(self, r, azimuth, elevation, velocity, nyquist_velocity, alpha=0.6):
+    def __init__(
+        self,
+        r: np.ndarray,
+        azimuth: np.ndarray,
+        elevation: float,
+        velocity: np.ndarray,
+        nyquist_velocity: float,
+        alpha: float = 0.6,
+    ):
         self.r = r
         self.azimuth = azimuth
         self.elevation = elevation
         self.velocity = self._check_velocity(velocity)
         self.nyquist = nyquist_velocity
         self.alpha = alpha
-        self.alpha_mad = 0.3 # Trusted velocity difference Nyquist multiplier (for filter_data)
+        self.alpha_mad = 0.3  # Trusted velocity difference Nyquist multiplier (for filter_data)
         self.vshift = 2 * nyquist_velocity
         self.nrays = len(azimuth)
         self.ngates = len(r)
@@ -42,19 +67,22 @@ class Dealias:
         self.flag = self._gen_flag_array()
         self.dealias_vel = self._gen_empty_velocity()
 
-    def _gen_empty_velocity(self):
+        assert 0 <= self.alpha <= 1, "Alpha parameter should be between 0 and 1."
+        assert self.velocity.ndim == 2, "Velocity field should be a 2D array."
+
+    def _gen_empty_velocity(self) -> np.ndarray:
         """Initialiaze empty dealiased velocity field"""
         vel = np.zeros_like(self.velocity, dtype=self.velocity.dtype)
         vel[np.isnan(self.velocity)] = np.nan
         return vel
 
-    def _gen_flag_array(self):
+    def _gen_flag_array(self) -> np.ndarray:
         """Initialiaze empty flag field"""
         flag = np.zeros(self.velocity.shape, dtype=np.int32)
         flag[np.isnan(self.velocity)] = -3
         return flag
 
-    def _check_velocity(self, velocity):
+    def _check_velocity(self, velocity) -> np.ndarray:
         """FillValue should be NaN"""
         try:
             velocity = velocity.filled(np.nan)
@@ -67,7 +95,7 @@ class Dealias:
         if self.velocity.shape != (self.nrays, self.ngates):
             raise ValueError(f"Velocity, range and azimuth shape mismatch.")
 
-    def check_completed(self):
+    def check_completed(self) -> bool:
         """Check if there are still gates to process"""
         return (self.flag == 0).sum() <= 10
 
@@ -77,15 +105,14 @@ class Dealias:
 
         # stage 0 (MAD filter)
         # NB: filter_data() alters self.velocity, returns as dealias_vel
-        stage_check("filter", stage=0) # set stage, don't skip (we need this stage)
+        stage_check("filter", stage=0)  # set stage, don't skip (we need this stage)
         dealias_vel, flag_vel = filtering.filter_data(
             self.velocity, self.flag, self.nyquist, self.vshift, self.alpha_mad
         )
 
         # stage 1 (find radials)
-        stage_check("find") # increment, don't skip (we need this stage)
-        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(
-            self.velocity)
+        stage_check("find")  # increment, don't skip (we need this stage)
+        azi_start_pos, azi_end_pos = find_reference.find_reference_radials(self.velocity)
 
         # stage 2 (init radial)
         # NB: after initialize_unfolding() dealias_vel and self.velocity differ
@@ -108,7 +135,7 @@ class Dealias:
         self.azi_start_pos = azi_start_pos
         self.azi_end_pos = azi_end_pos
 
-    def correct_range(self, window_length=6, alpha=None):
+    def correct_range(self, window_length: int = 6, alpha: Union[None, float] = None):
         """
         Gate-by-gate velocity dealiasing through range continuity.
 
@@ -128,7 +155,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def correct_clock(self, window_length=3, alpha=None):
+    def correct_clock(self, window_length: int = 3, alpha: Union[None, float] = None):
         """
         Radial-by-radial velocity dealiasing through azimuthal continuity.
 
@@ -168,7 +195,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def correct_box(self, window_size=(20, 20), alpha=None):
+    def correct_box(self, window_size: Tuple[int, int] = (20, 20), alpha: Union[None, float] = None):
         """
         Velocity dealiasing using a 2D plane continuity.
 
@@ -195,7 +222,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def correct_leastsquare(self, alpha=None):
+    def correct_leastsquare(self, alpha: Union[None, float] = None):
         if alpha is None:
             alpha = self.alpha
         if self.elevation > 6:
@@ -208,7 +235,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def correct_linregress(self, alpha=None):
+    def correct_linregress(self, alpha: Union[None, float] = None):
         """
         Gate-by-gate velocity dealiasing through range continuity using a
         linear regression.
@@ -221,7 +248,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def correct_closest(self, alpha=None):
+    def correct_closest(self, alpha: Union[None, float] = None):
         """
         Velocity dealiasing using the closest available reference in a 2D
         plane.
@@ -234,7 +261,7 @@ class Dealias:
         self.dealias_vel = dealias_vel
         self.flag = flag_vel
 
-    def check_leastsquare(self, alpha=None):
+    def check_leastsquare(self, alpha: Union[None, float] = None):
         if alpha is None:
             alpha = self.alpha
         if self.elevation > 6:
@@ -246,7 +273,7 @@ class Dealias:
         )
         self.dealias_vel = dealias_vel
 
-    def check_box(self, window_size=(80, 20), alpha=None):
+    def check_box(self, window_size: Tuple[int, int] = (80, 20), alpha: Union[None, float] = None):
         """
         Checking function using a 2D plane of surrounding velocities. Faster
         than the check_box_median.

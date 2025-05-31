@@ -15,6 +15,7 @@ Codes for creating and manipulating gate filters.
 """
 
 # Other Libraries
+from typing import Tuple
 import numpy as np
 from numba import jit
 
@@ -78,7 +79,9 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
 
 
 @jit(nopython=True)
-def filter_data(velocity, vflag, vnyquist, vshift, alpha, nfilter=10):
+def filter_data(
+    velocity: np.ndarray, vflag: np.ndarray, vnyquist: float, vshift: float, alpha: float, nfilter: int = 10
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Filter data (despeckling) using MAD and first quick attempt at unfolding
     velocity.

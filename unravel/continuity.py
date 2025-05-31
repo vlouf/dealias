@@ -34,6 +34,8 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     unfolding_3D
 """
 
+from typing import Tuple, Union
+
 import numpy as np
 from numba import jit, jit_module, int64, float64
 
@@ -41,13 +43,9 @@ from . import cfg
 from .cfg import log
 
 
-def linregress(x, y):
+def linregress(x: np.ndarray, y: np.ndarray) -> Tuple[float, float]:
     """
-    Linear regression is an approach for predicting a response using a single
-    feature. It is assumed that the two variables are linearly related. Hence,
-    we try to find a linear function that predicts the response value(y) as
-    accurately as possible as a function of the feature or independent
-    variable(x).
+    Perform a linear regression on two vectors x and y.
 
     Parameters:
     ===========
@@ -56,8 +54,8 @@ def linregress(x, y):
 
     Returns:
     ========
-        slope
-        intecept
+        slope: float
+        intercept: float
     """
     # number of observations/points
     n = len(x)
@@ -76,7 +74,7 @@ def linregress(x, y):
     return slope, intercept
 
 
-def unfold(v1, v2, vnyq):
+def unfold(v1: float, v2: float, vnyq: float) -> float:
     """
     Compare two velocities, look at all possible unfolding value (up to a period
     of 7 times the nyquist) and find the unfolded velocity that is the closest
@@ -107,7 +105,7 @@ def unfold(v1, v2, vnyq):
     return voff[pos]
 
 
-def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
+def is_good_velocity(vel1: float, vel2: float, vnyq: float, alpha: float = 0.8) -> bool:
     """
     Compare two velocities, and check if they are comparable to each other.
 
@@ -130,7 +128,7 @@ def is_good_velocity(vel1, vel2, vnyq, alpha=0.8):
     return np.abs(vel2 - vel1) < alpha * vnyq
 
 
-def iter_azimuth(azi, idx_start, window_len):
+def iter_azimuth(azi: np.ndarray, idx_start: int, window_len: int) -> np.ndarray:
     """
     Return a sequence of indices that are circling around for the azimuth.
 
@@ -153,7 +151,7 @@ def iter_azimuth(azi, idx_start, window_len):
     return np.arange(idx_start, idx_start + window_len) % nbeam
 
 
-def iter_range(pos_center, window_len, maxgate):
+def iter_range(pos_center: int, window_len: int, maxgate: int) -> np.ndarray:
     """
     Similar as iter_azimuth, but this time for creating an array of iterative
     indices over the radar range. JIT-friendly function.
@@ -185,8 +183,7 @@ def iter_range(pos_center, window_len, maxgate):
     return np.arange(st_pos, end_pos)
 
 
-# @jit(int64(float64, float64, float64, float64), nopython=True, cache=True)
-def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
+def take_decision(velocity_reference: float, velocity_to_check: float, vnyq: float, alpha: float) -> int:
     """
     Make a decision after comparing two velocities.
 
@@ -221,7 +218,17 @@ def take_decision(velocity_reference, velocity_to_check, vnyq, alpha):
         return 2
 
 
-def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.8):
+def correct_clockwise(
+    r: np.ndarray,
+    azi: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    myquadrant: np.ndarray,
+    vnyq: float,
+    window_len: int = 3,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using strict radial-to-radial continuity. The previous 3 radials are
     used as reference. Clockwise means that we loop over increasing azimuth
@@ -313,7 +320,17 @@ def correct_clockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window
     return final_vel, flag_vel
 
 
-def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq, window_len=3, alpha=0.8):
+def correct_counterclockwise(
+    r: np.ndarray,
+    azi: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    myquadrant: np.ndarray,
+    vnyq: float,
+    window_len: int = 3,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using strict radial-to-radial continuity. The next 3 radials are
     used as reference. Counterclockwise means that we loop over decreasing
@@ -404,7 +421,9 @@ def correct_counterclockwise(r, azi, vel, final_vel, flag_vel, myquadrant, vnyq,
     return final_vel, flag_vel
 
 
-def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
+def correct_range_onward(
+    vel: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, window_len: int = 6, alpha: float = 0.8
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using strict gate-to-gate continuity. The directly previous gate
     is used as reference. This function will look at unprocessed velocity only.
@@ -475,7 +494,9 @@ def correct_range_onward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8
     return final_vel, flag_vel
 
 
-def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0.8):
+def correct_range_backward(
+    vel: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, window_len: int = 6, alpha: float = 0.8
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using strict gate-to-gate continuity. The directly next gate (going
     backward, i.e. from the outside to the center) is used as reference.
@@ -548,7 +569,14 @@ def correct_range_backward(vel, final_vel, flag_vel, vnyq, window_len=6, alpha=0
     return final_vel, flag_vel
 
 
-def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha=0.8):
+def correct_linear_interp(
+    velocity: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    r_step: int = 200,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using data close to the radar as reference for the most distant
     points left to dealiase.
@@ -631,14 +659,16 @@ def correct_linear_interp(velocity, final_vel, flag_vel, vnyq, r_step=200, alpha
     return final_vel, flag_vel
 
 
-def circle_distance(a, b, circumference):
+def circle_distance(a: np.ndarray, b: np.ndarray, circumference: float) -> np.ndarray:
     """Distance between azimuths a and b on a circle.
 
     NB: will work with numpy values or arrays."""
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 
-def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8):
+def correct_closest_reference(
+    azimuth: np.ndarray, vel: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, alpha: float = 0.8
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias using the closest cluster of value already processed. Once the
     closest correct value is found, a take a window of 10 radials and 40 gates
@@ -731,8 +761,16 @@ def correct_closest_reference(azimuth, vel, final_vel, flag_vel, vnyq, alpha=0.8
 
 
 def correct_box(
-    azi, vel, final_vel, flag_vel, vnyq, window_range=20, window_azimuth=10, strategy="surround", alpha=0.8
-):
+    azi: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    window_range: int = 20,
+    window_azimuth: int = 10,
+    strategy: str = "surround",
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     This module dealiases velocities based on the median of an area of corrected
     velocities preceding the gate being processed. This module is similar to
@@ -809,7 +847,15 @@ def correct_box(
     return final_vel, flag_vel
 
 
-def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8):
+def radial_least_square_check(
+    r: np.ndarray,
+    azi: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Dealias a linear regression of gates inside each radials.
     This function will look at PROCESSED velocity only. This function cannot be
@@ -894,7 +940,9 @@ def radial_least_square_check(r, azi, vel, final_vel, flag_vel, vnyq, alpha=0.8)
     return final_vel, flag_vel
 
 
-def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8):
+def least_square_radial_last_module(
+    r: np.ndarray, azi: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, alpha: float = 0.8
+) -> np.ndarray:
     """
     Similar as radial_least_square_check.
     """
@@ -946,22 +994,22 @@ def least_square_radial_last_module(r, azi, final_vel, flag_vel, vnyq, alpha=0.8
 
 
 def unfolding_3D(
-    r_swref,
-    azi_swref,
-    elev_swref,
-    vel_swref,
-    flag_swref,
-    r_slice,
-    azi_slice,
-    elev_slice,
-    velocity_slice,
-    flag_slice,
-    original_velocity,
-    vnyq,
-    window_azi=20,
-    window_range=80,
-    alpha=0.8,
-):
+    r_swref: np.ndarray,
+    azi_swref: np.ndarray,
+    elev_swref: float,
+    vel_swref: np.ndarray,
+    flag_swref: np.ndarray,
+    r_slice: np.ndarray,
+    azi_slice: np.ndarray,
+    elev_slice: float,
+    velocity_slice: np.ndarray,
+    flag_slice: np.ndarray,
+    original_velocity: np.ndarray,
+    vnyq: float,
+    window_azi: int = 20,
+    window_range: int = 80,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
     """
     Dealias using 3D continuity. This function will look at the velocities from
     one sweep (the reference) to the other (the slice).
@@ -1088,7 +1136,16 @@ def unfolding_3D(
     return velocity_slice, flag_slice, vel_used_as_ref, processing_flag
 
 
-def box_check_v2(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=20, alpha=0.8, strategy="surround"):
+def box_check_v2(
+    azi: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    window_range: int = 80,
+    window_azimuth: int = 20,
+    alpha: float = 0.8,
+    strategy: str = "surround",
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding
@@ -1160,7 +1217,9 @@ def box_check_v2(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth
 jit_module(nopython=True, error_model="numpy", cache=True)
 
 
-def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8):
+def box_check(
+    azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8
+) -> Tuple[np.ndarray, np.ndarray]:
     """Call either box_check_v1 (cross filter) or box_check_v2 (box filter)."""
 
     if cfg.USE_BOX_CHECK_V1:
@@ -1173,7 +1232,7 @@ def box_check(azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=No
     return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
 
-def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha):
+def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha) -> Tuple[np.ndarray, np.ndarray]:
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
         for ngate in range(maxrange):
@@ -1192,7 +1251,9 @@ def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha):
     return final_vel, flag_vel
 
 
-def box_check_v1(final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8):
+def box_check_v1(
+    final_vel, flag_vel, vnyq, window_range=80, window_azimuth=40, alpha=0.8
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Check if all individual points are consistent with their surrounding
     velocities based on the median of an area of corrected velocities preceding

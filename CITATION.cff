@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use UNRAVEL in your research, please cite the following paper."
+title: "UNRAVEL: A Robust Modular Velocity Dealiasing Technique for Doppler Radar"
+authors:
+  - family-names: "Louf"
+    given-names: "Valentin"
+    orcid: 0000-0001-8133-3031
+  - family-names: "Protat"
+    given-names: "Alain"
+    orcid: 0000-0002-8933-874X
+  - family-names: "Jackson"
+    given-names: "Robert C."
+  - family-names: "Collis"
+    given-names: "Scott M."
+  - family-names: "Helmus"
+    given-names: "Jonathan"
+doi: "10.1175/JTECH-D-19-0020.1"
+url: "https://journals.ametsoc.org/view/journals/atot/37/5/jtech-d-19-0020.1.xml"
+journal: "Journal of Atmospheric and Oceanic Technology"
+year: 2020
+publisher: "American Meteorological Society"
+volume: 37
+issue: 5
+pages: "741-758"
+type: article

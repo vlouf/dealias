@@ -1,6 +1,7 @@
-numpy
+h5py
 numba
-pytest
-arm_pyart
+numpy
+xarray
 pyodim
-requests
+dask
+pyart

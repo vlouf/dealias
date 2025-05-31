@@ -1,7 +1,6 @@
-h5py
 numba
 numpy
 xarray
 pyodim
 dask
-pyart
+arm_pyart

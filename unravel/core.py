@@ -206,7 +206,7 @@ class Dealias:
         """
         if alpha is None:
             alpha = self.alpha
-        if window_size is int:
+        if isinstance(window_size, int):
             window_size = (window_size, window_size)
 
         dealias_vel, flag_vel = continuity.correct_box(

@@ -1,0 +1,6 @@
+pytest>=7.0
+pytest-cov>=4.0
+pytest-xdist  # For parallel testing
+black  # Code formatting
+flake8  # Linting
+mypy  # Type checking

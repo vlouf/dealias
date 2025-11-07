@@ -62,7 +62,7 @@ omit = [
     "setup.py",
 ]
 relative_files = true
-concurrency = ["multiprocessing"]
+plugins = ["Cython.Coverage"]  # Helps with Numba coverage
 
 [tool.coverage.report]
 exclude_lines = [

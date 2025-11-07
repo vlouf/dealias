@@ -49,7 +49,9 @@ def download_cpol_data(date: datetime.datetime) -> str:
     try:
         r.raise_for_status()
     except Exception:
-        raise ValueError("No file found for this date. CPOL ran from 1998-12-6 to 2017-5-2, wet season only. Try another date.")
+        raise ValueError(
+            "No file found for this date. CPOL ran from 1998-12-6 to 2017-5-2, wet season only. Try another date."
+        )
 
     with open(outfilename, "wb") as fid:
         fid.write(r.content)

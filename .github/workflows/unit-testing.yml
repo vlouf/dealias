@@ -35,8 +35,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip        
-        pip install pytest pytest-cov
-        pip install -e .
+        pip install -e ".[dev]"
     
     - name: Run tests with coverage
       run: |
@@ -48,6 +47,7 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Upload test results
       if: always()

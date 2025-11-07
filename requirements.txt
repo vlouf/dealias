@@ -1,6 +1,0 @@
-numba
-numpy
-xarray
-pyodim
-dask
-arm_pyart

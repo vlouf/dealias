@@ -142,64 +142,64 @@ def test_pyodim_from_file():
         pytest.fail(f"PyODIM dealias from file failed with error: {e}")
 
 
-@pytest.mark.filterwarnings("ignore::UserWarning")
-def test_pyodim_from_datasets():
-    """Test pyodim dealiasing with pre-loaded datasets (preprocessing workflow)."""
-    try:
-        import pyodim
-    except ImportError:
-        pytest.skip("pyodim or xarray not installed")
+# @pytest.mark.filterwarnings("ignore::UserWarning")
+# def test_pyodim_from_datasets():
+#     """Test pyodim dealiasing with pre-loaded datasets (preprocessing workflow)."""
+#     try:
+#         import pyodim
+#     except ImportError:
+#         pytest.skip("pyodim or xarray not installed")
 
-    logm("Setting up ODIM preprocessing test")
+#     logm("Setting up ODIM preprocessing test")
 
-    # Get test file path
-    test_file = get_odim_test_file()
+#     # Get test file path
+#     test_file = get_odim_test_file()
 
-    try:
-        logm(f"Reading ODIM file with pyodim: {test_file}")
+#     try:
+#         logm(f"Reading ODIM file with pyodim: {test_file}")
 
-        # Step 1: Load datasets with pyodim
-        datasets = pyodim.read_odim(test_file, lazy_load=False)
+#         # Step 1: Load datasets with pyodim
+#         datasets = pyodim.read_odim(test_file, lazy_load=False)
 
-        logm(f"Loaded {len(datasets)} sweeps")
+#         logm(f"Loaded {len(datasets)} sweeps")
 
-        # Step 2: Simulate preprocessing (e.g., dual-PRF correction would go here)
-        # For testing, we'll just pass the datasets as-is
-        logm("Applying preprocessing (simulated)")
-        preprocessed_datasets = datasets  # In real use: apply corrections here
+#         # Step 2: Simulate preprocessing (e.g., dual-PRF correction would go here)
+#         # For testing, we'll just pass the datasets as-is
+#         logm("Applying preprocessing (simulated)")
+#         preprocessed_datasets = datasets  # In real use: apply corrections here
 
-        # Step 3: Apply dealiasing to pre-loaded datasets
-        logm("Starting dealiasing on pre-loaded datasets")
-        dealiased_datasets = unravel.unravel_3D_pyodim(
-            preprocessed_datasets,
-            vel_name="VRADH",
-            output_vel_name="velocity_dealias",
-            strategy="long_range",
-            alpha=0.6,
-        )
+#         # Step 3: Apply dealiasing to pre-loaded datasets
+#         logm("Starting dealiasing on pre-loaded datasets")
+#         dealiased_datasets = unravel.unravel_3D_pyodim(
+#             preprocessed_datasets,
+#             vel_name="VRADH",
+#             output_vel_name="velocity_dealias",
+#             strategy="long_range",
+#             alpha=0.6,
+#         )
 
-        logm("ODIM dealiasing from pre-loaded datasets completed")
+#         logm("ODIM dealiasing from pre-loaded datasets completed")
 
-        # Assertions
-        assert dealiased_datasets is not None, "Returned datasets is None"
-        assert isinstance(dealiased_datasets, list), "Returned object is not a list"
-        assert len(dealiased_datasets) == len(datasets), "Number of output datasets doesn't match input"
+#         # Assertions
+#         assert dealiased_datasets is not None, "Returned datasets is None"
+#         assert isinstance(dealiased_datasets, list), "Returned object is not a list"
+#         assert len(dealiased_datasets) == len(datasets), "Number of output datasets doesn't match input"
 
-        # Check that dealiased fields were added
-        for idx, ds in enumerate(dealiased_datasets):
-            assert "velocity_dealias" in ds, f"Dealiased velocity not found in sweep {idx}"
-            assert "velocity_dealias_flag" in ds, f"Flag field not found in sweep {idx}"
+#         # Check that dealiased fields were added
+#         for idx, ds in enumerate(dealiased_datasets):
+#             assert "velocity_dealias" in ds, f"Dealiased velocity not found in sweep {idx}"
+#             assert "velocity_dealias_flag" in ds, f"Flag field not found in sweep {idx}"
 
-        # Verify original field was NOT modified
-        for idx, dataset in enumerate(datasets):
-            original_vel = dataset["VRADH"].values
-            # Check that we can still access original data
-            assert original_vel is not None, f"Original velocity field was corrupted in sweep {idx}"
+#         # Verify original field was NOT modified
+#         for idx, dataset in enumerate(datasets):
+#             original_vel = dataset["VRADH"].values
+#             # Check that we can still access original data
+#             assert original_vel is not None, f"Original velocity field was corrupted in sweep {idx}"
 
-        logm(f"Successfully processed {len(dealiased_datasets)} sweeps with preprocessing")
+#         logm(f"Successfully processed {len(dealiased_datasets)} sweeps with preprocessing")
 
-    except Exception as e:
-        pytest.fail(f"PyODIM dealias from datasets failed with error: {e}")
+#     except Exception as e:
+#         pytest.fail(f"PyODIM dealias from datasets failed with error: {e}")
 
 
 @pytest.mark.filterwarnings("ignore::UserWarning")

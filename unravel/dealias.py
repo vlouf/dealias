@@ -544,7 +544,7 @@ def unravel_3D_pyart(
 
 
 def unravel_3D_pyodim(
-    odim_file: str,
+    odim_input: Union[str, List[xr.Dataset]],
     vel_name: str = "VRADH",
     output_vel_name: str = "unraveled_velocity",
     load_all_fields: bool = False,
@@ -562,15 +562,17 @@ def unravel_3D_pyodim(
 
     Parameters:
     ===========
-    odim_file: str
-        ODIM H5 file name.
+    odim_input: Union[str, List[xr.Dataset]]
+        Either an ODIM H5 file path (str) or a list of pre-loaded xarray datasets.
+        Passing pre-loaded datasets allows for preprocessing (e.g., dual-PRF correction)
+        before dealiasing.
     vel_name: str
         Velocity field name.
     output_vel_name: str
         Output dealiased velocity name
     load_all_fields: bool
         Load all fields in the ODIM H5 files (for writing the H5 file on disk)
-        or just the velocity field.
+        or just the velocity field. Only used when odim_input is a file path.
     condition: (tuple)
         (variable_name, "lower"/"above", threshold_value)
     strategy: ['default', 'long_range']
@@ -579,7 +581,8 @@ def unravel_3D_pyodim(
         Threshold for the dealiased velocity. Default is 0.6.
     debug: bool
         If True, returns additional information about the processing stages.
-    read_write: write back to original file if True
+    read_write: bool
+        Write back to original file if True. Only applies when odim_input is a file path.
 
     Returns:
     ========
@@ -599,11 +602,22 @@ def unravel_3D_pyodim(
 
     import pyodim
 
-    if load_all_fields or condition is not None:
-        (rsets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write)
+    # Handle both file path and pre-loaded datasets
+    h5file = None
+    if isinstance(odim_input, str):
+        # Input is a file path - read it
+        if load_all_fields or condition is not None:
+            (rsets, h5file) = pyodim.read_write_odim(odim_input, read_write=read_write)
+        else:
+            (rsets, h5file) = pyodim.read_write_odim(odim_input, read_write=read_write, include_fields=[vel_name])
+        rsets = [r.compute() for r in rsets]
+    elif isinstance(odim_input, list):
+        # Input is pre-loaded datasets
+        rsets = odim_input
+        if read_write:
+            raise ValueError("read_write=True is only supported when odim_input is a file path")
     else:
-        (rsets, h5file) = pyodim.read_write_odim(odim_file, read_write=read_write, include_fields=[vel_name])
-    rsets = [r.compute() for r in rsets]
+        raise TypeError("odim_input must be either a file path (str) or a list of xarray Datasets")
 
     # Filtering data with provided gatefilter.
     radar_datasets = rsets
@@ -611,8 +625,9 @@ def unravel_3D_pyodim(
         var, op, threshold = condition
         for idx, radar in enumerate(rsets):
             mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
+            # Use .copy() to avoid modifying the original field
             radar_datasets[idx] = radar.merge(
-                {f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name]))}
+                {f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name].values.copy()))}
             )
         vel_name = f"{vel_name}_clean"
 
@@ -655,6 +670,8 @@ def unravel_3D_pyodim(
         )
 
     if read_write:
+        if h5file is None:
+            raise ValueError("Cannot write back to file when datasets were pre-loaded")
         for sweep in range(len(radar_datasets)):
             write_odim_slice(
                 h5file,
@@ -708,7 +725,7 @@ def unravel_3D_pyodim_slice(
 
     r_slice = ds_sweep.range.values
     azimuth_slice = ds_sweep.azimuth.values
-    velocity_slice = ds_sweep[vel_name].values
+    velocity_slice = ds_sweep[vel_name].values.copy()
     elevation_slice = ds_sweep["elevation"].values[0]
     nyquist_velocity = ds_sweep.attrs["NI"]
 

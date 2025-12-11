@@ -45,13 +45,13 @@ def download_cpol_data(date: datetime.datetime) -> str:
     if os.path.isfile(outfilename):
         logm("Radar data file already exists, doing nothing")
         return outfilename
-    r = requests.get(url)
+    r = requests.get(url, timeout=30)
     try:
         r.raise_for_status()
-    except Exception:
+    except Exception as exc:
         raise ValueError(
             "No file found for this date. CPOL ran from 1998-12-6 to 2017-5-2, wet season only. Try another date."
-        )
+        ) from exc
     with open(outfilename, "wb") as fid:
         fid.write(r.content)
     return outfilename
@@ -83,6 +83,7 @@ def get_odim_test_file() -> str:
 
 @pytest.mark.filterwarnings("ignore:.*CfRadial module is deprecated.*:UserWarning")
 def test_pyart():
+    """Test Py-ART dealiasing on CPOL data."""
     date = datetime.datetime(2014, 2, 18, 20, 0)
     logm("Downloading data")
     filename = download_cpol_data(date)
@@ -146,7 +147,6 @@ def test_pyodim_from_datasets():
     """Test pyodim dealiasing with pre-loaded datasets (preprocessing workflow)."""
     try:
         import pyodim
-        import xarray as xr
     except ImportError:
         pytest.skip("pyodim or xarray not installed")
 
@@ -191,8 +191,8 @@ def test_pyodim_from_datasets():
             assert "velocity_dealias_flag" in ds, f"Flag field not found in sweep {idx}"
 
         # Verify original field was NOT modified
-        for idx in range(len(datasets)):
-            original_vel = datasets[idx]["VRADH"].values
+        for idx, dataset in enumerate(datasets):
+            original_vel = dataset["VRADH"].values
             # Check that we can still access original data
             assert original_vel is not None, f"Original velocity field was corrupted in sweep {idx}"
 

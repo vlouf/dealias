@@ -42,6 +42,9 @@ from numba import jit, jit_module, int64, float64
 from . import cfg
 from .cfg import log
 
+_UNFOLD_PERIODS = np.arange(0, 7, 2)  # Used in unfold()
+_SIGN_COMPARE_EPSILON = 1e-6  # Used in take_decision()
+
 
 def linregress(x: np.ndarray, y: np.ndarray) -> Tuple[float, float]:
     """
@@ -95,7 +98,7 @@ def unfold(v1: float, v2: float, vnyq: float) -> float:
         vtrue: float
             Dealiased velocity.
     """
-    n = np.arange(0, 7, 2)
+    n = _UNFOLD_PERIODS
     if v1 > 0:
         voff = v1 + (n * vnyq - np.abs(v1 - v2))
     else:
@@ -201,16 +204,13 @@ def take_decision(velocity_reference: float, velocity_to_check: float, vnyq: flo
     1: velocity is perfectly fine.
     2: velocity is folded.
     """
-    # don't sign-match with near-zero values.  we could probably make this larger
-    SIGN_COMPARE_EPSILON = 1e-6
-
     if np.isnan(velocity_to_check):
         return -3
     elif np.isnan(velocity_reference):
         return 0
     elif is_good_velocity(velocity_reference, velocity_to_check, vnyq, alpha=alpha) or (
-        abs(velocity_reference) > SIGN_COMPARE_EPSILON
-        and abs(velocity_to_check) > SIGN_COMPARE_EPSILON
+        abs(velocity_reference) > _SIGN_COMPARE_EPSILON
+        and abs(velocity_to_check) > _SIGN_COMPARE_EPSILON
         and np.sign(velocity_reference) == np.sign(velocity_to_check)
     ):
         return 1

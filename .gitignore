@@ -127,7 +127,7 @@ dmypy.json
 # VSCode and notebooks
 .vscode
 .vscode/settings.json
-*.ipynb
 *.f90
+*.nc
 
 dwl/

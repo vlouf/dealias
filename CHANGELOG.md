@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.1](https://github.com/vlouf/dealias/releases/tag/v1.4.1) - 2025-12-11
+### Added
+- Users can now pass either a file path or pre-loaded pyodim datasets to `unravel_3D_pyodim()`. This enables preprocessing workflows (e.g., dual-PRF correction) before dealiasing.
+
+### Fixed
+- Original field modification bug: When using the `condition` parameter, the function now creates an independent masked copy instead of modifying the original velocity field (e.g., VRADH).
+
+### Changed
+- Updated unit tests to cover pyodim dealiasing functions with comprehensive test cases.
+
+## [1.4.0](https://github.com/vlouf/dealias/releases/tag/v1.4.0) - 2025-11-07
+### Changed
+- Migrated from `setup.py` to modern `pyproject.toml` build system
+- Improved type hints throughout the codebase (#21)
+- Updated CI/CD dependencies.
+  
 ## [1.3.4](https://github.com/vlouf/dealias/releases/tag/v1.3.4) - 2025-02-25
 ### Added
 - Support for gatefilter with PyODIM.

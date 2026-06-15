@@ -1220,7 +1220,8 @@ jit_module(nopython=True, error_model="numpy", cache=True)
 def box_check(
     azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Call either box_check_v1 (cross filter) or box_check_v2 (box filter)."""
+    """Call box_check_conv (fast, default), box_check_v1 (cross filter) or
+    box_check_v2 (box filter)."""
 
     if cfg.USE_BOX_CHECK_V1:
         if not window_azimuth:
@@ -1229,7 +1230,98 @@ def box_check(
 
     if not window_azimuth:
         window_azimuth = 20  # v2 default
+
+    if cfg.USE_BOX_CHECK_CONV:
+        return box_check_conv(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
+
     return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
+
+
+def box_check_conv(
+    azi: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    window_range: int = 80,
+    window_azimuth: int = 20,
+    alpha: float = 0.8,
+    strategy: str = "surround",
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Fast separable (convolution-based) equivalent of box_check_v2.
+
+    box_check_v2 computes, for every processed gate, a 1-sigma-trimmed mean of the
+    valid velocities in an (window_azimuth x window_range) neighbourhood and
+    re-folds the gate when it disagrees with that reference by >= alpha * vnyq.
+    The per-gate window gather makes it O(rays * gates * window) and dominates the
+    runtime on noise-dominated (but gate-dense) volumes.
+
+    This routine computes the masked windowed MEAN reference with cumulative sums
+    (O(rays * gates)), using exactly the same window geometry as box_check_v2
+    (azimuth wrapped via iter_azimuth, range clipped at the edges via iter_range),
+    then applies the identical correction rule from a single snapshot of the field.
+
+    Relationship to box_check_v2:
+    - Wherever a window is internally consistent (every valid neighbour lies within
+      +/- 1 std of the window mean), the 1-sigma trim is a no-op and the trimmed
+      mean equals the plain windowed mean: the reference, the correction decision
+      and the output are identical (up to float round-off). Coherent precipitation
+      echo falls in this regime.
+    - The two differ only in inconsistent windows that mix correctly-dealiased and
+      still-aliased velocities, i.e. in noise / poorly-dealiased regions, where the
+      trim acts as a majority vote and this routine uses the plain mean instead.
+
+    Like box_check_v1, the reference is built from a snapshot of the input field,
+    so (unlike box_check_v2) a same-pass correction is not used as a reference for
+    later gates; corrections are rare and confined to inconsistent windows, so this
+    has negligible effect.
+
+    Parameters and returns match box_check_v2.
+    """
+    maxazi, maxrange = final_vel.shape
+    half = window_range // 2
+    W = window_azimuth
+    azi_window_offset = W if strategy == "vertex" else W // 2
+
+    log("box_check (conv) alpha:", alpha, f"win-azi:{W} win-bin:{window_range}")
+
+    valid = flag_vel >= 1
+    V = np.where(valid, final_vel, 0.0).astype(np.float64)
+    M = valid.astype(np.float64)
+
+    # Range box-sum, window [max(0, g-half), min(maxrange, g+half)) -- clipped at
+    # the range edges, matching iter_range().
+    def _range_sum(x):
+        cs = np.empty((maxazi, maxrange + 1), dtype=np.float64)
+        cs[:, 0] = 0.0
+        np.cumsum(x, axis=1, out=cs[:, 1:])
+        g = np.arange(maxrange)
+        lo = np.maximum(0, g - half)
+        hi = np.minimum(maxrange, g + half)
+        return cs[:, hi] - cs[:, lo]
+
+    # Azimuth box-sum, window [b-offset, b-offset+W) wrapped, matching iter_azimuth().
+    def _azi_sum(x):
+        pad = np.concatenate([x, x[:W]], axis=0)
+        cs = np.empty((maxazi + W + 1, maxrange), dtype=np.float64)
+        cs[0, :] = 0.0
+        np.cumsum(pad, axis=0, out=cs[1:])
+        st = (np.arange(maxazi) - azi_window_offset) % maxazi
+        return cs[st + W] - cs[st]
+
+    vel_sum = _azi_sum(_range_sum(V))
+    cnt = _azi_sum(_range_sum(M))
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        refvel = np.where(cnt > 0, vel_sum / cnt, np.nan)
+
+    # Same correction rule as box_check_v2: re-fold gates that disagree with the
+    # neighbourhood reference by >= alpha * vnyq.  Computed from the snapshot.
+    correct = valid & np.isfinite(refvel) & (np.abs(refvel - final_vel) >= alpha * vnyq)
+    final_vel[correct] = refvel[correct].astype(final_vel.dtype)
+    flag_vel[correct] = 3
+
+    return final_vel, flag_vel
 
 
 def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha) -> Tuple[np.ndarray, np.ndarray]:

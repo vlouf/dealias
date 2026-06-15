@@ -666,7 +666,7 @@ def circle_distance(a: np.ndarray, b: np.ndarray, circumference: float) -> np.nd
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 
-def correct_closest_reference(
+def correct_closest_reference_exact(
     azimuth: np.ndarray, vel: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, alpha: float = 0.8
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -993,7 +993,7 @@ def least_square_radial_last_module(
     return final_vel
 
 
-def unfolding_3D(
+def unfolding_3D_exact(
     r_swref: np.ndarray,
     azi_swref: np.ndarray,
     elev_swref: float,
@@ -1325,6 +1325,173 @@ def box_check_conv(
     return final_vel, flag_vel
 
 
+def _windowed_masked_mean(values: np.ndarray, mask: np.ndarray, half: int, W: int, offset: int):
+    """Separable masked windowed sum/count over a 2D field.
+
+    Window = azimuth [a-offset, a-offset+W) wrapped (matching iter_azimuth) x range
+    [max(0, r-half), min(R, r+half)) clipped (matching iter_range). Returns the
+    windowed sum of `values` where `mask` and the windowed count of `mask`.
+    """
+    A, R = values.shape
+    V = np.where(mask, values, 0.0).astype(np.float64)
+    M = mask.astype(np.float64)
+
+    def _range_sum(x):
+        cs = np.empty((A, R + 1), dtype=np.float64)
+        cs[:, 0] = 0.0
+        np.cumsum(x, axis=1, out=cs[:, 1:])
+        g = np.arange(R)
+        return cs[:, np.minimum(R, g + half)] - cs[:, np.maximum(0, g - half)]
+
+    def _azi_sum(x):
+        pad = np.concatenate([x, x[:W]], axis=0)
+        cs = np.empty((A + W + 1, R), dtype=np.float64)
+        cs[0, :] = 0.0
+        np.cumsum(pad, axis=0, out=cs[1:])
+        st = (np.arange(A) - offset) % A
+        return cs[st + W] - cs[st]
+
+    vel_sum = _azi_sum(_range_sum(V))
+    cnt = _azi_sum(_range_sum(M))
+    return vel_sum, cnt
+
+
+def _unfold_vec(v1: np.ndarray, v2: np.ndarray, vnyq: float) -> np.ndarray:
+    """Vectorised equivalent of unfold(): for each element pick the n in {0,2,4,6}
+    that brings v2 closest to v1."""
+    d = np.abs(v1 - v2)
+    best = None
+    best_diff = None
+    for n in (0, 2, 4, 6):
+        voff = np.where(v1 > 0, v1 + (n * vnyq - d), v1 - (n * vnyq - d))
+        diff = np.abs(voff - v1)
+        if best is None:
+            best, best_diff = voff, diff
+        else:
+            take = diff < best_diff
+            best = np.where(take, voff, best)
+            best_diff = np.where(take, diff, best_diff)
+    return best
+
+
+def unfolding_3D_conv(
+    r_swref: np.ndarray,
+    azi_swref: np.ndarray,
+    elev_swref: float,
+    vel_swref: np.ndarray,
+    flag_swref: np.ndarray,
+    r_slice: np.ndarray,
+    azi_slice: np.ndarray,
+    elev_slice: float,
+    velocity_slice: np.ndarray,
+    flag_slice: np.ndarray,
+    original_velocity: np.ndarray,
+    vnyq: float,
+    window_azi: int = 20,
+    window_range: int = 80,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
+    """
+    Fast separable equivalent of unfolding_3D_exact.
+
+    unfolding_3D_exact computes, for every gate of the slice, the median of the
+    valid reference-sweep velocities in an (window_azi x window_range) window
+    centred on the geometrically-matched reference gate, then compares the slice
+    velocity against it. The per-gate window gather + median makes it
+    O(rays * gates * window).
+
+    This routine precomputes the masked windowed MEAN of the reference sweep once
+    (O(ref_rays * ref_gates)), then gathers the per-slice-gate reference value via
+    the geometric azimuth/range mapping and applies the identical decision logic
+    vectorised over the whole slice.
+
+    As for box_check_conv, the mean equals the median wherever the reference window
+    is internally consistent (coherent echo), so the result matches
+    unfolding_3D_exact there; they differ only in inconsistent (noise) windows. The
+    low-Nyquist guard (cfg.CONV_MIN_NYQUIST) routes the sensitive low-Nyquist sweeps
+    to the exact path.
+    """
+    maxazi, maxrange = velocity_slice.shape
+    ref_azi, ref_range = vel_swref.shape
+    half = window_range // 2
+    W = window_azi
+    offset = W // 2
+
+    log("unfolding_3d (conv) alpha:", alpha, f"win-azi:{W} win-bin:{window_range}")
+
+    gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
+    gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
+
+    # Windowed masked mean of the reference sweep (same geometry as the exact gather).
+    vel_sum, cnt = _windowed_masked_mean(vel_swref, flag_swref >= 1, half, W, offset)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ref_mean = np.where(cnt > 0, vel_sum / cnt, np.nan)
+
+    # Geometric mapping slice -> reference (azimuth per beam, range per gate).
+    apos = np.argmin(circle_distance(azi_swref[None, :], azi_slice[:, None], 360.0), axis=1)
+    rpos = np.argmin(np.abs(gr_swref[None, :] - gr_slice[:, None]), axis=1)
+
+    compare = ref_mean[apos[:, None], rpos[None, :]]
+    have_ref = cnt[apos[:, None], rpos[None, :]] >= 1
+
+    velocity_slice = velocity_slice.copy()
+    flag_slice = flag_slice.copy()
+
+    proc = (flag_slice != -3) & have_ref & np.isfinite(compare)
+    cur = velocity_slice
+    og = original_velocity
+    thr = alpha * vnyq
+
+    good_cur = proc & (np.abs(compare - cur) < thr)
+    # Agreement with lower tilt: only upgrade unprocessed gates' flag (value kept).
+    flag_slice[good_cur & (flag_slice == 0)] = 1
+
+    rem = proc & ~(np.abs(compare - cur) < thr)
+    good_og = rem & (np.abs(compare - og) < thr)
+    velocity_slice[good_og] = og[good_og]
+    flag_slice[good_og] = 1
+
+    rem2 = rem & ~(np.abs(compare - og) < thr)
+    vtrue = _unfold_vec(compare, og, vnyq)
+    good_vt = rem2 & (np.abs(compare - vtrue) < thr)
+    velocity_slice[good_vt] = vtrue[good_vt]
+    flag_slice[good_vt] = 2
+
+    return velocity_slice, flag_slice, None, None
+
+
+def unfolding_3D(
+    r_swref,
+    azi_swref,
+    elev_swref,
+    vel_swref,
+    flag_swref,
+    r_slice,
+    azi_slice,
+    elev_slice,
+    velocity_slice,
+    flag_slice,
+    original_velocity,
+    vnyq,
+    window_azi: int = 20,
+    window_range: int = 80,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
+    """Dispatcher: fast separable unfolding_3D_conv (default) or exact
+    unfolding_3D_exact. The fast path is skipped on low-Nyquist sweeps."""
+    if cfg.USE_3D_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
+        return unfolding_3D_conv(
+            r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
+            r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
+            original_velocity, vnyq, window_azi, window_range, alpha,
+        )
+    return unfolding_3D_exact(
+        r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
+        r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
+        original_velocity, vnyq, window_azi, window_range, alpha,
+    )
+
+
 def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha) -> Tuple[np.ndarray, np.ndarray]:
     maxazi, maxrange = final_vel.shape
     for nbeam in range(maxazi):
@@ -1423,3 +1590,94 @@ def box_check_v1(
     refvel = 0.5 * smooth_azi + 0.5 * smooth_range
 
     return _box_check_impl(refvel, final_vel.copy(), flag_vel, vnyq, alpha)
+
+
+def correct_closest_reference_conv(
+    azimuth: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Fast equivalent of correct_closest_reference_exact.
+
+    The exact routine, for each unprocessed (flag == 0) gate, finds the nearest
+    already-dealiased gate, builds a (10 azimuth x 40 gate) window around it and
+    uses a robust reference (median of per-azimuth means) to decide whether the
+    gate is fine, foldable or unusable. The per-gate nearest-neighbour search over
+    the growing set of good gates makes it O(n_unprocessed * n_good).
+
+    This routine computes the nearest good gate for every gate at once with a
+    Euclidean distance transform (azimuth treated as circular), and precomputes the
+    masked windowed MEAN of the dealiased field, then applies the same decision rule
+    vectorised. Differences from the exact path: (1) the reference is a windowed
+    mean rather than a median-of-means (identical on internally-consistent windows,
+    differs only in inconsistent/noise windows, as for the other conv paths), and
+    (2) the nearest-neighbour reference is taken from the gates that are good at
+    entry rather than from the set that grows during the sweep. correct_closest is
+    the last-resort stage acting on the residual undealiased gates (overwhelmingly
+    noise), so both effects are confined to non-meteorological returns; the
+    low-Nyquist guard (cfg.CONV_MIN_NYQUIST) routes sensitive sweeps to the exact
+    path.
+    """
+    from scipy import ndimage
+
+    log("correct_closest (conv) alpha:", alpha)
+    if not cfg.DO_ACT:
+        return final_vel, flag_vel
+
+    maxazi, maxrange = final_vel.shape
+    good = flag_vel > 0
+    if not good.any():
+        return final_vel, flag_vel
+
+    # Windowed masked mean of the dealiased field (window 10 azi x 40 range,
+    # matching the exact routine's window_azi=10 / window_gate=40).
+    vel_sum, cnt = _windowed_masked_mean(final_vel, good, half=20, W=10, offset=5)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ref_field = np.where(cnt > 0, vel_sum / cnt, np.nan)
+
+    # Nearest good gate for every gate, with azimuth treated as circular (tile x3).
+    g3 = np.concatenate([good, good, good], axis=0)
+    _, (ia3, ir3) = ndimage.distance_transform_edt(~g3, return_indices=True)
+    ia = ia3[maxazi : 2 * maxazi] % maxazi
+    ir = ir3[maxazi : 2 * maxazi]
+
+    velref = ref_field[ia, ir]
+
+    proc = (flag_vel == 0) & np.isfinite(vel)
+    isfin = np.isfinite(velref)
+    is_good = np.abs(velref - vel) < alpha * vnyq
+    same_sign = (np.abs(velref) > 1e-6) & (np.abs(vel) > 1e-6) & (np.sign(velref) == np.sign(vel))
+
+    # decision 0 (no reference) or 1 (consistent): keep the original velocity.
+    keep = proc & (~isfin | is_good | same_sign)
+    final_vel[keep] = vel[keep]
+    flag_vel[keep] = 1
+
+    # decision 2 (folded): try to unfold against the reference.
+    dec2 = proc & isfin & ~(is_good | same_sign)
+    vtrue = _unfold_vec(velref, vel, vnyq)
+    ok = dec2 & (np.abs(velref - vtrue) < alpha * vnyq)
+    final_vel[ok] = vtrue[ok].astype(final_vel.dtype)
+    flag_vel[ok] = 2
+
+    return final_vel, flag_vel
+
+
+def correct_closest_reference(
+    azimuth: np.ndarray,
+    vel: np.ndarray,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    vnyq: float,
+    alpha: float = 0.8,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Dispatcher: fast correct_closest_reference_conv (default) or the exact
+    correct_closest_reference_exact. The fast path is skipped on low-Nyquist
+    sweeps (see cfg.CONV_MIN_NYQUIST)."""
+    if cfg.USE_CLOSEST_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
+        return correct_closest_reference_conv(azimuth, vel, final_vel, flag_vel, vnyq, alpha)
+    return correct_closest_reference_exact(azimuth, vel, final_vel, flag_vel, vnyq, alpha)

@@ -1231,7 +1231,8 @@ def box_check(
     if not window_azimuth:
         window_azimuth = 20  # v2 default
 
-    if cfg.USE_BOX_CHECK_CONV:
+    # Fast separable path, except on low-Nyquist sweeps (see cfg.CONV_MIN_NYQUIST).
+    if cfg.USE_BOX_CHECK_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
         return box_check_conv(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
     return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)

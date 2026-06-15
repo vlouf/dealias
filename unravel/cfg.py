@@ -33,6 +33,33 @@ CUR_STAGE = 0
 USE_BOX_CHECK_V1 = False
 
 
+"""USE_BOX_CHECK_CONV: Use the fast separable (convolution-based) box check.
+
+When True (default), box_check() uses box_check_conv(), which computes the masked
+windowed-mean reference via cumulative sums (O(rays*gates)) instead of the per-gate
+window gather of box_check_v2 (O(rays*gates*window)). It is provably identical to
+box_check_v2 wherever a window is internally consistent (the 1-sigma trim is then a
+no-op); it only differs in inconsistent windows (mixed aliased/dealiased velocities,
+i.e. noise). Set to False to fall back to the exact, slower box_check_v2 (e.g. for
+bit-exact regression on precipitation volumes).
+"""
+USE_BOX_CHECK_CONV = True
+
+
+"""CONV_MIN_NYQUIST: Low-Nyquist guard for the convolution-based fast paths.
+
+The separable convolution replaces a per-gate robust statistic (1-sigma-trimmed
+mean / window median) with a windowed mean. This is identical to the exact path
+wherever a window is internally consistent, which holds for coherent echo at high
+Nyquist. On low-Nyquist sweeps the (2D-dealiased) velocity field can span several
+folds within a single window, so the windowed mean diverges from the robust
+statistic even on genuine signal. Sweeps whose Nyquist velocity is below this
+threshold therefore use the exact path. Set to 0.0 to apply the fast path to all
+sweeps regardless of Nyquist.
+"""
+CONV_MIN_NYQUIST = 10.0
+
+
 @jit(nopython=True)
 def log(*args) -> None:
     if SHOW_PROGRESS:
@@ -81,6 +108,14 @@ class Cfg:
     def set_use_v1_box_check(self, val):
         global USE_BOX_CHECK_V1
         USE_BOX_CHECK_V1 = val
+
+    def set_use_conv_box_check(self, val):
+        global USE_BOX_CHECK_CONV
+        USE_BOX_CHECK_CONV = val
+
+    def set_conv_min_nyquist(self, val):
+        global CONV_MIN_NYQUIST
+        CONV_MIN_NYQUIST = val
 
     def show_progress(self):
         return SHOW_PROGRESS

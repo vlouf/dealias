@@ -97,7 +97,10 @@ class Dealias:
 
     def check_completed(self) -> bool:
         """Check if there are still gates to process"""
-        return (self.flag == 0).sum() <= 10
+        valid = (self.flag != -3).sum()
+        if valid == 0:
+            return True
+        return (self.flag == 0).sum() / valid <= 0.01
 
     def initialize(self):
         """Initialize the dealiasing by filtering the data, finding the radials

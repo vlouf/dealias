@@ -34,7 +34,7 @@ USE_BOX_CHECK_V1 = False
 
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def log(*args) -> None:
     if SHOW_PROGRESS:
         print(*args)

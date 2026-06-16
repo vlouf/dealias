@@ -48,7 +48,7 @@ def do_gatefilter(radar, dbz_name: str):
     return gf_desp
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
     """
     Unfold velocity.
@@ -78,7 +78,7 @@ def unfold(v: float, vref: float, vnq: float, vshift: float) -> float:
     return unfld
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def filter_data(
     velocity: np.ndarray, vflag: np.ndarray, vnyquist: float, vshift: float, alpha: float, nfilter: int = 10
 ) -> Tuple[np.ndarray, np.ndarray]:

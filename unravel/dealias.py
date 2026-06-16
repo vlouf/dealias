@@ -133,6 +133,7 @@ def dealiasing_process_2D(
     completed = ""
     if stage_check("range"):
         dealias_2D.correct_range()
+    prev_unprocessed = (dealias_2D.flag == 0).sum()
     for window in [6, 12]:
         if stage_check("range", completed):
             dealias_2D.correct_range(window)
@@ -140,12 +141,23 @@ def dealiasing_process_2D(
             dealias_2D.correct_clock(window)
         if not completed and dealias_2D.check_completed():
             completed = "range"
+            break
+        curr_unprocessed = (dealias_2D.flag == 0).sum()
+        if curr_unprocessed >= prev_unprocessed:
+            break  # no progress: larger windows won't help isolated gates
+        prev_unprocessed = curr_unprocessed
 
+    prev_unprocessed = (dealias_2D.flag == 0).sum()
     for window in [(5, 2), (20, 10), (40, 20)]:
         if stage_check("box", completed):
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
                 completed = "box"
+                break
+        curr_unprocessed = (dealias_2D.flag == 0).sum()
+        if curr_unprocessed >= prev_unprocessed:
+            break
+        prev_unprocessed = curr_unprocessed
 
     if stage_check("lsquare", completed):
         dealias_2D.correct_leastsquare()
@@ -235,6 +247,7 @@ def dealias_long_range(
     completed = ""
     if stage_check("range"):
         dealias_2D.correct_range()
+    prev_unprocessed = (dealias_2D.flag == 0).sum()
     for window in [6, 12, 24, 48, 96]:
         if stage_check("range", completed):
             dealias_2D.correct_range(window)
@@ -242,12 +255,23 @@ def dealias_long_range(
             dealias_2D.correct_clock(window)
         if not completed and dealias_2D.check_completed():
             completed = "range"
+            break
+        curr_unprocessed = (dealias_2D.flag == 0).sum()
+        if curr_unprocessed >= prev_unprocessed:
+            break  # no progress: larger windows won't help isolated gates
+        prev_unprocessed = curr_unprocessed
 
+    prev_unprocessed = (dealias_2D.flag == 0).sum()
     for window in [(20, 20), (40, 40)]:
         if stage_check("box", completed):
             dealias_2D.correct_box(window)
             if dealias_2D.check_completed():
                 completed = "box"
+                break
+        curr_unprocessed = (dealias_2D.flag == 0).sum()
+        if curr_unprocessed >= prev_unprocessed:
+            break
+        prev_unprocessed = curr_unprocessed
 
     if stage_check("regression", completed):
         dealias_2D.correct_linregress()

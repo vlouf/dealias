@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0](https://github.com/vlouf/dealias/releases/tag/v1.5.0) - 2026-06-16
+### Added
+- Convolution-based (separable cumulative-sum) fast paths for all three expensive stages: box check, inter-sweep 3-D unfolding, and closest-reference correction. These replace the previous per-gate window gather with O(rays × gates) operations, giving 5–20× speedups on typical precipitation volumes.
+- `unravel.warmup()` public function that triggers numba JIT compilation of every compiled function in the main process. On fork-based HPC systems (Linux) worker processes inherit the already-compiled code at zero cost; on spawn-based systems the disk cache written by `warmup()` is reused by each worker, avoiding per-worker recompilation.
+- Early-exit fractional threshold in `check_completed()`: a sweep is considered done when fewer than 1% of valid gates remain unprocessed (previously the threshold was an absolute count of 10 gates, which never fired on sparse or clear-air scans).
+- Progress-based early break in the window loops of `dealiasing_process_2D` and `dealias_long_range`: if a window iteration processes zero new gates, larger windows are skipped immediately.
+
+### Fixed
+- `cache=True` added to the `@jit` decorators on `cfg.log`, `filtering.unfold`, and `filtering.filter_data`, which were the only JIT-compiled functions not persisting their compiled code to disk.
+- `box_check` dispatcher: `if not window_azimuth:` replaced with `if window_azimuth is None:` to avoid treating an explicit `window_azimuth=0` as absent.
+
 ## [1.4.1](https://github.com/vlouf/dealias/releases/tag/v1.4.1) - 2025-12-11
 ### Added
 - Users can now pass either a file path or pre-loaded pyodim datasets to `unravel_3D_pyodim()`. This enables preprocessing workflows (e.g., dual-PRF correction) before dealiasing.

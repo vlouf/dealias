@@ -33,23 +33,6 @@ CUR_STAGE = 0
 USE_BOX_CHECK_V1 = False
 
 
-"""USE_BOX_CHECK_CONV: Use the fast separable (convolution-based) box check.
-"""
-USE_BOX_CHECK_CONV = True
-
-
-"""CONV_MIN_NYQUIST: Low-Nyquist guard for the convolution-based fast paths.
-"""
-CONV_MIN_NYQUIST = 10.0
-
-
-"""USE_3D_CONV / USE_CLOSEST_CONV: fast separable paths for unfolding_3D and
-correct_closest_reference, analogous to USE_BOX_CHECK_CONV and subject to the same
-CONV_MIN_NYQUIST low-Nyquist guard. Set to False to use the exact, slower path.
-"""
-USE_3D_CONV = True
-USE_CLOSEST_CONV = True
-
 
 @jit(nopython=True)
 def log(*args) -> None:
@@ -99,22 +82,6 @@ class Cfg:
     def set_use_v1_box_check(self, val):
         global USE_BOX_CHECK_V1
         USE_BOX_CHECK_V1 = val
-
-    def set_use_conv_box_check(self, val):
-        global USE_BOX_CHECK_CONV
-        USE_BOX_CHECK_CONV = val
-
-    def set_conv_min_nyquist(self, val):
-        global CONV_MIN_NYQUIST
-        CONV_MIN_NYQUIST = val
-
-    def set_use_3d_conv(self, val):
-        global USE_3D_CONV
-        USE_3D_CONV = val
-
-    def set_use_closest_conv(self, val):
-        global USE_CLOSEST_CONV
-        USE_CLOSEST_CONV = val
 
     def show_progress(self):
         return SHOW_PROGRESS

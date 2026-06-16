@@ -666,99 +666,6 @@ def circle_distance(a: np.ndarray, b: np.ndarray, circumference: float) -> np.nd
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 
-def correct_closest_reference_exact(
-    azimuth: np.ndarray, vel: np.ndarray, final_vel: np.ndarray, flag_vel: np.ndarray, vnyq: float, alpha: float = 0.8
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Dealias using the closest cluster of value already processed. Once the
-    closest correct value is found, a take a window of 10 radials and 40 gates
-    around that point and use the median as of those points as a reference.
-    This function will look at unprocessed velocity only.
-
-    Parameters:
-    ===========
-    azi: ndarray
-        Radar scan azimuth.
-    vel: ndarray <azimuth, r>
-        Aliased Doppler velocity field.
-    final_vel: ndarray <azimuth, r>
-        Dealiased Doppler velocity field.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    vnyq: float
-        Nyquist velocity.
-
-    Returns:
-    ========
-    dealias_vel: ndarray <azimuth, range>
-        Dealiased velocity slice.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    """
-    window_azi = 10
-    window_gate = 40
-    maxazi, maxrange = final_vel.shape
-
-    log("correct_closest alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_gate}")
-    if not cfg.DO_ACT:
-        return final_vel, flag_vel
-
-    posazi, posgate = np.where(flag_vel > 0)
-    posazi_good = np.array([posazi[0]])
-    posgate_good = np.array([posgate[0]])
-    for nbeam in range(maxazi):
-        # NB: reset pos_good every radial to maintain good sorting
-        posazi_good, posgate_good = np.where(flag_vel > 0)
-        for ngate in range(0, maxrange):
-            if flag_vel[nbeam, ngate] != 0:
-                continue
-
-            vel1 = vel[nbeam, ngate]
-
-            distance = circle_distance(posazi_good, nbeam, maxazi) ** 2 + (posgate_good - ngate) ** 2
-            if len(distance) == 0:
-                continue
-
-            closest = np.argmin(distance)
-            nbeam_close = posazi_good[closest]
-            ngate_close = posgate_good[closest]
-
-            npos_range = iter_range(ngate_close, window_gate, maxrange)
-            vel_ref_vec = np.zeros(window_azi) + np.nan
-
-            # Numba doesn't support 2D slice, that's why I loop over things.
-            pos = -1
-            npos_range_end = npos_range[-1] + 1
-            for na in iter_azimuth(azimuth, nbeam_close - window_azi // 2, window_azi):
-                pos += 1
-                vel_ref_vec[pos] = np.nanmean(
-                    final_vel[na, npos_range[0] : npos_range_end][flag_vel[na, npos_range[0] : npos_range_end] > 0]
-                )
-            velref = np.nanmedian(vel_ref_vec)
-
-            decision = take_decision(velref, vel1, vnyq, alpha=alpha)
-
-            processed = False
-            if (decision == 1) or (decision == 0):
-                final_vel[nbeam, ngate] = vel1
-                flag_vel[nbeam, ngate] = 1
-                processed = True
-
-            elif decision == 2:
-                vtrue = unfold(velref, vel1, vnyq)
-                if is_good_velocity(velref, vtrue, vnyq, alpha=alpha):
-                    final_vel[nbeam, ngate] = vtrue
-                    flag_vel[nbeam, ngate] = 2
-                    processed = True
-
-            if processed:
-                # add newly processed index to pos_good arrays
-                # (nopython disallows foo.append(bar))
-                posazi_good = np.append(posazi_good, [nbeam])
-                posgate_good = np.append(posgate_good, [ngate])
-
-    return final_vel, flag_vel
-
 
 def correct_box(
     azi: np.ndarray,
@@ -993,225 +900,6 @@ def least_square_radial_last_module(
     return final_vel
 
 
-def unfolding_3D_exact(
-    r_swref: np.ndarray,
-    azi_swref: np.ndarray,
-    elev_swref: float,
-    vel_swref: np.ndarray,
-    flag_swref: np.ndarray,
-    r_slice: np.ndarray,
-    azi_slice: np.ndarray,
-    elev_slice: float,
-    velocity_slice: np.ndarray,
-    flag_slice: np.ndarray,
-    original_velocity: np.ndarray,
-    vnyq: float,
-    window_azi: int = 20,
-    window_range: int = 80,
-    alpha: float = 0.8,
-) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
-    """
-    Dealias using 3D continuity. This function will look at the velocities from
-    one sweep (the reference) to the other (the slice).
-    Parameters:
-    ===========
-    r_swref: ndarray
-        Range-coordinate of the reference sweep.
-    elev_swref: float
-        Elevation-coordinate of the reference sweep.
-    azi_swref: ndarray
-        Azimuth-coordinate the reference sweep.
-    vel_swref: ndarray <azimuth, r>
-        Velocity of the reference sweep.
-    flag_swref:
-        Flag array of the reference
-    r_slice: ndarray
-        Range-coordinate of the sweep to dealias.
-    azi_slice: ndarray
-        Azimuth of the sweep to dealias.
-    elev_slice: float
-        Elevation angle of the sweep to dealias.
-    velocity_slice: ndarray <azimuth, r>
-        2D-dealiased velocity of the sweep to dealias in 3D.
-    flag_slice:
-        Flag array of the sweep to dealias.
-    original_velocity: ndarray <azimuth, r>
-        Original aliased velocity field of the sweep to dealias.
-    vnyq: float
-        Nyquist velocity.
-    window_azi: int
-        Window size in the azimuth direction
-    window_range: int
-        Window size in the range direction.
-
-    Returns:
-    ========
-    velocity_slice: ndarray <azimuth, range>
-        Dealiased velocity slice.
-    flag_slice: ndarray int <azimuth, range>
-        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    vel_used_as_ref: ndarray <azimuth, range>
-        Velocity field used as reference (debugging purposes only).
-    processing_flag: ndarray <azimuth, range>
-        Flag array that track the decisions made by the algorithm (debugging
-        purposes only).
-    """
-    vel_used_as_ref = np.zeros(velocity_slice.shape)
-    processing_flag = np.zeros(velocity_slice.shape) - 3
-
-    maxazi, maxrange = velocity_slice.shape
-    # NB: ref_range and maxrange may differ
-    ref_range = vel_swref.shape[1]
-
-    gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
-    gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
-
-    log("unfolding_3d alpha:", alpha, f"win-azi:{window_azi} win-bin:{window_range}")
-    if not cfg.DO_ACT:
-        return velocity_slice, flag_slice, None, None
-
-    for nbeam in range(maxazi):
-
-        # best reference azimuth index (circle distance)
-        apos_reference = np.argmin(circle_distance(azi_swref, azi_slice[nbeam], 360.0))
-
-        # reference azimuth window
-        apos_iter = iter_azimuth(azi_swref, apos_reference - window_azi // 2, window_azi)
-
-        for ngate in range(maxrange):
-            if flag_slice[nbeam, ngate] == -3:
-                # No data here.
-                processing_flag[nbeam, ngate] = -2
-                continue
-
-            current_vel = velocity_slice[nbeam, ngate]
-
-            # best reference range index (absolute distance)
-            rpos_reference = np.argmin(np.abs(gr_swref - gr_slice[ngate]))
-
-            # reference range window
-            rpos_iter = iter_range(rpos_reference, window_range, ref_range)
-
-            velocity_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) + np.nan
-            flag_refcomp_array = np.zeros((len(rpos_iter) * window_azi)) - 3
-
-            cnt = -1
-            for na in apos_iter:
-                for nr in rpos_iter:
-                    cnt += 1
-                    velocity_refcomp_array[cnt] = vel_swref[na, nr]
-                    flag_refcomp_array[cnt] = flag_swref[na, nr]
-
-            refcomp_valid = flag_refcomp_array >= 1
-            # TODO: surely threshold should be higher than 1? 20% of window?
-            if np.sum(refcomp_valid) < 1:
-                # No comparison possible all gates in the reference are missing.
-                processing_flag[nbeam, ngate] = -1
-                continue
-
-            compare_vel = np.nanmedian(velocity_refcomp_array[refcomp_valid])
-            vel_used_as_ref[nbeam, ngate] = compare_vel
-
-            if is_good_velocity(compare_vel, current_vel, vnyq, alpha=alpha):
-                processing_flag[nbeam, ngate] = 0
-                # The current velocity is in agreement with the lower tilt velocity.
-                if flag_slice[nbeam, ngate] == 0:
-                    flag_slice[nbeam, ngate] = 1
-                continue
-
-            ogvel = original_velocity[nbeam, ngate]
-            if is_good_velocity(compare_vel, ogvel, vnyq, alpha=alpha):
-                # The original velocity was good
-                velocity_slice[nbeam, ngate] = ogvel
-                flag_slice[nbeam, ngate] = 1
-                processing_flag[nbeam, ngate] = 1
-            else:
-                vtrue = unfold(compare_vel, ogvel, vnyq)
-                if is_good_velocity(compare_vel, vtrue, vnyq, alpha=alpha):
-                    # New dealiased velocity value found
-                    velocity_slice[nbeam, ngate] = vtrue
-                    flag_slice[nbeam, ngate] = 2
-                    processing_flag[nbeam, ngate] = 2
-
-    return velocity_slice, flag_slice, vel_used_as_ref, processing_flag
-
-
-def box_check_v2(
-    azi: np.ndarray,
-    final_vel: np.ndarray,
-    flag_vel: np.ndarray,
-    vnyq: float,
-    window_range: int = 80,
-    window_azimuth: int = 20,
-    alpha: float = 0.8,
-    strategy: str = "surround",
-) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Check if all individual points are consistent with their surrounding
-    velocities based on the median of an area of corrected velocities preceding
-    the gate being processed. This module is similar to the dealiasing technique
-    from Bergen et al. (1988). This function will look at ALL points.
-
-    Parameters:
-    ===========
-    azi: ndarray
-        Radar scan azimuth.
-    final_vel: ndarray <azimuth, r>
-        Dealiased Doppler velocity field.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array -3: No data, 0: Unprocessed, 1: good as is, 2: dealiased.
-    vnyq: float
-        Nyquist velocity.
-
-    Returns:
-    ========
-    dealias_vel: ndarray <azimuth, range>
-        Dealiased velocity slice.
-    flag_vel: ndarray int <azimuth, range>
-        Flag array NEW value: 3->had to be corrected.
-    """
-    if strategy == "vertex":
-        azi_window_offset = window_azimuth
-    else:
-        azi_window_offset = window_azimuth // 2
-
-    log("box_check (box) alpha:", alpha, f"win-azi:{window_azimuth} win-bin:{window_range}")
-
-    maxazi, maxrange = final_vel.shape
-    for nbeam in range(maxazi):
-        for ngate in np.arange(maxrange - 1, -1, -1):
-            if flag_vel[nbeam, ngate] <= 0:
-                continue
-
-            myvel = final_vel[nbeam, ngate]
-
-            npos_range = iter_range(ngate, window_range, maxrange)
-
-            flag_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
-            vel_ref_vec = np.zeros((len(npos_range) * window_azimuth)) + np.nan
-
-            cnt = -1
-            for na in iter_azimuth(azi, nbeam - azi_window_offset, window_azimuth):
-                for nr in npos_range:
-                    cnt += 1
-                    if (na, nr) == (nbeam, ngate):
-                        continue
-                    vel_ref_vec[cnt] = final_vel[na, nr]
-                    flag_ref_vec[cnt] = flag_vel[na, nr]
-
-            if np.sum(flag_ref_vec >= 1) == 0:
-                continue
-
-            true_vel = vel_ref_vec[flag_ref_vec >= 1]
-            mvel = np.nanmean(true_vel)
-            svel = np.nanstd(true_vel)
-            myvelref = np.nanmean(true_vel[(true_vel >= mvel - svel) & (true_vel <= mvel + svel)])
-
-            if not is_good_velocity(myvelref, myvel, vnyq, alpha=alpha):
-                final_vel[nbeam, ngate] = myvelref
-                flag_vel[nbeam, ngate] = 3
-
-    return final_vel, flag_vel
 
 
 jit_module(nopython=True, error_model="numpy", cache=True)
@@ -1220,22 +908,16 @@ jit_module(nopython=True, error_model="numpy", cache=True)
 def box_check(
     azi, final_vel, flag_vel, vnyq, window_range=80, window_azimuth=None, alpha=0.8
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Call box_check_conv (fast, default), box_check_v1 (cross filter) or
-    box_check_v2 (box filter)."""
+    """Call box_check_conv (default) or box_check_v1 (cross filter)."""
 
     if cfg.USE_BOX_CHECK_V1:
-        if not window_azimuth:
-            window_azimuth = 40  # v1 default
+        if window_azimuth is None:
+            window_azimuth = 40
         return box_check_v1(final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
-    if not window_azimuth:
-        window_azimuth = 20  # v2 default
-
-    # Fast separable path, except on low-Nyquist sweeps (see cfg.CONV_MIN_NYQUIST).
-    if cfg.USE_BOX_CHECK_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
-        return box_check_conv(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
-
-    return box_check_v2(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
+    if window_azimuth is None:
+        window_azimuth = 20
+    return box_check_conv(azi, final_vel, flag_vel, vnyq, window_range, window_azimuth, alpha)
 
 
 def box_check_conv(
@@ -1249,35 +931,13 @@ def box_check_conv(
     strategy: str = "surround",
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Fast separable (convolution-based) equivalent of box_check_v2.
+    For every processed gate, re-fold it if it disagrees with the windowed mean of
+    its (window_azimuth x window_range) neighbourhood by >= alpha * vnyq.
 
-    box_check_v2 computes, for every processed gate, a 1-sigma-trimmed mean of the
-    valid velocities in an (window_azimuth x window_range) neighbourhood and
-    re-folds the gate when it disagrees with that reference by >= alpha * vnyq.
-    The per-gate window gather makes it O(rays * gates * window) and dominates the
-    runtime on noise-dominated (but gate-dense) volumes.
-
-    This routine computes the masked windowed MEAN reference with cumulative sums
-    (O(rays * gates)), using exactly the same window geometry as box_check_v2
-    (azimuth wrapped via iter_azimuth, range clipped at the edges via iter_range),
-    then applies the identical correction rule from a single snapshot of the field.
-
-    Relationship to box_check_v2:
-    - Wherever a window is internally consistent (every valid neighbour lies within
-      +/- 1 std of the window mean), the 1-sigma trim is a no-op and the trimmed
-      mean equals the plain windowed mean: the reference, the correction decision
-      and the output are identical (up to float round-off). Coherent precipitation
-      echo falls in this regime.
-    - The two differ only in inconsistent windows that mix correctly-dealiased and
-      still-aliased velocities, i.e. in noise / poorly-dealiased regions, where the
-      trim acts as a majority vote and this routine uses the plain mean instead.
-
-    Like box_check_v1, the reference is built from a snapshot of the input field,
-    so (unlike box_check_v2) a same-pass correction is not used as a reference for
-    later gates; corrections are rare and confined to inconsistent windows, so this
-    has negligible effect.
-
-    Parameters and returns match box_check_v2.
+    The reference is computed with cumulative sums (O(rays * gates)), with azimuth
+    wrapped via iter_azimuth and range clipped at the edges via iter_range.  The
+    reference is built from a snapshot of the field at entry (same as box_check_v1),
+    so a same-pass correction is not used as a reference for later gates.
     """
     maxazi, maxrange = final_vel.shape
     half = window_range // 2
@@ -1316,8 +976,8 @@ def box_check_conv(
     with np.errstate(invalid="ignore", divide="ignore"):
         refvel = np.where(cnt > 0, vel_sum / cnt, np.nan)
 
-    # Same correction rule as box_check_v2: re-fold gates that disagree with the
-    # neighbourhood reference by >= alpha * vnyq.  Computed from the snapshot.
+    # Re-fold gates that disagree with the neighbourhood reference by >= alpha * vnyq.
+    # Reference is computed from the snapshot at entry.
     correct = valid & np.isfinite(refvel) & (np.abs(refvel - final_vel) >= alpha * vnyq)
     final_vel[correct] = refvel[correct].astype(final_vel.dtype)
     flag_vel[correct] = 3
@@ -1374,7 +1034,7 @@ def _unfold_vec(v1: np.ndarray, v2: np.ndarray, vnyq: float) -> np.ndarray:
     return best
 
 
-def unfolding_3D_conv(
+def unfolding_3D(
     r_swref: np.ndarray,
     azi_swref: np.ndarray,
     elev_swref: float,
@@ -1392,24 +1052,13 @@ def unfolding_3D_conv(
     alpha: float = 0.8,
 ) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
     """
-    Fast separable equivalent of unfolding_3D_exact.
+    Inter-sweep dealiasing: compare each gate of the slice against the windowed mean
+    of the geometrically-matched window in the reference sweep.
 
-    unfolding_3D_exact computes, for every gate of the slice, the median of the
-    valid reference-sweep velocities in an (window_azi x window_range) window
-    centred on the geometrically-matched reference gate, then compares the slice
-    velocity against it. The per-gate window gather + median makes it
-    O(rays * gates * window).
-
-    This routine precomputes the masked windowed MEAN of the reference sweep once
-    (O(ref_rays * ref_gates)), then gathers the per-slice-gate reference value via
-    the geometric azimuth/range mapping and applies the identical decision logic
-    vectorised over the whole slice.
-
-    As for box_check_conv, the mean equals the median wherever the reference window
-    is internally consistent (coherent echo), so the result matches
-    unfolding_3D_exact there; they differ only in inconsistent (noise) windows. The
-    low-Nyquist guard (cfg.CONV_MIN_NYQUIST) routes the sensitive low-Nyquist sweeps
-    to the exact path.
+    The reference is precomputed with cumulative sums (O(ref_rays * ref_gates)), then
+    each slice gate is looked up via azimuth/range geometric mapping.  The mean equals
+    the median wherever the reference window is internally consistent (coherent echo);
+    they differ only in inconsistent (noise) windows.
     """
     maxazi, maxrange = velocity_slice.shape
     ref_azi, ref_range = vel_swref.shape
@@ -1417,7 +1066,7 @@ def unfolding_3D_conv(
     W = window_azi
     offset = W // 2
 
-    log("unfolding_3d (conv) alpha:", alpha, f"win-azi:{W} win-bin:{window_range}")
+    log("unfolding_3d alpha:", alpha, f"win-azi:{W} win-bin:{window_range}")
 
     gr_swref = r_swref * np.cos(elev_swref * np.pi / 180)
     gr_slice = r_slice * np.cos(elev_slice * np.pi / 180)
@@ -1458,38 +1107,6 @@ def unfolding_3D_conv(
     flag_slice[good_vt] = 2
 
     return velocity_slice, flag_slice, None, None
-
-
-def unfolding_3D(
-    r_swref,
-    azi_swref,
-    elev_swref,
-    vel_swref,
-    flag_swref,
-    r_slice,
-    azi_slice,
-    elev_slice,
-    velocity_slice,
-    flag_slice,
-    original_velocity,
-    vnyq,
-    window_azi: int = 20,
-    window_range: int = 80,
-    alpha: float = 0.8,
-) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
-    """Dispatcher: fast separable unfolding_3D_conv (default) or exact
-    unfolding_3D_exact. The fast path is skipped on low-Nyquist sweeps."""
-    if cfg.USE_3D_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
-        return unfolding_3D_conv(
-            r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
-            r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
-            original_velocity, vnyq, window_azi, window_range, alpha,
-        )
-    return unfolding_3D_exact(
-        r_swref, azi_swref, elev_swref, vel_swref, flag_swref,
-        r_slice, azi_slice, elev_slice, velocity_slice, flag_slice,
-        original_velocity, vnyq, window_azi, window_range, alpha,
-    )
 
 
 def _box_check_impl(refvel, final_vel, flag_vel, vnyq, alpha) -> Tuple[np.ndarray, np.ndarray]:
@@ -1592,7 +1209,7 @@ def box_check_v1(
     return _box_check_impl(refvel, final_vel.copy(), flag_vel, vnyq, alpha)
 
 
-def correct_closest_reference_conv(
+def correct_closest_reference(
     azimuth: np.ndarray,
     vel: np.ndarray,
     final_vel: np.ndarray,
@@ -1601,30 +1218,18 @@ def correct_closest_reference_conv(
     alpha: float = 0.8,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Fast equivalent of correct_closest_reference_exact.
+    For each unprocessed (flag == 0) gate, find the nearest already-dealiased gate
+    via a Euclidean distance transform (azimuth treated as circular), use the windowed
+    mean of the dealiased field around that gate as a reference, and apply the standard
+    unfold/accept decision.
 
-    The exact routine, for each unprocessed (flag == 0) gate, finds the nearest
-    already-dealiased gate, builds a (10 azimuth x 40 gate) window around it and
-    uses a robust reference (median of per-azimuth means) to decide whether the
-    gate is fine, foldable or unusable. The per-gate nearest-neighbour search over
-    the growing set of good gates makes it O(n_unprocessed * n_good).
-
-    This routine computes the nearest good gate for every gate at once with a
-    Euclidean distance transform (azimuth treated as circular), and precomputes the
-    masked windowed MEAN of the dealiased field, then applies the same decision rule
-    vectorised. Differences from the exact path: (1) the reference is a windowed
-    mean rather than a median-of-means (identical on internally-consistent windows,
-    differs only in inconsistent/noise windows, as for the other conv paths), and
-    (2) the nearest-neighbour reference is taken from the gates that are good at
-    entry rather than from the set that grows during the sweep. correct_closest is
-    the last-resort stage acting on the residual undealiased gates (overwhelmingly
-    noise), so both effects are confined to non-meteorological returns; the
-    low-Nyquist guard (cfg.CONV_MIN_NYQUIST) routes sensitive sweeps to the exact
-    path.
+    The nearest-neighbour reference is taken from the set of good gates at entry (not
+    updated within the sweep), which is appropriate because this stage acts on residual
+    undealiased gates that are overwhelmingly noise.
     """
     from scipy import ndimage
 
-    log("correct_closest (conv) alpha:", alpha)
+    log("correct_closest alpha:", alpha)
     if not cfg.DO_ACT:
         return final_vel, flag_vel
 
@@ -1665,19 +1270,3 @@ def correct_closest_reference_conv(
     flag_vel[ok] = 2
 
     return final_vel, flag_vel
-
-
-def correct_closest_reference(
-    azimuth: np.ndarray,
-    vel: np.ndarray,
-    final_vel: np.ndarray,
-    flag_vel: np.ndarray,
-    vnyq: float,
-    alpha: float = 0.8,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Dispatcher: fast correct_closest_reference_conv (default) or the exact
-    correct_closest_reference_exact. The fast path is skipped on low-Nyquist
-    sweeps (see cfg.CONV_MIN_NYQUIST)."""
-    if cfg.USE_CLOSEST_CONV and vnyq >= cfg.CONV_MIN_NYQUIST:
-        return correct_closest_reference_conv(azimuth, vel, final_vel, flag_vel, vnyq, alpha)
-    return correct_closest_reference_exact(azimuth, vel, final_vel, flag_vel, vnyq, alpha)

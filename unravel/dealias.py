@@ -630,10 +630,17 @@ def unravel_3D_pyodim(
     h5file = None
     if isinstance(odim_input, str):
         # Input is a file path - read it
-        if load_all_fields or condition is not None:
-            (rsets, h5file) = pyodim.read_write_odim(odim_input, read_write=read_write)
-        else:
-            (rsets, h5file) = pyodim.read_write_odim(odim_input, read_write=read_write, include_fields=[vel_name])
+        mode = "r+" if read_write else "r"
+        load_kwargs = {}
+        if not (load_all_fields or condition is not None):
+            load_kwargs["include_fields"] = [vel_name]
+
+        (rsets, h5file) = pyodim.read_odim(
+            odim_input,
+            return_handle=True,
+            mode=mode,
+            **load_kwargs,
+        )
         rsets = [r.compute() for r in rsets]
     elif isinstance(odim_input, list):
         # Input is pre-loaded datasets

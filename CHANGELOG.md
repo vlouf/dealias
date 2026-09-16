@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.6.0](https://github.com/vlouf/dealias/releases/tag/v1.6.0) - 2026-09-16
+### Added
+- `Dealias` is now exported from the package root (`from unravel import Dealias`), for callers driving the dealiasing modules themselves.
+- `Dealias` takes `alpha_mad` as a constructor argument (previously a hard-coded attribute), and exposes `COMPLETION_THRESHOLD`, `FIRST_PASS_NYQUIST_FRACTION` and `MAX_LEASTSQUARE_ELEVATION` as class constants instead of literals buried in the methods.
+
+### Changed
+- **Requires `pyodim >= 0.7.0`.** pyodim 0.7 replaced `read_odim(lazy_load=...)` with `lazy`, and reads eagerly by default; the `.compute()` that followed `read_odim()` was a full copy of every sweep and has been removed.
+- **Requires Python >= 3.9** (was 3.8).
+- `unravel_3D_pyodim()` no longer mutates the list passed as `odim_input`. It returns a new list of new datasets and leaves the caller's list and sweeps untouched, matching the file-path branch. Code that relied on the in-place update and discarded the return value must now use the returned list.
+- `unmask_array()` moved to `unravel.core` (it duplicated `Dealias._check_velocity`); it remains importable from `unravel.dealias`.
+- Type hints: `Union[None, X]` replaced by `Optional[X]` throughout, and `Dealias.correct_box` is typed `Union[int, Tuple[int, int]]`, matching the bare int it already accepted.
+- The eight `correct_*`/`check_*` methods of `Dealias` share a single `_apply()` helper rather than each repeating the alpha fallback and the velocity/flag write-back. Output is numerically identical.
+- Test suite: live logging reports each phase with its duration plus a per-volume summary of coverage and unfolded fraction (`--log-cli-level=DEBUG` adds a per-sweep breakdown, `WARNING` silences it). Test bodies are no longer wrapped in `try/except` + `pytest.fail`, which reduced every failure to a single line with no traceback.
+
+### Fixed
+- **`Dealias` modified the caller's velocity array in place.** `filtering.filter_data()` unfolds the velocity in place and returns the same object, so `dealiasing_process_2D()` rewrote gates of the array it was given. The field is now copied on construction.
+- **An all-NaN beam could be chosen as the reference radial.** `find_reference_radials()` averaged every beam before selecting, which emitted `RuntimeWarning: Mean of empty slice` for empty beams; when no beam held 10 valid gates the selection threshold became vacuous and `argmin` returned an empty beam. Beams are now selected before averaging, and the fallback picks the quietest beam that holds data.
+- **`dealias_long_range()` reported the wrong `completed` stage.** An inverted condition set `completed = "closest"` when the sweep was *not* complete and left it empty when it was. Affects the `debug=True` return value and log line only; no velocity was changed.
+- `Dealias` validated `alpha` and the velocity dimensions with `assert`, after the arrays had already been used, and `python -O` stripped the checks entirely. Validation now runs first and raises `ValueError` naming the offending value and shapes.
+- `Dealias.correct_clock()` raised a bare `AttributeError` when called before `initialize()`; it now raises `RuntimeError` naming the missing step.
+
 ## [1.5.0](https://github.com/vlouf/dealias/releases/tag/v1.5.0) - 2026-06-16
 ### Added
 - Convolution-based (separable cumulative-sum) fast paths for all three expensive stages: box check, inter-sweep 3-D unfolding, and closest-reference correction. These replace the previous per-gate window gather with O(rays × gates) operations, giving 5–20× speedups on typical precipitation volumes.

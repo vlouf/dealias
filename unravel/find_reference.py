@@ -42,7 +42,21 @@ def find_reference_radials(velocity: np.ndarray) -> Tuple[int, int]:
     """
 
     def find_min_quadrant(azi: np.ndarray, vel: np.ndarray, nvalid_gate_qd: float, nsum_moy: float) -> int:
-        return azi[nvalid_gate_qd >= nsum_moy][np.argmin(np.nanmean(np.abs(vel), axis=1)[nvalid_gate_qd >= nsum_moy])]
+        """
+        Quietest beam among those holding enough valid gates.
+
+        The beams are selected before averaging rather than after: a beam that is
+        entirely NaN makes np.nanmean warn about an empty slice, and those beams
+        are discarded by the selection anyway. Raises ValueError when no beam
+        qualifies, which the callers use as their fallback signal.
+
+        nvalid_gate_qd is zero for a beam holding fewer than 10 valid gates, so
+        the second test only bites when nsum_moy is itself zero (no beam reaches
+        10 gates); without it the threshold would be vacuous and every empty beam
+        would qualify.
+        """
+        selected = (nvalid_gate_qd >= nsum_moy) & (nvalid_gate_qd > 0)
+        return azi[selected][np.argmin(np.nanmean(np.abs(vel[selected]), axis=1))]
 
     def circular_diff(a: float, b: float, mod=360.0) -> float:
         """
@@ -61,18 +75,28 @@ def find_reference_radials(velocity: np.ndarray) -> Tuple[int, int]:
     nsum_tot = np.sum(~np.isnan(velocity[nvalid_gate > 0, :]))
     nvalid_beam = len(azimuth[nvalid_gate > 0])
 
-    nsum_moy = nsum_tot // nvalid_beam
+    # No beam holds 10 valid gates: nothing to average, every threshold test below
+    # fails and the fallbacks take over.
+    total_mean = nsum_tot // nvalid_beam if nvalid_beam > 0 else 0
+    nsum_moy = total_mean
     if nsum_moy > 0.7 * velocity.shape[1]:
         nsum_moy = int(0.7 * velocity.shape[1])
 
     log(
-        f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{nsum_tot // nvalid_beam} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}"
+        f"find_reference_radials vtotal:{nsum_tot} vbeams:{nvalid_beam} total_mean:{total_mean} beam_thresh:{nsum_moy} valid[0]:{nvalid_gate[0]} valid[1]:{nvalid_gate[1]}"
     )
 
     try:
         start_beam = find_min_quadrant(azimuth, velocity, nvalid_gate, nsum_moy)
     except ValueError:
-        start_beam = azimuth[np.argmin(np.nanmean(np.abs(velocity), axis=1))]
+        # No beam holds enough gates: fall back to the quietest beam that holds
+        # any data at all. Averaging over every beam instead would let np.argmin
+        # return an all-NaN beam, i.e. a reference radial with nothing in it.
+        has_data = ~np.all(np.isnan(velocity), axis=1)
+        if has_data.any():
+            start_beam = azimuth[has_data][np.argmin(np.nanmean(np.abs(velocity[has_data]), axis=1))]
+        else:
+            start_beam = azimuth[0]  # empty sweep: any beam is as good as another
 
     # find other beam
 

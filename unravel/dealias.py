@@ -632,7 +632,6 @@ def unravel_3D_pyodim(
             mode=mode,
             **load_kwargs,
         )
-        rsets = [r.compute() for r in rsets]
     elif isinstance(odim_input, list):
         # Input is pre-loaded datasets
         rsets = odim_input

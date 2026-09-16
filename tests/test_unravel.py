@@ -2,6 +2,7 @@ import os
 import datetime
 import warnings
 
+import numpy as np
 import pytest
 import requests
 
@@ -159,7 +160,8 @@ def test_pyodim_from_datasets():
         logm(f"Reading ODIM file with pyodim: {test_file}")
 
         # Step 1: Load datasets with pyodim
-        datasets = pyodim.read_odim(test_file, lazy_load=False)
+        # pyodim >= 0.7: reading is eager by default (lazy=True returns dask delayed)
+        datasets = pyodim.read_odim(test_file)
 
         logm(f"Loaded {len(datasets)} sweeps")
 
@@ -167,6 +169,7 @@ def test_pyodim_from_datasets():
         # For testing, we'll just pass the datasets as-is
         logm("Applying preprocessing (simulated)")
         preprocessed_datasets = datasets  # In real use: apply corrections here
+        original_velocities = [ds["VRADH"].values.copy() for ds in datasets]
 
         # Step 3: Apply dealiasing to pre-loaded datasets
         logm("Starting dealiasing on pre-loaded datasets")
@@ -190,11 +193,13 @@ def test_pyodim_from_datasets():
             assert "velocity_dealias" in ds, f"Dealiased velocity not found in sweep {idx}"
             assert "velocity_dealias_flag" in ds, f"Flag field not found in sweep {idx}"
 
-        # Verify original field was NOT modified
-        for idx, dataset in enumerate(datasets):
-            original_vel = dataset["VRADH"].values
-            # Check that we can still access original data
-            assert original_vel is not None, f"Original velocity field was corrupted in sweep {idx}"
+        # Verify the input velocity field was NOT modified in place
+        for idx, (dataset, original_vel) in enumerate(zip(dealiased_datasets, original_velocities)):
+            np.testing.assert_array_equal(
+                dataset["VRADH"].values,
+                original_vel,
+                err_msg=f"Original velocity field was modified in place in sweep {idx}",
+            )
 
         logm(f"Successfully processed {len(dealiased_datasets)} sweeps with preprocessing")
 

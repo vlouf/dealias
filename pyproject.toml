@@ -29,7 +29,7 @@ dependencies = [
     "numba",
     "numpy",
     "xarray",
-    "pyodim>=0.6.2",
+    "pyodim>=0.7.0",
     "dask",
     "arm_pyart",
 ]

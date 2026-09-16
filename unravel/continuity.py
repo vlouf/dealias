@@ -666,7 +666,6 @@ def circle_distance(a: np.ndarray, b: np.ndarray, circumference: float) -> np.nd
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 
-
 def correct_box(
     azi: np.ndarray,
     vel: np.ndarray,
@@ -898,8 +897,6 @@ def least_square_radial_last_module(
                     flag_vel[nbeam, ngate] = 2
 
     return final_vel
-
-
 
 
 jit_module(nopython=True, error_model="numpy", cache=True)

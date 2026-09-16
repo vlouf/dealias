@@ -628,7 +628,7 @@ def unravel_3D_pyodim(
         if not (load_all_fields or condition is not None):
             load_kwargs["include_fields"] = [vel_name]
 
-        (rsets, h5file) = pyodim.read_odim(
+        rsets, h5file = pyodim.read_odim(
             odim_input,
             return_handle=True,
             mode=mode,
@@ -641,7 +641,7 @@ def unravel_3D_pyodim(
             raise ValueError("read_write=True is only supported when odim_input is a file path")
     else:
         raise TypeError("odim_input must be either a file path (str) or a list of xarray Datasets")
-    
+
     radar_datasets = list(rsets)
 
     # Filtering data with provided gatefilter.

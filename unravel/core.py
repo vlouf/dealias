@@ -4,16 +4,17 @@ The dealiasing class.
 @title: core.py
 @author: Valentin Louf <valentin.louf@bom.gov.au>
 @institutions: Monash University and the Australian Bureau of Meteorology
-@date: 25/03/2021
+@date: 16/09/2026
 
 .. autosummary::
     :toctree: generated/
 
+    unmask_array
     Dealias
 """
 
 import traceback
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -22,6 +23,29 @@ from . import filtering
 from . import initialisation
 from . import find_reference
 from .cfg import stage_check
+
+
+def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.nan) -> np.ndarray:
+    """
+    Return a plain ndarray, replacing the mask (if any) by `fill_value`.
+
+    Parameters:
+    ===========
+    x: ndarray or MaskedArray
+        Array to unmask. Scalars are returned unchanged.
+    fill_value:
+        Value used to replace the masked elements. Default is NaN.
+
+    Returns:
+    ========
+    x: ndarray
+        Unmasked array.
+    """
+    try:
+        x = x.filled(fill_value)
+    except AttributeError:
+        pass
+    return x
 
 
 class Dealias:
@@ -42,7 +66,18 @@ class Dealias:
         Nyquist velocity of the radar.
     alpha: float
         Alpha parameter for the dealiasing. Default is 0.6.
+    alpha_mad: float
+        Trusted velocity difference Nyquist multiplier used by the MAD filter.
+        Default is 0.3.
     """
+
+    # Fraction of unprocessed gates below which a sweep counts as completed.
+    COMPLETION_THRESHOLD: float = 0.01
+    # Nyquist fraction used as the tolerance of the first (clockwise) pass.
+    FIRST_PASS_NYQUIST_FRACTION: float = 0.75
+    # Above this elevation angle (degrees) the radial least-square modules are
+    # skipped: the velocity is no longer dominated by the horizontal wind.
+    MAX_LEASTSQUARE_ELEVATION: float = 6.0
 
     def __init__(
         self,
@@ -52,23 +87,26 @@ class Dealias:
         velocity: np.ndarray,
         nyquist_velocity: float,
         alpha: float = 0.6,
+        alpha_mad: float = 0.3,
     ):
+        self._check_inputs(r, azimuth, velocity, alpha, alpha_mad)
+
         self.r = r
         self.azimuth = azimuth
         self.elevation = elevation
-        self.velocity = self._check_velocity(velocity)
-        self.nyquist = nyquist_velocity
+        self.velocity: np.ndarray = self._check_velocity(velocity)
+        self.nyquist: float = nyquist_velocity
         self.alpha = alpha
-        self.alpha_mad = 0.3  # Trusted velocity difference Nyquist multiplier (for filter_data)
-        self.vshift = 2 * nyquist_velocity
-        self.nrays = len(azimuth)
-        self.ngates = len(r)
-        self._check_inputs()
-        self.flag = self._gen_flag_array()
-        self.dealias_vel = self._gen_empty_velocity()
+        self.alpha_mad = alpha_mad
+        self.vshift: float = 2 * nyquist_velocity
+        self.nrays: int = len(azimuth)
+        self.ngates: int = len(r)
+        self.flag: np.ndarray = self._gen_flag_array()
+        self.dealias_vel: np.ndarray = self._gen_empty_velocity()
 
-        assert 0 <= self.alpha <= 1, "Alpha parameter should be between 0 and 1."
-        assert self.velocity.ndim == 2, "Velocity field should be a 2D array."
+        # Position of the reference radials, only known once initialize() has run.
+        self.azi_start_pos: Optional[int] = None
+        self.azi_end_pos: Optional[int] = None
 
     def _gen_empty_velocity(self) -> np.ndarray:
         """Initialiaze empty dealiased velocity field"""
@@ -82,25 +120,37 @@ class Dealias:
         flag[np.isnan(self.velocity)] = -3
         return flag
 
-    def _check_velocity(self, velocity) -> np.ndarray:
-        """FillValue should be NaN"""
-        try:
-            velocity = velocity.filled(np.nan)
-        except AttributeError:
-            pass
-        return velocity
+    @staticmethod
+    def _check_velocity(velocity) -> np.ndarray:
+        """
+        Unmask the velocity field (FillValue should be NaN) and copy it: the
+        MAD filter of initialize() unfolds the velocity in place, so we must
+        never write into the array owned by the caller.
+        """
+        return unmask_array(velocity).copy()
 
-    def _check_inputs(self):
-        """Check if coordinates correspond to the velocity field dimension"""
-        if self.velocity.shape != (self.nrays, self.ngates):
-            raise ValueError(f"Velocity, range and azimuth shape mismatch.")
+    @staticmethod
+    def _check_inputs(r, azimuth, velocity, alpha, alpha_mad) -> None:
+        """Validate the parameters and the velocity field dimensions."""
+        if not 0 <= alpha <= 1:
+            raise ValueError(f"Alpha parameter should be between 0 and 1, got {alpha}.")
+        if not 0 <= alpha_mad <= 1:
+            raise ValueError(f"Alpha MAD parameter should be between 0 and 1, got {alpha_mad}.")
+        if velocity.ndim != 2:
+            raise ValueError(f"Velocity field should be a 2D array, got {velocity.ndim} dimension(s).")
+        expected = (len(azimuth), len(r))
+        if velocity.shape != expected:
+            raise ValueError(
+                f"Velocity, range and azimuth shape mismatch: velocity is {velocity.shape}, "
+                f"expected {expected} <azimuth, range>."
+            )
 
     def check_completed(self) -> bool:
         """Check if there are still gates to process"""
         valid = (self.flag != -3).sum()
         if valid == 0:
             return True
-        return (self.flag == 0).sum() / valid <= 0.01
+        return (self.flag == 0).sum() / valid <= self.COMPLETION_THRESHOLD
 
     def initialize(self):
         """Initialize the dealiasing by filtering the data, finding the radials
@@ -129,7 +179,12 @@ class Dealias:
             vel = self.velocity.copy()
             vel[azi_start_pos, :] = dealias_vel[azi_start_pos, :]
             dealias_vel, flag_vel = initialisation.first_pass(
-                azi_start_pos, vel, dealias_vel, flag_vel, self.nyquist, 0.75 * self.nyquist
+                azi_start_pos,
+                vel,
+                dealias_vel,
+                flag_vel,
+                self.nyquist,
+                self.FIRST_PASS_NYQUIST_FRACTION * self.nyquist,
             )
 
         # keep final values
@@ -169,6 +224,8 @@ class Dealias:
         """
         if alpha is None:
             alpha = self.alpha
+        if self.azi_start_pos is None:
+            raise RuntimeError("Reference radials unknown: initialize() must be called before correct_clock().")
         azimuth_iteration = np.arange(self.azi_start_pos, self.azi_start_pos + self.nrays) % self.nrays
         dealias_vel, flag_vel = continuity.correct_clockwise(
             self.r,
@@ -228,7 +285,7 @@ class Dealias:
     def correct_leastsquare(self, alpha: Union[None, float] = None):
         if alpha is None:
             alpha = self.alpha
-        if self.elevation > 6:
+        if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
         # Least squares error check in the radial direction
@@ -267,7 +324,7 @@ class Dealias:
     def check_leastsquare(self, alpha: Union[None, float] = None):
         if alpha is None:
             alpha = self.alpha
-        if self.elevation > 6:
+        if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
         # Least squares error check in the radial direction

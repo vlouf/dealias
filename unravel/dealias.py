@@ -8,7 +8,6 @@ Driver script for the dealiasing module.
 @date: 11/12/2025
 
     _check_nyquist
-    unmask_array
     dealiasing_process_2D
     dealias_long_range
     unravel_3D_pyart_multiproc
@@ -27,7 +26,7 @@ from numpy.typing import NDArray
 from . import continuity
 from . import filtering
 from .cfg import log, stage_check
-from .core import Dealias
+from .core import Dealias, unmask_array
 from .odim import write_odim_slice
 
 
@@ -65,14 +64,6 @@ def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Union[None, List[f
                 nyquist_list = nyquist_velocity
 
     return np.array(nyquist_list)
-
-
-def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.nan) -> np.ndarray:
-    try:
-        x = x.filled(fill_value)
-    except AttributeError:
-        pass
-    return x
 
 
 def dealiasing_process_2D(

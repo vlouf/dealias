@@ -208,7 +208,7 @@ class Dealias:
         self.azi_start_pos = azi_start_pos
         self.azi_end_pos = azi_end_pos
 
-    def correct_range(self, window_length: int = 6, alpha: Union[None, float] = None):
+    def correct_range(self, window_length: int = 6, alpha: Optional[float] = None):
         """
         Gate-by-gate velocity dealiasing through range continuity.
 
@@ -236,7 +236,7 @@ class Dealias:
             alpha=alpha,
         )
 
-    def correct_clock(self, window_length: int = 3, alpha: Union[None, float] = None):
+    def correct_clock(self, window_length: int = 3, alpha: Optional[float] = None):
         """
         Radial-by-radial velocity dealiasing through azimuthal continuity.
 
@@ -276,7 +276,7 @@ class Dealias:
             alpha=alpha,
         )
 
-    def correct_box(self, window_size: Tuple[int, int] = (20, 20), alpha: Union[None, float] = None):
+    def correct_box(self, window_size: Union[int, Tuple[int, int]] = (20, 20), alpha: Optional[float] = None):
         """
         Velocity dealiasing using a 2D plane continuity.
 
@@ -300,7 +300,7 @@ class Dealias:
             alpha=alpha,
         )
 
-    def correct_leastsquare(self, alpha: Union[None, float] = None):
+    def correct_leastsquare(self, alpha: Optional[float] = None):
         if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
@@ -316,7 +316,7 @@ class Dealias:
             alpha=alpha,
         )
 
-    def correct_linregress(self, alpha: Union[None, float] = None):
+    def correct_linregress(self, alpha: Optional[float] = None):
         """
         Gate-by-gate velocity dealiasing through range continuity using a
         linear regression.
@@ -325,7 +325,7 @@ class Dealias:
             continuity.correct_linear_interp, self.velocity, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
         )
 
-    def correct_closest(self, alpha: Union[None, float] = None):
+    def correct_closest(self, alpha: Optional[float] = None):
         """
         Velocity dealiasing using the closest available reference in a 2D
         plane.
@@ -340,7 +340,7 @@ class Dealias:
             alpha=alpha,
         )
 
-    def check_leastsquare(self, alpha: Union[None, float] = None):
+    def check_leastsquare(self, alpha: Optional[float] = None):
         if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
@@ -350,7 +350,7 @@ class Dealias:
             self.r, self.azimuth, self.dealias_vel, self.flag, self.nyquist, alpha=self._alpha(alpha)
         )
 
-    def check_box(self, window_size: Tuple[int, int] = (80, 20), alpha: Union[None, float] = None):
+    def check_box(self, window_size: Tuple[int, int] = (80, 20), alpha: Optional[float] = None):
         """
         Checking function using a 2D plane of surrounding velocities. Faster
         than the check_box_median.

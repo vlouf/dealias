@@ -15,7 +15,7 @@ Driver script for the dealiasing module.
     unravel_3D_pyodim
 """
 
-from typing import Union, Tuple, List
+from typing import List, Optional, Tuple, Union
 
 import pyart
 import numpy as np
@@ -30,7 +30,7 @@ from .core import Dealias, unmask_array
 from .odim import write_odim_slice
 
 
-def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Union[None, List[float], float]) -> NDArray:
+def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Optional[Union[List[float], float]]) -> NDArray:
     """
     If nyquist is not defined, then it will assume that it is the same
     nyquist for the whole sweep. If you want a different nyquist at each
@@ -271,7 +271,7 @@ def dealias_long_range(
 
     if stage_check("closest", completed):
         dealias_2D.correct_closest()
-        if not dealias_2D.check_completed():
+        if dealias_2D.check_completed():
             completed = "closest"
 
     # Checking modules
@@ -291,8 +291,8 @@ def unravel_3D_pyart_multiproc(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: Union[pyart.filters.GateFilter, None] = None,
-    nyquist_velocity: Union[float, None] = None,
+    gatefilter: Optional[pyart.filters.GateFilter] = None,
+    nyquist_velocity: Optional[float] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
@@ -417,8 +417,8 @@ def unravel_3D_pyart(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: Union[pyart.filters.GateFilter, None] = None,
-    nyquist_velocity: Union[float, None] = None,
+    gatefilter: Optional[pyart.filters.GateFilter] = None,
+    nyquist_velocity: Optional[float] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
@@ -563,12 +563,12 @@ def unravel_3D_pyodim(
     vel_name: str = "VRADH",
     output_vel_name: str = "unraveled_velocity",
     load_all_fields: bool = False,
-    condition: Union[None, Tuple[str, str, float]] = None,
+    condition: Optional[Tuple[str, str, float]] = None,
     strategy: str = "long_range",
     alpha: float = 0.6,
     debug: bool = False,
     read_write: bool = False,
-    output_flag_name: Union[str, None] = None,
+    output_flag_name: Optional[str] = None,
 ) -> List[xr.Dataset]:
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -711,7 +711,7 @@ def unravel_3D_pyodim(
 
 def unravel_3D_pyodim_slice(
     ds_sweep: xr.Dataset,
-    ds_ref: Union[None, xr.Dataset],
+    ds_ref: Optional[xr.Dataset],
     vel_name: str,
     strategy: str,
     output_vel_name: str,

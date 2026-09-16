@@ -169,6 +169,7 @@ def test_pyodim_from_datasets():
         # For testing, we'll just pass the datasets as-is
         logm("Applying preprocessing (simulated)")
         preprocessed_datasets = datasets  # In real use: apply corrections here
+        original_datasets = list(datasets)  # identity refs, to detect in-place mutation
         original_velocities = [ds["VRADH"].values.copy() for ds in datasets]
 
         # Step 3: Apply dealiasing to pre-loaded datasets
@@ -192,6 +193,14 @@ def test_pyodim_from_datasets():
         for idx, ds in enumerate(dealiased_datasets):
             assert "velocity_dealias" in ds, f"Dealiased velocity not found in sweep {idx}"
             assert "velocity_dealias_flag" in ds, f"Flag field not found in sweep {idx}"
+
+        # Verify the caller's list was NOT mutated: a new list of new datasets
+        # is returned, and the input sweeps gained no field.
+        assert dealiased_datasets is not datasets, "Returned list is the caller's list"
+        assert datasets == original_datasets, "Caller's list had its elements replaced"
+        for idx, dataset in enumerate(datasets):
+            assert "velocity_dealias" not in dataset, f"Input sweep {idx} was modified in place"
+            assert "velocity_dealias_flag" not in dataset, f"Input sweep {idx} was modified in place"
 
         # Verify the input velocity field was NOT modified in place
         for idx, (dataset, original_vel) in enumerate(zip(dealiased_datasets, original_velocities)):

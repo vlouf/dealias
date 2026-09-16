@@ -580,7 +580,8 @@ def unravel_3D_pyodim(
     odim_input: Union[str, List[xr.Dataset]]
         Either an ODIM H5 file path (str) or a list of pre-loaded xarray datasets.
         Passing pre-loaded datasets allows for preprocessing (e.g., dual-PRF correction)
-        before dealiasing.
+        before dealiasing. Pre-loaded datasets are not modified: neither the list
+        nor the datasets it holds, a new list of new datasets is returned.
     vel_name: str
         Velocity field name.
     output_vel_name: str
@@ -602,7 +603,8 @@ def unravel_3D_pyodim(
     Returns:
     ========
     radar_datasets: List
-        List of xarray datasets. PyODIM output data model.
+        New list of xarray datasets, with the dealiased velocity and flag fields
+        added. PyODIM output data model.
     """
     # NOTE: This function is made to handle a variable PRF, and thus a variable
     # Nyquist. We use the sweeps with the highest Nyquist in the lowest
@@ -639,14 +641,16 @@ def unravel_3D_pyodim(
             raise ValueError("read_write=True is only supported when odim_input is a file path")
     else:
         raise TypeError("odim_input must be either a file path (str) or a list of xarray Datasets")
+    
+    radar_datasets = list(rsets)
 
     # Filtering data with provided gatefilter.
-    radar_datasets = rsets
     if condition:
         var, op, threshold = condition
-        for idx, radar in enumerate(rsets):
+        for idx, radar in enumerate(radar_datasets):
             mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
-            # Use .copy() to avoid modifying the original field
+            # merge() returns a new dataset, and .copy() keeps the masking out of
+            # the caller's array: the input sweep is left untouched.
             radar_datasets[idx] = radar.merge(
                 {f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name].values.copy()))}
             )

@@ -145,6 +145,21 @@ class Dealias:
                 f"expected {expected} <azimuth, range>."
             )
 
+    def _alpha(self, alpha: Optional[float]) -> float:
+        """Fall back on the instance alpha when the caller does not override it."""
+        return self.alpha if alpha is None else alpha
+
+    def _apply(self, fn, *args, alpha: Optional[float] = None, **kwargs) -> None:
+        """
+        Run a continuity module and absorb its (dealiased velocity, flag) result.
+
+        Every module reads the current velocity/flag state and returns the updated
+        pair; storing it back happens here so that the write-back is expressed once
+        rather than at the end of each module wrapper.
+        """
+        kwargs["alpha"] = self._alpha(alpha)
+        self.dealias_vel, self.flag = fn(*args, **kwargs)
+
     def check_completed(self) -> bool:
         """Check if there are still gates to process"""
         valid = (self.flag != -3).sum()
@@ -202,16 +217,24 @@ class Dealias:
         window_length: int
             Size of window to look for a reference.
         """
-        if alpha is None:
-            alpha = self.alpha
-        dealias_vel, flag_vel = continuity.correct_range_onward(
-            self.velocity, self.dealias_vel, self.flag, self.nyquist, window_len=window_length, alpha=alpha
+        self._apply(
+            continuity.correct_range_onward,
+            self.velocity,
+            self.dealias_vel,
+            self.flag,
+            self.nyquist,
+            window_len=window_length,
+            alpha=alpha,
         )
-        dealias_vel, flag_vel = continuity.correct_range_backward(
-            self.velocity, dealias_vel, flag_vel, self.nyquist, window_len=window_length, alpha=alpha
+        self._apply(
+            continuity.correct_range_backward,
+            self.velocity,
+            self.dealias_vel,
+            self.flag,
+            self.nyquist,
+            window_len=window_length,
+            alpha=alpha,
         )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def correct_clock(self, window_length: int = 3, alpha: Union[None, float] = None):
         """
@@ -222,12 +245,12 @@ class Dealias:
         window_length: int
             Size of window to look for a reference.
         """
-        if alpha is None:
-            alpha = self.alpha
         if self.azi_start_pos is None:
             raise RuntimeError("Reference radials unknown: initialize() must be called before correct_clock().")
+
         azimuth_iteration = np.arange(self.azi_start_pos, self.azi_start_pos + self.nrays) % self.nrays
-        dealias_vel, flag_vel = continuity.correct_clockwise(
+        self._apply(
+            continuity.correct_clockwise,
             self.r,
             self.azimuth,
             self.velocity,
@@ -240,20 +263,18 @@ class Dealias:
         )
 
         azimuth_iteration = np.arange(self.azi_start_pos, self.azi_start_pos - self.nrays, -1) % self.nrays
-        dealias_vel, flag_vel = continuity.correct_counterclockwise(
+        self._apply(
+            continuity.correct_counterclockwise,
             self.r,
             self.azimuth,
             self.velocity,
-            dealias_vel,
-            flag_vel,
+            self.dealias_vel,
+            self.flag,
             azimuth_iteration,
             self.nyquist,
             window_len=window_length,
             alpha=alpha,
         )
-
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def correct_box(self, window_size: Tuple[int, int] = (20, 20), alpha: Union[None, float] = None):
         """
@@ -264,12 +285,11 @@ class Dealias:
         window_length: (int, int)
             Size of plane to look for a reference.
         """
-        if alpha is None:
-            alpha = self.alpha
         if isinstance(window_size, int):
             window_size = (window_size, window_size)
 
-        dealias_vel, flag_vel = continuity.correct_box(
+        self._apply(
+            continuity.correct_box,
             self.azimuth,
             self.velocity,
             self.dealias_vel,
@@ -279,69 +299,65 @@ class Dealias:
             window_size[1],
             alpha=alpha,
         )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def correct_leastsquare(self, alpha: Union[None, float] = None):
-        if alpha is None:
-            alpha = self.alpha
         if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
         # Least squares error check in the radial direction
-        dealias_vel, flag_vel = continuity.radial_least_square_check(
-            self.r, self.azimuth, self.velocity, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
+        self._apply(
+            continuity.radial_least_square_check,
+            self.r,
+            self.azimuth,
+            self.velocity,
+            self.dealias_vel,
+            self.flag,
+            self.nyquist,
+            alpha=alpha,
         )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def correct_linregress(self, alpha: Union[None, float] = None):
         """
         Gate-by-gate velocity dealiasing through range continuity using a
         linear regression.
         """
-        if alpha is None:
-            alpha = self.alpha
-        dealias_vel, flag_vel = continuity.correct_linear_interp(
-            self.velocity, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
+        self._apply(
+            continuity.correct_linear_interp, self.velocity, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
         )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def correct_closest(self, alpha: Union[None, float] = None):
         """
         Velocity dealiasing using the closest available reference in a 2D
         plane.
         """
-        if alpha is None:
-            alpha = self.alpha
-        dealias_vel, flag_vel = continuity.correct_closest_reference(
-            self.azimuth, self.velocity, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
+        self._apply(
+            continuity.correct_closest_reference,
+            self.azimuth,
+            self.velocity,
+            self.dealias_vel,
+            self.flag,
+            self.nyquist,
+            alpha=alpha,
         )
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel
 
     def check_leastsquare(self, alpha: Union[None, float] = None):
-        if alpha is None:
-            alpha = self.alpha
         if self.elevation > self.MAX_LEASTSQUARE_ELEVATION:
             return None
 
-        # Least squares error check in the radial direction
-        dealias_vel = continuity.least_square_radial_last_module(
-            self.r, self.azimuth, self.dealias_vel, self.flag, self.nyquist, alpha=alpha
+        # Least squares error check in the radial direction. This module returns
+        # the velocity alone, so it cannot go through _apply().
+        self.dealias_vel = continuity.least_square_radial_last_module(
+            self.r, self.azimuth, self.dealias_vel, self.flag, self.nyquist, alpha=self._alpha(alpha)
         )
-        self.dealias_vel = dealias_vel
 
     def check_box(self, window_size: Tuple[int, int] = (80, 20), alpha: Union[None, float] = None):
         """
         Checking function using a 2D plane of surrounding velocities. Faster
         than the check_box_median.
         """
-        if alpha is None:
-            alpha = self.alpha
         try:
-            dealias_vel, flag_vel = continuity.box_check(
+            self._apply(
+                continuity.box_check,
                 self.azimuth,
                 self.dealias_vel,
                 self.flag,
@@ -354,6 +370,3 @@ class Dealias:
             traceback.print_exc()
             print("check_box not executed.")
             return None
-
-        self.dealias_vel = dealias_vel
-        self.flag = flag_vel

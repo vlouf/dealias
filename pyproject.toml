@@ -82,6 +82,13 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore:.*CfRadial module is deprecated.*:UserWarning",
 ]
+# Live log, so a passing run still says what it did. Raise to DEBUG for the
+# per-sweep breakdown, or to WARNING for a silent run:
+#   pytest --log-cli-level=DEBUG
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s %(levelname)-7s %(message)s"
+log_cli_date_format = "%H:%M:%S"
 
 # Black configuration
 [tool.black]

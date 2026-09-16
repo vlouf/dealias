@@ -34,7 +34,7 @@ compiler of numba while they are sometimes shorter pythonic ways to do things.
     unfolding_3D
 """
 
-from typing import Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 from numba import jit, jit_module, int64, float64
@@ -666,7 +666,6 @@ def circle_distance(a: np.ndarray, b: np.ndarray, circumference: float) -> np.nd
     return np.minimum(np.abs(a - b), np.abs(a - b + circumference))
 
 
-
 def correct_box(
     azi: np.ndarray,
     vel: np.ndarray,
@@ -900,8 +899,6 @@ def least_square_radial_last_module(
     return final_vel
 
 
-
-
 jit_module(nopython=True, error_model="numpy", cache=True)
 
 
@@ -1050,7 +1047,7 @@ def unfolding_3D(
     window_azi: int = 20,
     window_range: int = 80,
     alpha: float = 0.8,
-) -> Tuple[np.ndarray, np.ndarray, Union[None, np.ndarray], Union[None, np.ndarray]]:
+) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """
     Inter-sweep dealiasing: compare each gate of the slice against the windowed mean
     of the geometrically-matched window in the reference sweep.

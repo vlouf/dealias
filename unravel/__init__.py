@@ -1,4 +1,5 @@
 from .cfg import Cfg
+from .core import Dealias
 from .dealias import (
     unravel_3D_pyart,
     unravel_3D_pyodim,
@@ -57,6 +58,16 @@ def warmup() -> None:
     continuity.box_check(azi, fv, flag.copy(), vnyq)
     continuity.correct_closest_reference(azi, vel, fv, flag.copy(), vnyq)
     continuity.unfolding_3D(
-        r, azi, 0.5, fv, flag.copy(),
-        r, azi, 1.5, fv.copy(), flag.copy(), vel, vnyq,
+        r,
+        azi,
+        0.5,
+        fv,
+        flag.copy(),
+        r,
+        azi,
+        1.5,
+        fv.copy(),
+        flag.copy(),
+        vel,
+        vnyq,
     )

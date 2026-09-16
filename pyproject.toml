@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unravel"
-version = "1.5.0"
+version = "1.6.0"
 description = "A dealiasing technique for Doppler radar velocity."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -29,7 +29,7 @@ dependencies = [
     "numba",
     "numpy",
     "xarray",
-    "pyodim>=0.6.2",
+    "pyodim>=0.7.0",
     "dask",
     "arm_pyart",
 ]
@@ -82,6 +82,13 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore:.*CfRadial module is deprecated.*:UserWarning",
 ]
+# Live log, so a passing run still says what it did. Raise to DEBUG for the
+# per-sweep breakdown, or to WARNING for a silent run:
+#   pytest --log-cli-level=DEBUG
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s %(levelname)-7s %(message)s"
+log_cli_date_format = "%H:%M:%S"
 
 # Black configuration
 [tool.black]

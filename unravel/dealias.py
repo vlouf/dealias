@@ -8,7 +8,6 @@ Driver script for the dealiasing module.
 @date: 11/12/2025
 
     _check_nyquist
-    unmask_array
     dealiasing_process_2D
     dealias_long_range
     unravel_3D_pyart_multiproc
@@ -16,7 +15,7 @@ Driver script for the dealiasing module.
     unravel_3D_pyodim
 """
 
-from typing import Union, Tuple, List
+from typing import List, Optional, Tuple, Union
 
 import pyart
 import numpy as np
@@ -27,11 +26,11 @@ from numpy.typing import NDArray
 from . import continuity
 from . import filtering
 from .cfg import log, stage_check
-from .core import Dealias
+from .core import Dealias, unmask_array
 from .odim import write_odim_slice
 
 
-def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Union[None, List[float], float]) -> NDArray:
+def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Optional[Union[List[float], float]]) -> NDArray:
     """
     If nyquist is not defined, then it will assume that it is the same
     nyquist for the whole sweep. If you want a different nyquist at each
@@ -65,14 +64,6 @@ def _check_nyquist(radar: pyart.core.Radar, nyquist_velocity: Union[None, List[f
                 nyquist_list = nyquist_velocity
 
     return np.array(nyquist_list)
-
-
-def unmask_array(x: Union[np.ndarray, np.ma.MaskedArray], fill_value=np.nan) -> np.ndarray:
-    try:
-        x = x.filled(fill_value)
-    except AttributeError:
-        pass
-    return x
 
 
 def dealiasing_process_2D(
@@ -280,7 +271,7 @@ def dealias_long_range(
 
     if stage_check("closest", completed):
         dealias_2D.correct_closest()
-        if not dealias_2D.check_completed():
+        if dealias_2D.check_completed():
             completed = "closest"
 
     # Checking modules
@@ -300,8 +291,8 @@ def unravel_3D_pyart_multiproc(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: Union[pyart.filters.GateFilter, None] = None,
-    nyquist_velocity: Union[float, None] = None,
+    gatefilter: Optional[pyart.filters.GateFilter] = None,
+    nyquist_velocity: Optional[float] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
@@ -426,8 +417,8 @@ def unravel_3D_pyart(
     radar: pyart.core.Radar,
     velname: str = "VEL",
     dbzname: str = "DBZ",
-    gatefilter: Union[pyart.filters.GateFilter, None] = None,
-    nyquist_velocity: Union[float, None] = None,
+    gatefilter: Optional[pyart.filters.GateFilter] = None,
+    nyquist_velocity: Optional[float] = None,
     strategy: str = "default",
     alpha: float = 0.8,
     do_3d: bool = True,
@@ -572,12 +563,12 @@ def unravel_3D_pyodim(
     vel_name: str = "VRADH",
     output_vel_name: str = "unraveled_velocity",
     load_all_fields: bool = False,
-    condition: Union[None, Tuple[str, str, float]] = None,
+    condition: Optional[Tuple[str, str, float]] = None,
     strategy: str = "long_range",
     alpha: float = 0.6,
     debug: bool = False,
     read_write: bool = False,
-    output_flag_name: Union[str, None] = None,
+    output_flag_name: Optional[str] = None,
 ) -> List[xr.Dataset]:
     """
     Support for ODIM H5 files and Nyquist changing with the elevation. The new
@@ -589,7 +580,8 @@ def unravel_3D_pyodim(
     odim_input: Union[str, List[xr.Dataset]]
         Either an ODIM H5 file path (str) or a list of pre-loaded xarray datasets.
         Passing pre-loaded datasets allows for preprocessing (e.g., dual-PRF correction)
-        before dealiasing.
+        before dealiasing. Pre-loaded datasets are not modified: neither the list
+        nor the datasets it holds, a new list of new datasets is returned.
     vel_name: str
         Velocity field name.
     output_vel_name: str
@@ -611,7 +603,8 @@ def unravel_3D_pyodim(
     Returns:
     ========
     radar_datasets: List
-        List of xarray datasets. PyODIM output data model.
+        New list of xarray datasets, with the dealiased velocity and flag fields
+        added. PyODIM output data model.
     """
     # NOTE: This function is made to handle a variable PRF, and thus a variable
     # Nyquist. We use the sweeps with the highest Nyquist in the lowest
@@ -635,13 +628,12 @@ def unravel_3D_pyodim(
         if not (load_all_fields or condition is not None):
             load_kwargs["include_fields"] = [vel_name]
 
-        (rsets, h5file) = pyodim.read_odim(
+        rsets, h5file = pyodim.read_odim(
             odim_input,
             return_handle=True,
             mode=mode,
             **load_kwargs,
         )
-        rsets = [r.compute() for r in rsets]
     elif isinstance(odim_input, list):
         # Input is pre-loaded datasets
         rsets = odim_input
@@ -650,13 +642,15 @@ def unravel_3D_pyodim(
     else:
         raise TypeError("odim_input must be either a file path (str) or a list of xarray Datasets")
 
+    radar_datasets = list(rsets)
+
     # Filtering data with provided gatefilter.
-    radar_datasets = rsets
     if condition:
         var, op, threshold = condition
-        for idx, radar in enumerate(rsets):
+        for idx, radar in enumerate(radar_datasets):
             mask = radar[var] < threshold if op == "lower" else radar[var] > threshold
-            # Use .copy() to avoid modifying the original field
+            # merge() returns a new dataset, and .copy() keeps the masking out of
+            # the caller's array: the input sweep is left untouched.
             radar_datasets[idx] = radar.merge(
                 {f"{vel_name}_clean": (radar[vel_name].dims, np.ma.masked_where(mask, radar[vel_name].values.copy()))}
             )
@@ -717,7 +711,7 @@ def unravel_3D_pyodim(
 
 def unravel_3D_pyodim_slice(
     ds_sweep: xr.Dataset,
-    ds_ref: Union[None, xr.Dataset],
+    ds_ref: Optional[xr.Dataset],
     vel_name: str,
     strategy: str,
     output_vel_name: str,

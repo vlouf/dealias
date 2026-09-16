@@ -33,7 +33,6 @@ CUR_STAGE = 0
 USE_BOX_CHECK_V1 = False
 
 
-
 @jit(nopython=True, cache=True)
 def log(*args) -> None:
     if SHOW_PROGRESS:

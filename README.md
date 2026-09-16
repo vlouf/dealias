@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/119326382.svg)](https://zenodo.org/badge/latestdoi/119326382)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20711799.svg)](https://doi.org/10.5281/zenodo.20711799)
 
 # UNRAVEL
 
@@ -36,7 +36,7 @@ If you use `UNRAVEL` in your research, please cite the following paper:
       title = "UNRAVEL: A Robust Modular Velocity Dealiasing Technique for Doppler Radar",
       journal = "Journal of Atmospheric and Oceanic Technology",
       year = "2020",
-      publisher = "American Meteorological Society",      
+      publisher = "American Meteorological Society",
       volume = "37",
       number = "5",
       doi = "10.1175/JTECH-D-19-0020.1",
@@ -44,3 +44,13 @@ If you use `UNRAVEL` in your research, please cite the following paper:
       url = "https://journals.ametsoc.org/view/journals/atot/37/5/jtech-d-19-0020.1.xml"
 }
 ```
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=vlouf%2Fdealias&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=vlouf/dealias&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=vlouf/dealias&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=vlouf/dealias&type=date&legend=top-left" />
+ </picture>
+</a>

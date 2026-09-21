@@ -295,7 +295,11 @@ def correct_clockwise(
 
             decision = take_decision(mean_vel_ref, vel1, vnyq, alpha=alpha)
 
-            # If loose, skip this test.
+            # Tight windows get a second opinion: the azimuthal reference and the
+            # previous gate must agree on the decision, or the gate is left alone.
+            # NB: this only engages when correct_clock() is driven directly with a
+            # window of 3 or less. Both shipped strategies iterate from 6 upwards,
+            # so it does not run in dealiasing_process_2D or dealias_long_range.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
                 mean_vel_ref2 = final_vel[nbeam, npos]
@@ -396,7 +400,11 @@ def correct_counterclockwise(
 
             decision = take_decision(mean_vel_ref, vel1, vnyq, alpha=alpha)
 
-            # If loose, skip this test.
+            # Tight windows get a second opinion: the azimuthal reference and the
+            # previous gate must agree on the decision, or the gate is left alone.
+            # NB: this only engages when correct_clock() is driven directly with a
+            # window of 3 or less. Both shipped strategies iterate from 6 upwards,
+            # so it does not run in dealiasing_process_2D or dealias_long_range.
             if ngate != 0 and window_len <= 3:
                 npos = ngate - 1
                 mean_vel_ref2 = final_vel[nbeam, npos]

@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+### Fixed
+- `unravel_3D_pyart` never passed its `alpha` to the 2-D chain, so the chain always ran at its own default of 0.6 while the driver advertised 0.8. Since `alpha` is a named parameter of the driver it could not reach the chain through `**kwargs` either, making the 2-D tolerance unsettable from this entry point. `alpha` is now used consistently by the 2-D chain, the inter-sweep continuity and the box check in both Py-ART drivers.
+- Both Py-ART drivers handed the *pre*-3-D flag array to the next tilt while handing on the post-3-D velocity, so gates that only became trustworthy through vertical continuity were excluded from the reference set of the tilt above.
+- Both Py-ART drivers seeded the 3-D continuity from sweep 0 and marched strictly upward. They now seed from the highest-Nyquist sweep among the lower half of the tilts and propagate downward then upward, matching `unravel_3D_pyodim`. This matters wherever the PRF changes with elevation, since the lowest tilt is then not the one that folds least.
+- The two Py-ART drivers applied the box check at different points relative to the reference handoff (serial before, multiproc deferred to a separate dask bag), and used different window sizes for both the inter-sweep continuity and the box check. They now share one code path and one window set, taken from `unravel_3D_pyodim`. The box check is no longer parallelised; `box_check_conv` has been the cumulative-sum implementation since 1.5.0, so the cost is small.
+- `velocity[gatefilter.gate_excluded] = np.nan` wrote into the caller's radar object whenever `radar.fields[...]["data"]` was a plain ndarray rather than a MaskedArray, because `unmask_array` returns its argument unchanged in that case. Both drivers now copy first. Same class of bug as the one fixed in `Dealias` in 1.5.1.
+- `unravel_3D_pyart` omitted `debug=debug` on the `long_range` branch, so `debug=True` with that strategy silently returned a list of `None`. `pointbreak` is also now indexed by sweep rather than by processing order.
+
+### Added
+- `tests/test_pyart_drivers.py`, including an equivalence test asserting that `unravel_3D_pyart` and `unravel_3D_pyart_multiproc` return the same field.
+- `_sweep_processing_order()` and `_unfold_3d_pyart_slice()`, shared by both Py-ART drivers so they cannot drift apart again.
+
+### Notes
+- These change the output of both Py-ART drivers. On a synthetic 6-sweep volume with a varying PRF the two drivers disagreed on 12.66% of gates before (1.31% with `do_3d=False`) and are now bit-identical in both configurations. `unravel_3D_pyodim` is untouched and verified bit-identical on a 13-sweep ODIM volume.
+- `_reference_sweep_index()` assumes the sweeps are ordered by increasing elevation, as `unravel_3D_pyodim` already did.
+
 ## [1.6.0](https://github.com/vlouf/dealias/releases/tag/v1.6.0) - 2026-09-16
 ### Added
 - `Dealias` is now exported from the package root (`from unravel import Dealias`), for callers driving the dealiasing modules themselves.

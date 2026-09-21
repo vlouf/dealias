@@ -8,6 +8,8 @@ Driver script for the dealiasing module.
 @date: 11/12/2025
 
     _check_nyquist
+    _sweep_processing_order
+    _unfold_3d_pyart_slice
     dealiasing_process_2D
     dealias_long_range
     unravel_3D_pyart_multiproc
@@ -15,7 +17,7 @@ Driver script for the dealiasing module.
     unravel_3D_pyodim
 """
 
-from typing import List, Optional, Tuple, Union
+from typing import Iterator, List, Optional, Tuple, Union
 
 import pyart
 import numpy as np
@@ -287,6 +289,109 @@ def dealias_long_range(
     return unfold_vel, dealias_2D.flag
 
 
+def _sweep_processing_order(nslice_ref: int, nsweeps: int) -> Iterator[Tuple[int, Optional[int]]]:
+    """
+    Order in which to process the sweeps of a volume.
+
+    Yields (sweep, reference sweep) pairs: the seed tilt first with no
+    reference, then downwards to the lowest tilt, then upwards to the highest.
+    Every sweep is referenced against its already-processed neighbour, so the
+    reference resets to the seed when the upward leg starts.
+
+    Parameters:
+    ===========
+    nslice_ref: int
+        Index of the seed sweep.
+    nsweeps: int
+        Number of sweeps in the volume.
+
+    Returns:
+    ========
+    Iterator of (sweep, reference sweep or None).
+    """
+    yield nslice_ref, None
+    for sweep in range(nslice_ref - 1, -1, -1):
+        yield sweep, sweep + 1
+    for sweep in range(nslice_ref + 1, nsweeps):
+        yield sweep, sweep - 1
+
+
+def _unfold_3d_pyart_slice(
+    reference: Optional[dict],
+    r: np.ndarray,
+    azimuth: np.ndarray,
+    elevation: float,
+    final_vel: np.ndarray,
+    flag_vel: np.ndarray,
+    original_velocity: np.ndarray,
+    nyquist_velocity: float,
+    alpha: float,
+    window_azi: int,
+    window_range: int,
+    box_window_range: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Inter-sweep continuity followed by the box check, for one sweep that has
+    already been dealiased in 2-D. Shared by the two Py-ART drivers so that
+    they cannot drift apart again.
+
+    Parameters:
+    ===========
+    reference: dict or None
+        The adjacent, already-processed sweep, with keys 'r', 'azimuth',
+        'elevation', 'velocity' and 'flag'. None for the seed tilt, which has
+        nothing to unfold against but is still box-checked.
+    r, azimuth, elevation: ndarray, ndarray, float
+        Coordinates of the sweep being processed.
+    final_vel, flag_vel: ndarray <azimuth, range>
+        Velocity and flag as returned by the 2-D chain.
+    original_velocity: ndarray <azimuth, range>
+        The folded velocity of this sweep.
+    nyquist_velocity: float
+        Nyquist velocity of this sweep.
+    alpha: float
+        Threshold for the dealiased velocity.
+    window_azi, window_range: int
+        Size of the reference window in the adjacent sweep.
+    box_window_range: int
+        Range window of the final box check.
+
+    Returns:
+    ========
+    final_vel: ndarray <azimuth, range>
+        Dealiased velocity.
+    flag_vel: ndarray int <azimuth, range>
+        Flag array. This is the *post*-3-D flag: gates that only became
+        trustworthy through vertical continuity have to be usable as references
+        by the next tilt, so this is what the caller must hand on.
+    """
+    if reference is not None:
+        final_vel, flag_vel, _, _ = continuity.unfolding_3D(
+            r_swref=reference["r"],
+            azi_swref=reference["azimuth"],
+            elev_swref=reference["elevation"],
+            vel_swref=reference["velocity"],
+            flag_swref=reference["flag"],
+            r_slice=r,
+            azi_slice=azimuth,
+            elev_slice=elevation,
+            velocity_slice=final_vel,
+            flag_slice=flag_vel,
+            original_velocity=original_velocity,
+            vnyq=nyquist_velocity,
+            window_azi=window_azi,
+            window_range=window_range,
+            alpha=alpha,
+        )
+
+    if stage_check("check-box"):
+        final_vel, flag_vel = continuity.box_check(
+            azimuth, final_vel, flag_vel, nyquist_velocity, box_window_range, alpha=alpha
+        )
+
+    return final_vel, flag_vel
+
+
 def unravel_3D_pyart_multiproc(
     radar: pyart.core.Radar,
     velname: str = "VEL",
@@ -300,7 +405,9 @@ def unravel_3D_pyart_multiproc(
 ) -> np.ndarray:
     """
     Process driver.
-    Full dealiasing process 2D + 3D.
+    Full dealiasing process 2D + 3D. The 2-D pass of every sweep runs in
+    parallel, one process per sweep; the 3-D pass is sequential because each
+    sweep is referenced against its already-processed neighbour.
 
     Parameters:
     ===========
@@ -318,7 +425,8 @@ def unravel_3D_pyart_multiproc(
     nyquist_velocity: float or list
         Nyquist velocity.
     alpha: float
-        Threshold for the dealiased velocity. Default is 0.8.
+        Threshold for the dealiased velocity, used by the 2-D chain, the
+        inter-sweep continuity and the box check alike. Default is 0.8.
     do_3d: bool
         If True, run the 3D unfolding process after the 2D dealiasing.
 
@@ -336,19 +444,24 @@ def unravel_3D_pyart_multiproc(
     nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
-    velocity = unmask_array(radar.fields[velname]["data"])
+    velocity = unmask_array(radar.fields[velname]["data"]).copy()
     velocity[gatefilter.gate_excluded] = np.nan
 
     # Build argument list for multiprocessing.
     args_list = []
     r = unmask_array(radar.range["data"])
     for slice_number in range(0, radar.nsweeps):
-        nyquist_velocity = nyquist_list[slice_number]
         sweep = radar.get_slice(slice_number)
-        azi = radar.azimuth["data"][sweep]
-        elev = radar.elevation["data"][sweep].mean()
-        velocity_slice = velocity[sweep]
-        args_list.append((r, azi, elev, velocity_slice, nyquist_velocity, alpha))
+        args_list.append(
+            (
+                r,
+                unmask_array(radar.azimuth["data"][sweep]),
+                unmask_array(radar.elevation["data"][sweep]).mean(),
+                velocity[sweep],
+                nyquist_list[slice_number],
+                alpha,
+            )
+        )
 
     # Run the 2D dealiasing using multiprocessing 1 process per sweep.
     #
@@ -359,56 +472,45 @@ def unravel_3D_pyart_multiproc(
         bag = db.from_sequence(args_list).starmap(dealias_long_range)
     rslt = bag.compute()
 
-    # Run the 3D Unfolding using the first slice as reference.
-    if do_3d:
-        args_list = []
-        sweep = radar.get_slice(0)
-        azimuth_reference = unmask_array(radar.azimuth["data"][sweep])
-        elevation_reference = unmask_array(radar.elevation["data"][sweep].mean())
-        velocity_reference, flag_reference = rslt[0][0], rslt[0][1]
-        unraveled_velocity[radar.get_slice(0)] = velocity_reference.copy()
-        for slice_number in range(1, radar.nsweeps):
-            nyquist_velocity = nyquist_list[slice_number]
-            sweep = radar.get_slice(slice_number)
-            azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
-            elevation_slice = unmask_array(radar.elevation["data"][sweep].mean())
-            final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
+    if not do_3d:
+        for slice_number in range(radar.nsweeps):
+            unraveled_velocity[radar.get_slice(slice_number)] = rslt[slice_number][0]
+        return unraveled_velocity
 
-            final_vel, flag_slice, _, _ = continuity.unfolding_3D(
-                r_swref=r,
-                azi_swref=azimuth_reference,
-                elev_swref=elevation_reference,
-                vel_swref=velocity_reference,
-                flag_swref=flag_reference,
-                r_slice=r,
-                azi_slice=azimuth_slice,
-                elev_slice=elevation_slice,
-                velocity_slice=final_vel,
-                flag_slice=flag_vel,
-                original_velocity=velocity[sweep],
-                vnyq=nyquist_velocity,
-                window_azi=6,
-                window_range=10,
-                alpha=alpha,
-            )
+    # Seed from the highest-Nyquist sweep among the lower half of the tilts: with a
+    # PRF that changes with elevation the lowest tilt is not the one that folds
+    # least. max(1, ...) keeps a single-sweep volume from slicing to nothing.
+    nslice_ref = int(np.argmax(nyquist_list[: max(1, radar.nsweeps // 2)]))
+    processed: dict = {}
+    for slice_number, ref_number in _sweep_processing_order(nslice_ref, radar.nsweeps):
+        sweep = radar.get_slice(slice_number)
+        azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
+        elevation_slice = unmask_array(radar.elevation["data"][sweep]).mean()
+        final_vel, flag_vel = rslt[slice_number][0], rslt[slice_number][1]
 
-            args_list.append((azimuth_slice, final_vel, flag_slice, nyquist_velocity, 20))
-            azimuth_reference = azimuth_slice.copy()
-            velocity_reference = final_vel.copy()
-            flag_reference = flag_vel.copy()
-            elevation_reference = elevation_slice
+        final_vel, flag_vel = _unfold_3d_pyart_slice(
+            processed.get(ref_number),
+            r,
+            azimuth_slice,
+            elevation_slice,
+            final_vel,
+            flag_vel,
+            velocity[sweep],
+            nyquist_list[slice_number],
+            alpha=alpha,
+            window_azi=20,
+            window_range=80,
+            box_window_range=20,
+        )
 
-        # Multiproc box check and saved unravel velocity
-        bag = db.from_sequence(args_list).starmap(continuity.box_check)
-        nrslt = bag.compute()
-
-        for n in range(len(nrslt)):
-            sweep = radar.get_slice(n + 1)
-            unraveled_velocity[sweep] = nrslt[n][0]
-    else:
-        for n in range(len(rslt)):
-            sweep = radar.get_slice(n)
-            unraveled_velocity[sweep] = rslt[n][0]
+        processed[slice_number] = {
+            "r": r,
+            "azimuth": azimuth_slice,
+            "elevation": elevation_slice,
+            "velocity": final_vel,
+            "flag": flag_vel,
+        }
+        unraveled_velocity[sweep] = final_vel.copy()
 
     return unraveled_velocity
 
@@ -447,7 +549,8 @@ def unravel_3D_pyart(
         whole volume. If it is a list, it is expected to be the value of nyquist
         for each sweep.
     alpha: float
-        Threshold for the dealiased velocity. Default is 0.8.
+        Threshold for the dealiased velocity, used by the 2-D chain, the
+        inter-sweep continuity and the box check alike. Default is 0.8.
     do_3d: bool
         If True, run the 3D unfolding process after the 2D dealiasing.
     debug: bool
@@ -458,9 +561,9 @@ def unravel_3D_pyart(
     unraveled_velocity: ndarray
         Dealised velocity field.
     pointbreak: List[str]
-        List of pointbreaks if debug is True, otherwise not returned.
+        List of pointbreaks if debug is True, otherwise not returned. Indexed
+        by sweep, not by processing order.
     """
-    pointbreak = []
     # Check arguments
     if strategy not in ["default", "long_range"]:
         raise ValueError("Dealiasing strategy not understood please choose 'default' or 'long_range'")
@@ -469,87 +572,72 @@ def unravel_3D_pyart(
     nyquist_list = _check_nyquist(radar, nyquist_velocity)
 
     # Read the velocity field.
-    velocity = unmask_array(radar.fields[velname]["data"])
+    velocity = unmask_array(radar.fields[velname]["data"]).copy()
     velocity[gatefilter.gate_excluded] = np.nan
 
-    # Read coordinates and start with the first sweep.
-    sweep = radar.get_slice(0)
     r = unmask_array(radar.range["data"])
-    azimuth_reference = unmask_array(radar.azimuth["data"][sweep])
-    elevation_reference = unmask_array(radar.elevation["data"][sweep]).mean()
-    velocity_reference = velocity[sweep]
-
-    # Dealiasing first sweep.
-    nyquist_velocity = nyquist_list[0]
-    if nyquist_velocity is None:
-        raise ValueError("Nyquist velocity must not be None for dealiasing_process_2D.")
-    if strategy == "default":
-        outargs = dealiasing_process_2D(
-            r, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, debug=debug, **kwargs
-        )
-    else:
-        outargs = dealias_long_range(
-            r, azimuth_reference, elevation_reference, velocity_reference, nyquist_velocity, **kwargs
-        )
-    if len(outargs) == 3:
-        velocity_reference, flag_reference, brake = outargs
-    else:
-        velocity_reference, flag_reference = outargs
-        brake = None
-    pointbreak.append(brake)
-
     unraveled_velocity = np.zeros(radar.fields[velname]["data"].shape)
-    unraveled_velocity[sweep] = velocity_reference.copy()
-    for slice_number in range(1, radar.nsweeps):
-        nyquist_velocity = nyquist_list[slice_number]
-        if nyquist_velocity is None:
+    pointbreak: List = [None] * radar.nsweeps
+
+    dealias_2d = dealiasing_process_2D if strategy == "default" else dealias_long_range
+
+    # Seed from the highest-Nyquist sweep among the lower half of the tilts: with a
+    # PRF that changes with elevation the lowest tilt is not the one that folds
+    # least. max(1, ...) keeps a single-sweep volume from slicing to nothing.
+    nslice_ref = int(np.argmax(nyquist_list[: max(1, radar.nsweeps // 2)]))
+    processed: dict = {}
+
+    for slice_number, ref_number in _sweep_processing_order(nslice_ref, radar.nsweeps):
+        nyquist_sweep = nyquist_list[slice_number]
+        if nyquist_sweep is None:
             raise ValueError("Nyquist velocity must not be None for dealiasing_process_2D.")
+
         sweep = radar.get_slice(slice_number)
         azimuth_slice = unmask_array(radar.azimuth["data"][sweep])
         elevation_slice = unmask_array(radar.elevation["data"][sweep]).mean()
         velocity_slice = velocity[sweep]
 
-        flag_slice = np.zeros_like(velocity_slice) + 1
-        flag_slice[np.isnan(velocity_slice)] = -3
-
-        if strategy == "default":
-            outargs = dealiasing_process_2D(
-                r, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, debug=debug, **kwargs
-            )
-        else:
-            outargs = dealias_long_range(r, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, **kwargs)
+        outargs = dealias_2d(
+            r,
+            azimuth_slice,
+            elevation_slice,
+            velocity_slice,
+            nyquist_sweep,
+            alpha=alpha,
+            debug=debug,
+            **kwargs,
+        )
         if len(outargs) == 3:
             final_vel, flag_vel, brake = outargs
         else:
             final_vel, flag_vel = outargs
             brake = None
-        pointbreak.append(brake)
-
+        pointbreak[slice_number] = brake
         final_vel = unmask_array(final_vel)
+
         if stage_check("3d") and do_3d:
-            final_vel, flag_slice, _, _ = continuity.unfolding_3D(
-                r,
-                azimuth_reference,
-                elevation_reference,
-                velocity_reference,
-                flag_reference,
+            final_vel, flag_vel = _unfold_3d_pyart_slice(
+                processed.get(ref_number),
                 r,
                 azimuth_slice,
                 elevation_slice,
                 final_vel,
                 flag_vel,
-                velocity[sweep],
-                nyquist_velocity,
+                velocity_slice,
+                nyquist_sweep,
                 alpha=alpha,
+                window_azi=20,
+                window_range=80,
+                box_window_range=20,
             )
 
-            if stage_check("check-box"):
-                final_vel, flag_slice = continuity.box_check(azimuth_slice, final_vel, flag_slice, nyquist_velocity)
-            azimuth_reference = azimuth_slice.copy()
-            velocity_reference = final_vel.copy()
-            flag_reference = flag_vel.copy()
-            elevation_reference = elevation_slice
-
+        processed[slice_number] = {
+            "r": r,
+            "azimuth": azimuth_slice,
+            "elevation": elevation_slice,
+            "velocity": final_vel,
+            "flag": flag_vel,
+        }
         unraveled_velocity[sweep] = final_vel.copy()
 
     if debug:

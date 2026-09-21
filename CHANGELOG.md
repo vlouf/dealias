@@ -8,14 +8,23 @@
 - The two Py-ART drivers applied the box check at different points relative to the reference handoff (serial before, multiproc deferred to a separate dask bag), and used different window sizes for both the inter-sweep continuity and the box check. They now share one code path and one window set, taken from `unravel_3D_pyodim`. The box check is no longer parallelised; `box_check_conv` has been the cumulative-sum implementation since 1.5.0, so the cost is small.
 - `velocity[gatefilter.gate_excluded] = np.nan` wrote into the caller's radar object whenever `radar.fields[...]["data"]` was a plain ndarray rather than a MaskedArray, because `unmask_array` returns its argument unchanged in that case. Both drivers now copy first. Same class of bug as the one fixed in `Dealias` in 1.5.1.
 - `unravel_3D_pyart` omitted `debug=debug` on the `long_range` branch, so `debug=True` with that strategy silently returned a list of `None`. `pointbreak` is also now indexed by sweep rather than by processing order.
+- `find_reference_radials` compared beam *indices* on a circle of 360, so the search for the second reference radial was only correct on a sweep with exactly 360 rays. At 720 rays the diametrically opposite beam scored zero instead of the maximum and the second radial landed a quarter turn from the first; at 120 rays the scoring degenerated into "largest index difference", picking a nearly adjacent beam. The circle is now the number of beams.
+- `unravel_3D_pyodim` raised `ValueError: attempt to get argmax of an empty sequence` on a single-sweep volume, because `nyquists[: len(elev_angles) // 2]` sliced to nothing.
+- `unravel_3D_pyodim_slice` gated the 3-D step on `and ds_ref:`, relying on `xr.Dataset.__bool__`; an empty dataset would silently skip inter-sweep continuity. Now an explicit `is not None`, evaluated before `stage_check` so the stage counter is not spent on the seed sweep.
+- Removed the stale `# TODO: pass alpha` in `unravel_3D_pyodim_slice`: alpha is passed on the following line.
 
 ### Added
 - `tests/test_pyart_drivers.py`, including an equivalence test asserting that `unravel_3D_pyart` and `unravel_3D_pyart_multiproc` return the same field.
-- `_sweep_processing_order()` and `_unfold_3d_pyart_slice()`, shared by both Py-ART drivers so they cannot drift apart again.
+- `_sweep_processing_order()` and `_unfold_3d_pyart_slice()`, shared by both Py-ART drivers so they cannot drift apart again. `unravel_3D_pyodim` now uses `_sweep_processing_order()` too, over the elevation-sorted sweeps, which replaces its three separate loops.
+- `tests/test_find_reference.py` and `tests/test_pyodim_driver.py`.
+
+### Changed
+- Documented, rather than removed, the tighter agreement test in `correct_clockwise` / `correct_counterclockwise` (`window_len <= 3`). It is unreachable from both shipped strategies, which iterate from a window of 6 upwards, but it is live for anyone driving `Dealias.correct_clock()` directly, whose default window is 3. Whether the strategies should use it is a question for measurement, not a cleanup.
 
 ### Notes
 - These change the output of both Py-ART drivers. On a synthetic 6-sweep volume with a varying PRF the two drivers disagreed on 12.66% of gates before (1.31% with `do_3d=False`) and are now bit-identical in both configurations. `unravel_3D_pyodim` is untouched and verified bit-identical on a 13-sweep ODIM volume.
-- `_reference_sweep_index()` assumes the sweeps are ordered by increasing elevation, as `unravel_3D_pyodim` already did.
+- The reference-radial fix changes which second radial is chosen on any sweep that is not 360 rays. No end-to-end change was observed on either synthetic volume used here (the second radial only seeds a handful of gates, and those cases are easy), but the selection itself demonstrably moves: on a 120-ray sweep the old scoring ranked a beam 90 degrees away top, the new one picks the one 180 degrees away.
+- `unravel_3D_pyodim` output is unchanged on a 13-sweep ODIM volume, which is 360-ray, so none of these fixes bite on it.
 
 ## [1.6.0](https://github.com/vlouf/dealias/releases/tag/v1.6.0) - 2026-09-16
 ### Added

@@ -744,36 +744,19 @@ def unravel_3D_pyodim(
             )
         vel_name = f"{vel_name}_clean"
 
-    # Looking for low-elevation sweep with the highest Nyquist velocity to use
-    # as reference.
-    elev_angles = [r["elevation"].values[0] for r in radar_datasets]
+    # Seed from the highest-Nyquist sweep among the lower half of the tilts: with
+    # a PRF that changes with elevation the lowest tilt is not the one that folds
+    # least. pyodim returns the sweeps sorted by elevation, so list position is
+    # tilt order; max(1, ...) keeps a single-sweep volume from slicing to nothing.
     nyquists = [r.attrs["NI"] for r in radar_datasets]
-    nslice_ref = np.argmax(nyquists[: len(elev_angles) // 2])
+    nslice_ref = int(np.argmax(nyquists[: max(1, len(radar_datasets) // 2)]))
 
-    # Dealiasing first sweep.
-    radar_datasets[nslice_ref] = unravel_3D_pyodim_slice(
-        radar_datasets[nslice_ref], None, vel_name, strategy, output_vel_name, output_flag_name, alpha, debug
-    )
-
-    # Processing sweeps by decreasing elevations from the nslice_ref sweeps
-    if nslice_ref != 0:
-        for sweep in np.arange(nslice_ref)[::-1]:
-            radar_datasets[sweep] = unravel_3D_pyodim_slice(
-                radar_datasets[sweep],
-                radar_datasets[sweep + 1],
-                vel_name,
-                strategy,
-                output_vel_name,
-                output_flag_name,
-                alpha,
-                debug,
-            )
-
-    # Processing sweeps by increasing elevations from the nslice_ref sweeps
-    for sweep in range(nslice_ref + 1, len(radar_datasets)):
+    # Seed sweep first, then down to the lowest tilt, then up to the highest,
+    # each sweep referenced against its already-processed neighbour.
+    for sweep, reference in _sweep_processing_order(nslice_ref, len(radar_datasets)):
         radar_datasets[sweep] = unravel_3D_pyodim_slice(
             radar_datasets[sweep],
-            radar_datasets[sweep - 1],
+            None if reference is None else radar_datasets[reference],
             vel_name,
             strategy,
             output_vel_name,
@@ -844,7 +827,6 @@ def unravel_3D_pyodim_slice(
 
     log(f"tilt:{elevation_slice:.1f} {ds_sweep.attrs['id']} nv:{nyquist_velocity:.2f}")
 
-    # TODO: pass alpha
     if strategy == "default":
         outputs = dealiasing_process_2D(
             r_slice, azimuth_slice, elevation_slice, velocity_slice, nyquist_velocity, alpha, debug
@@ -860,7 +842,7 @@ def unravel_3D_pyodim_slice(
     else:
         final_vel, flag_vel = outputs
 
-    if stage_check("3d") and ds_ref:
+    if ds_ref is not None and stage_check("3d"):
         r_reference = ds_ref.range.values
         azimuth_reference = ds_ref.azimuth.values
         elevation_reference = ds_ref["elevation"].values[0]

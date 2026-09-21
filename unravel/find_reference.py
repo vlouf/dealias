@@ -58,10 +58,11 @@ def find_reference_radials(velocity: np.ndarray) -> Tuple[int, int]:
         selected = (nvalid_gate_qd >= nsum_moy) & (nvalid_gate_qd > 0)
         return azi[selected][np.argmin(np.nanmean(np.abs(vel[selected]), axis=1))]
 
-    def circular_diff(a: float, b: float, mod=360.0) -> float:
+    def circular_diff(a: float, b: float, mod: float) -> float:
         """
-        called as circular_diff(a, b, 360) gives the positive difference between
-        two angles (in degrees).  cribbed from
+        Positive separation between a and b on a circle of circumference `mod`,
+        i.e. circular_diff(a, b, 360) for angles in degrees, or
+        circular_diff(i, j, azi_count) for beam indices. cribbed from
         https://gamedev.stackexchange.com/questions/4467/comparing-angles-and-working-out-the-difference
         """
         return (mod / 2) - abs(abs(a - b) - (mod / 2))
@@ -121,7 +122,11 @@ def find_reference_radials(velocity: np.ndarray) -> Tuple[int, int]:
         except ValueError:
             nb[i] = start_beam  # the worst we can do
 
-    start_diff = lambda a: circular_diff(start_beam, a)
+    # NB: the beams are compared as indices, so the circle to wrap on is the
+    # number of beams, not 360. With mod=360 a sweep with more (or fewer) than
+    # 360 rays scores the diametrically opposite beam as if it were adjacent,
+    # and the second reference radial lands a quarter turn away instead of half.
+    start_diff = lambda a: circular_diff(start_beam, a, azi_count)
     start_diff_vec = np.vectorize(start_diff)
     end_beam = nb[np.argmax(start_diff_vec(nb))]
 

@@ -1,4 +1,6 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20711799.svg)](https://doi.org/10.5281/zenodo.20711799)
+![PyPI Version](https://img.shields.io/pypi/v/unravel.svg)
+![PyPI dwl](https://img.shields.io/pypi/dm/unravel.svg?label=PyPI%20downloads)
 
 # UNRAVEL
 
